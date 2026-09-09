@@ -21,6 +21,8 @@
             padding: 0;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             user-select: none;
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
         }
 
         body {
@@ -94,6 +96,82 @@
             background: linear-gradient(90deg, #e67e22, #f1c40f, #2ecc71);
             border-radius: 10px;
             transition: width 0.1s linear;
+        }
+
+        /* Модальне вікно офлайн доходу */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.85);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+            padding: 20px;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal-card {
+            background: var(--card-bg);
+            border: 3px solid var(--accent-gold);
+            border-radius: 20px;
+            padding: 25px;
+            max-width: 400px;
+            width: 100%;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.9);
+            animation: modalPop 0.3s ease-out;
+        }
+
+        @keyframes modalPop {
+            0% { transform: scale(0.7); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        .modal-title {
+            color: var(--accent-gold);
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .modal-text {
+            color: #ecf0f1;
+            font-size: 0.95rem;
+            margin-bottom: 15px;
+            line-height: 1.4;
+        }
+
+        .offline-amount {
+            font-size: 2rem;
+            font-weight: 900;
+            color: var(--accent-gold);
+            margin: 15px 0;
+            text-shadow: 0 0 12px rgba(241, 196, 15, 0.6);
+        }
+
+        .modal-btn {
+            background: linear-gradient(180deg, #2ecc71, #27ae60);
+            border: none;
+            color: #fff;
+            padding: 12px 30px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            border-radius: 12px;
+            cursor: pointer;
+            width: 100%;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            transition: transform 0.1s;
+        }
+
+        .modal-btn:active {
+            transform: scale(0.96);
         }
 
         /* Головний Екран Гри */
@@ -223,9 +301,12 @@
             text-shadow: 1px 1px 2px black;
         }
 
+        /* Оптимізація для багатьох пальців та затискання */
         .pig-wrapper {
             position: relative;
             cursor: pointer;
+            touch-action: none;
+            -webkit-tap-highlight-color: transparent;
         }
 
         .pig-image {
@@ -235,11 +316,8 @@
             border-radius: 50%;
             border: 6px solid var(--accent-gold);
             box-shadow: 0 0 35px rgba(241, 196, 15, 0.4);
-            transition: transform 0.08s ease-out;
-        }
-
-        .pig-image:active {
-            transform: scale(0.92);
+            transition: transform 0.05s ease-out;
+            pointer-events: none;
         }
 
         /* Анімація вилітаючих цифр */
@@ -384,6 +462,16 @@
         </div>
     </div>
 
+    <!-- Модальне Вікно Офлайн Доходу -->
+    <div id="offline-modal" class="modal-overlay">
+        <div class="modal-card">
+            <div class="modal-title">🐷 З поверненням!</div>
+            <div class="modal-text">Поки вас не було (<span id="offline-time">0 сек</span>), ваші бізнеси працювали:</div>
+            <div class="offline-amount">+<span id="offline-aura-amount">0</span> ✨</div>
+            <button class="modal-btn" onclick="closeOfflineModal()">Забрати Ауру</button>
+        </div>
+    </div>
+
     <!-- Основна Гра -->
     <div id="game-screen">
         <header>
@@ -410,7 +498,7 @@
                     <div class="energy-text"><span id="energy-bar-text">1000 / 1000</span></div>
                 </div>
 
-                <div class="pig-wrapper" onclick="handlePigClick(event)">
+                <div class="pig-wrapper" id="pig-wrapper">
                     <img id="pig-img" src="хрюндель.jpg" alt="Хрюндель" class="pig-image">
                 </div>
             </div>
@@ -462,14 +550,10 @@
     </div>
 
     <script>
-        // Коефіцієнт подорожчання прокачки за кожен рівень (х1.2)
         const PRICE_MULTIPLIER = 1.2;
-
-        // Базові вартості та бонуси для Аура і Енергія
         const BASE_AURA_COST = 100;
         const BASE_ENERGY_COST = 500;
 
-        // 30 Пасивних Прокачок за Категоріями
         const PASSIVE_UPGRADES = [
             // Імідж та Стиль
             { id: 1, cat: "Імідж та Стиль", name: "1. Стрижка «Чіткий напівбокс»", baseCost: 15, baseCps: 0.5, img: "img/upg1.jpg" },
@@ -512,13 +596,13 @@
             { id: 30, cat: "Бойові Навички", name: "30. Прийом «Вільне качання»", baseCost: 20000000000000, baseCps: 75000000000, img: "img/upg30.jpg" }
         ];
 
-        // Стан гри
         let state = {
             aura: 0,
             energy: 1000,
             auraLvl: 0,
             energyLvl: 0,
-            passives: {} // id -> level
+            passives: {},
+            lastSaveTime: Date.now()
         };
 
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -529,6 +613,19 @@
             if (num >= 1e6) return (num / 1e6).toFixed(2) + 'M';
             if (num >= 1e3) return (num / 1e3).toFixed(1) + 'k';
             return Math.floor(num).toLocaleString('uk-UA');
+        }
+
+        function formatTime(seconds) {
+            seconds = Math.floor(seconds);
+            const hrs = Math.floor(seconds / 3600);
+            const mins = Math.floor((seconds % 3600) / 60);
+            const secs = seconds % 60;
+
+            let parts = [];
+            if (hrs > 0) parts.push(`${hrs} год`);
+            if (mins > 0) parts.push(`${mins} хв`);
+            if (secs > 0 || parts.length === 0) parts.push(`${secs} сек`);
+            return parts.join(' ');
         }
 
         function playClickSound() {
@@ -553,7 +650,6 @@
             osc.stop(now + 0.08);
         }
 
-        // Розрахунок параметрів Аури
         function getAuraPerClick() {
             return 1 + state.auraLvl;
         }
@@ -562,7 +658,6 @@
             return Math.floor(BASE_AURA_COST * Math.pow(PRICE_MULTIPLIER, state.auraLvl));
         }
 
-        // Розрахунок параметрів Енергії
         function getMaxEnergy() {
             return 1000 + (state.energyLvl * 1000);
         }
@@ -571,7 +666,6 @@
             return Math.floor(BASE_ENERGY_COST * Math.pow(PRICE_MULTIPLIER, state.energyLvl));
         }
 
-        // Розрахунок вартість пасивних прокачок (х1.2 за рівень)
         function getPassiveCost(u) {
             const count = state.passives[u.id] || 0;
             return Math.floor(u.baseCost * Math.pow(PRICE_MULTIPLIER, count));
@@ -586,13 +680,13 @@
             return cps;
         }
 
-        // Завантаження / Збереження
         function saveGame() {
-            localStorage.setItem("hrundel_clicker_save_v3", JSON.stringify(state));
+            state.lastSaveTime = Date.now();
+            localStorage.setItem("hrundel_clicker_save_v4", JSON.stringify(state));
         }
 
         function loadGame() {
-            const saved = localStorage.getItem("hrundel_clicker_save_v3");
+            const saved = localStorage.getItem("hrundel_clicker_save_v4") || localStorage.getItem("hrundel_clicker_save_v3");
             if (saved) {
                 try {
                     const parsed = JSON.parse(saved);
@@ -605,7 +699,41 @@
             }
         }
 
-        function handlePigClick(e) {
+        // Обробка офлайн-прогресу
+        function checkOfflineProgress() {
+            const now = Date.now();
+            if (state.lastSaveTime) {
+                const elapsedSeconds = (now - state.lastSaveTime) / 1000;
+                const cps = getTotalCps();
+
+                // Якщо гравця не було більше 5 секунд
+                if (elapsedSeconds >= 5) {
+                    const offlineAura = cps * elapsedSeconds;
+
+                    // Відновлення енергії за офлайн час (30 хв = 1800 сек до макс)
+                    const maxE = getMaxEnergy();
+                    if (state.energy < maxE) {
+                        const regenPerSec = maxE / 1800;
+                        state.energy = Math.min(maxE, state.energy + regenPerSec * elapsedSeconds);
+                    }
+
+                    if (offlineAura > 0) {
+                        state.aura += offlineAura;
+                        document.getElementById('offline-time').innerText = formatTime(elapsedSeconds);
+                        document.getElementById('offline-aura-amount').innerText = formatNum(offlineAura);
+                        document.getElementById('offline-modal').classList.add('active');
+                    }
+                }
+            }
+            state.lastSaveTime = Date.now();
+        }
+
+        function closeOfflineModal() {
+            document.getElementById('offline-modal').classList.remove('active');
+            saveGame();
+        }
+
+        function processTap(x, y) {
             if (state.energy < 1) return;
 
             state.energy -= 1;
@@ -613,9 +741,15 @@
             state.aura += gain;
 
             playClickSound();
-            spawnFloatingText(e.clientX, e.clientY, `+${gain}`);
+            spawnFloatingText(x, y, `+${gain}`);
+
+            const pigImg = document.getElementById('pig-img');
+            pigImg.style.transform = 'scale(0.92)';
+            setTimeout(() => {
+                pigImg.style.transform = 'scale(1)';
+            }, 60);
+
             updateUI();
-            saveGame();
         }
 
         function spawnFloatingText(x, y, text) {
@@ -631,7 +765,17 @@
             }, 800);
         }
 
-        // Купівля прокачки Аура (+1 аура за клік, ціна х1.2)
+        // Ініціалізація мультитачу без блокування
+        function setupMultiTouch() {
+            const pigWrapper = document.getElementById('pig-wrapper');
+
+            // Використовуємо pointerdown: працює незалежно для КОЖНОГО пальця, навіть якщо один затиснутий
+            pigWrapper.addEventListener('pointerdown', (e) => {
+                e.preventDefault();
+                processTap(e.clientX, e.clientY);
+            });
+        }
+
         function buyAuraUpgrade() {
             const cost = getAuraUpgradeCost();
             if (state.aura >= cost) {
@@ -642,7 +786,6 @@
             }
         }
 
-        // Купівля прокачки Енергія (+1000 макс енергії, ціна х1.2, енергія НЕ відновлюється)
         function buyEnergyUpgrade() {
             const cost = getEnergyUpgradeCost();
             if (state.aura >= cost) {
@@ -653,7 +796,6 @@
             }
         }
 
-        // Купівля пасивної прокачки
         function buyPassiveUpgrade(id) {
             const u = PASSIVE_UPGRADES.find(item => item.id === id);
             if (!u) return;
@@ -666,7 +808,6 @@
             }
         }
 
-        // Генерація списку 30 пасивних прокачок
         function renderPassiveUpgrades() {
             const container = document.getElementById('passive-upgrades-container');
             container.innerHTML = '';
@@ -730,7 +871,7 @@
             const pct = Math.max(0, Math.min(100, (state.energy / maxE) * 100));
             document.getElementById('energy-bar-fill').style.width = pct + '%';
 
-            // 1. Оновлення Аура Прокачки
+            // 1. Прокачка Аура
             const auraCost = getAuraUpgradeCost();
             document.getElementById('aura-lvl-badge').innerText = `Рівень ${state.auraLvl}`;
             document.getElementById('aura-upg-desc').innerText = `Поточний ефект: +${getAuraPerClick()} аури/клік`;
@@ -738,7 +879,7 @@
             const auraBtn = document.getElementById('aura-upg-btn');
             auraBtn.disabled = state.aura < auraCost;
 
-            // 2. Оновлення Енергія Прокачки
+            // 2. Прокачка Енергія
             const energyCost = getEnergyUpgradeCost();
             document.getElementById('energy-lvl-badge').innerText = `Рівень ${state.energyLvl}`;
             document.getElementById('energy-upg-desc').innerText = `Макс. Енергія: ${maxE}`;
@@ -746,7 +887,7 @@
             const energyBtn = document.getElementById('energy-upg-btn');
             energyBtn.disabled = state.aura < energyCost;
 
-            // 3. Динамічне оновлення 30 пасивних прокачок
+            // 3. Пасивні Прокачки
             PASSIVE_UPGRADES.forEach(u => {
                 const count = state.passives[u.id] || 0;
                 const cost = getPassiveCost(u);
@@ -763,12 +904,12 @@
             });
         }
 
-        // Головний Ігровий Цикл (0.1 сек)
+        // Ігровий Цикл (0.1 сек)
         setInterval(() => {
             const dt = 0.1;
             const maxE = getMaxEnergy();
 
-            // Відновлення енергії за 30 хвилин (1800 секунд)
+            // Відновлення енергії (30 хвилин = 1800 секунд)
             if (state.energy < maxE) {
                 const regenPerSec = maxE / 1800;
                 state.energy = Math.min(maxE, state.energy + regenPerSec * dt);
@@ -783,13 +924,25 @@
             updateUI();
         }, 100);
 
-        // Автозбереження кожні 5 секунд
-        setInterval(saveGame, 5000);
+        // Автозбереження кожні 3 секунди
+        setInterval(saveGame, 3000);
 
-        // Запуск після завантаження сторінки
+        // Збереження при закритті/згортанні вкладки
+        window.addEventListener('beforeunload', saveGame);
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'hidden') {
+                saveGame();
+            } else if (document.visibilityState === 'visible') {
+                checkOfflineProgress();
+            }
+        });
+
+        // Запуск
         window.onload = function() {
             loadGame();
+            checkOfflineProgress();
             renderPassiveUpgrades();
+            setupMultiTouch();
             updateUI();
 
             const video = document.getElementById('loading-video');
