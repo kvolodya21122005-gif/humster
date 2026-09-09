@@ -180,7 +180,6 @@
             flex-direction: column;
             min-height: 100vh;
             align-items: center;
-            padding-bottom: 30px;
         }
 
         header {
@@ -223,10 +222,11 @@
         .tab-nav {
             display: flex;
             gap: 10px;
-            margin: 20px 0 10px 0;
+            margin: 15px 0 10px 0;
             width: 100%;
             max-width: 550px;
             padding: 0 15px;
+            z-index: 10;
         }
 
         .tab-btn {
@@ -260,15 +260,30 @@
             display: flex;
         }
 
-        /* Клікер Елементи */
+        /* Центрування Клікера на весь екран */
+        #tab-clicker {
+            flex: 1;
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+            height: calc(100vh - 150px);
+            touch-action: none;
+            cursor: pointer;
+        }
+
+        #tab-clicker.active {
+            display: flex;
+        }
+
         .clicker-container {
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            margin-top: 10px;
-            position: relative;
             width: 100%;
+            pointer-events: none;
         }
 
         .energy-bar-wrap {
@@ -279,8 +294,9 @@
             border-radius: 10px;
             border: 1px solid var(--accent-energy);
             overflow: hidden;
-            margin-bottom: 25px;
+            margin-bottom: 35px;
             position: relative;
+            pointer-events: none;
         }
 
         .energy-bar-fill {
@@ -303,9 +319,7 @@
 
         .pig-wrapper {
             position: relative;
-            cursor: pointer;
-            touch-action: none;
-            -webkit-tap-highlight-color: transparent;
+            pointer-events: none;
         }
 
         .pig-image {
@@ -345,6 +359,10 @@
         }
 
         /* Прокачки */
+        #tab-upgrades {
+            padding-bottom: 30px;
+        }
+
         .upgrades-list {
             width: 100%;
             display: flex;
@@ -602,7 +620,7 @@
     </div>
 
     <script>
-        const PRICE_MULTIPLIER = 1.2;
+        const BASE_PRICE_MULTIPLIER = 1.2; // Сталий множник для базових прокачок
         const BASE_AURA_COST = 100;
         const BASE_ENERGY_COST = 500;
         const EVO_COST = 10000000;       // 10M
@@ -707,8 +725,9 @@
             return 1 + state.auraLvl;
         }
 
+        // Базові прокачки залишаються на x1.2 постійно
         function getAuraUpgradeCost() {
-            return Math.floor(BASE_AURA_COST * Math.pow(PRICE_MULTIPLIER, state.auraLvl));
+            return Math.floor(BASE_AURA_COST * Math.pow(BASE_PRICE_MULTIPLIER, state.auraLvl));
         }
 
         function getMaxEnergy() {
@@ -719,20 +738,25 @@
         }
 
         function getEnergyUpgradeCost() {
-            return Math.floor(BASE_ENERGY_COST * Math.pow(PRICE_MULTIPLIER, state.energyLvl));
+            return Math.floor(BASE_ENERGY_COST * Math.pow(BASE_PRICE_MULTIPLIER, state.energyLvl));
         }
 
         function getPostEvoAuraCost() {
-            return Math.floor(NEW_AURA_COST * Math.pow(PRICE_MULTIPLIER, state.postEvoAuraLvl));
+            return Math.floor(NEW_AURA_COST * Math.pow(BASE_PRICE_MULTIPLIER, state.postEvoAuraLvl));
         }
 
         function getPostEvoEnergyCost() {
-            return Math.floor(NEW_ENERGY_COST * Math.pow(PRICE_MULTIPLIER, state.postEvoEnergyLvl));
+            return Math.floor(NEW_ENERGY_COST * Math.pow(BASE_PRICE_MULTIPLIER, state.postEvoEnergyLvl));
         }
 
+        // Ціни на пасивні прокачки збільшуються за прогресією: x1.05, x1.10, x1.15...
         function getPassiveCost(u) {
             const count = state.passives[u.id] || 0;
-            return Math.floor(u.baseCost * Math.pow(PRICE_MULTIPLIER, count));
+            let cost = u.baseCost;
+            for (let i = 1; i <= count; i++) {
+                cost *= (1 + 0.05 * i);
+            }
+            return Math.floor(cost);
         }
 
         function getTotalCps() {
@@ -750,7 +774,6 @@
         }
 
         function loadGame() {
-            // Очищення попередніх версій для повного обнулення прогресу
             localStorage.removeItem("hrundel_clicker_save_v3");
             localStorage.removeItem("hrundel_clicker_save_v4");
             localStorage.removeItem("hrundel_clicker_save_v5");
@@ -772,7 +795,6 @@
             }
         }
 
-        // Обробка та підрахунок офлайн-прогресу при завантаженні
         function calculateOfflineProgress() {
             const now = Date.now();
             if (state.lastSaveTime) {
@@ -849,10 +871,11 @@
             }, 800);
         }
 
+        // Кліки зараховуються по всій області екрану клікера
         function setupMultiTouch() {
-            const pigWrapper = document.getElementById('pig-wrapper');
+            const clickerTab = document.getElementById('tab-clicker');
 
-            pigWrapper.addEventListener('pointerdown', (e) => {
+            clickerTab.addEventListener('pointerdown', (e) => {
                 e.preventDefault();
                 processTap(e.clientX, e.clientY);
             });
@@ -985,7 +1008,6 @@
             const pct = Math.max(0, Math.min(100, (state.energy / maxE) * 100));
             document.getElementById('energy-bar-fill').style.width = pct + '%';
 
-            // Відображення Базових Прокачок до/після Еволюції
             const cardAuraOld = document.getElementById('card-aura-old');
             const cardEnergyOld = document.getElementById('card-energy-old');
             const cardEvo = document.getElementById('card-evolution');
@@ -999,21 +1021,18 @@
                 cardAuraNew.style.display = 'none';
                 cardEnergyNew.style.display = 'none';
 
-                // Стара Аура
                 const auraCost = getAuraUpgradeCost();
                 document.getElementById('aura-lvl-badge').innerText = `Рівень ${state.auraLvl}`;
                 document.getElementById('aura-upg-desc').innerText = `Поточний ефект: +${getAuraPerClick()} аури/клік`;
                 document.getElementById('aura-upg-cost').innerText = `Ціна: ${formatNum(auraCost)} аури`;
                 document.getElementById('aura-upg-btn').disabled = state.aura < auraCost;
 
-                // Стара Енергія
                 const energyCost = getEnergyUpgradeCost();
                 document.getElementById('energy-lvl-badge').innerText = `Рівень ${state.energyLvl}`;
                 document.getElementById('energy-upg-desc').innerText = `Макс. Енергія: ${maxE}`;
                 document.getElementById('energy-upg-cost').innerText = `Ціна: ${formatNum(energyCost)} аури`;
                 document.getElementById('energy-upg-btn').disabled = state.aura < energyCost;
 
-                // Картка Еволюції
                 const reqAuraMet = state.auraLvl >= 50;
                 const reqEnergyMet = state.energyLvl >= 40;
                 const evoReqDesc = document.getElementById('evo-req-desc');
@@ -1028,7 +1047,6 @@
                 cardAuraNew.style.display = 'flex';
                 cardEnergyNew.style.display = 'flex';
 
-                // Нова Аура
                 const auraNewCost = getPostEvoAuraCost();
                 const auraPercent = 10 + (state.postEvoAuraLvl * 1);
                 document.getElementById('aura-new-lvl-badge').innerText = `Рівень ${state.postEvoAuraLvl}`;
@@ -1036,7 +1054,6 @@
                 document.getElementById('aura-new-upg-cost').innerText = `Ціна: ${formatNum(auraNewCost)} аури`;
                 document.getElementById('aura-new-upg-btn').disabled = state.aura < auraNewCost;
 
-                // Нова Енергія
                 const energyNewCost = getPostEvoEnergyCost();
                 document.getElementById('energy-new-lvl-badge').innerText = `Рівень ${state.postEvoEnergyLvl}`;
                 document.getElementById('energy-new-upg-desc').innerText = `Макс. Енергія: ${maxE} (+50/рівень)`;
@@ -1044,7 +1061,6 @@
                 document.getElementById('energy-new-upg-btn').disabled = state.aura < energyNewCost;
             }
 
-            // Пасивні Прокачки
             PASSIVE_UPGRADES.forEach(u => {
                 const count = state.passives[u.id] || 0;
                 const cost = getPassiveCost(u);
