@@ -375,6 +375,12 @@
             box-shadow: 0 4px 10px rgba(0,0,0,0.3);
         }
 
+        .upgrade-card.evo-card {
+            border: 2px solid var(--accent-gold);
+            background: linear-gradient(135deg, #1e1730, #2c1d47);
+            box-shadow: 0 0 15px rgba(241, 196, 15, 0.2);
+        }
+
         .upgrade-img-wrap {
             width: 65px;
             height: 65px;
@@ -508,8 +514,8 @@
                 
                 <div class="category-title">Базові Покращення</div>
 
-                <!-- Прокачка Аура -->
-                <div class="upgrade-card">
+                <!-- Стара Прокачка Аура -->
+                <div class="upgrade-card" id="card-aura-old">
                     <div class="upgrade-img-wrap">
                         <img src="img/aura_click.jpg" alt="Аура" class="upgrade-img" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'65\' height=\'65\' viewBox=\'0 0 65 65\'><rect width=\'65\' height=\'65\' fill=\'%232a1f45\'/><text x=\'50%\' y=\'50%\' dominant-baseline=\'middle\' text-anchor=\'middle\' fill=\'%23f1c40f\' font-size=\'28\'>✨</text></svg>';">
                     </div>
@@ -524,8 +530,8 @@
                     <button class="upgrade-btn" id="aura-upg-btn" onclick="buyAuraUpgrade()">Купити</button>
                 </div>
 
-                <!-- Прокачка Енергія -->
-                <div class="upgrade-card">
+                <!-- Стара Прокачка Енергія -->
+                <div class="upgrade-card" id="card-energy-old">
                     <div class="upgrade-img-wrap">
                         <img src="img/energy_max.jpg" alt="Енергія" class="upgrade-img" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'65\' height=\'65\' viewBox=\'0 0 65 65\'><rect width=\'65\' height=\'65\' fill=\'%231f2a45\'/><text x=\'50%\' y=\'50%\' dominant-baseline=\'middle\' text-anchor=\'middle\' fill=\'%233498db\' font-size=\'28\'>⚡</text></svg>';">
                     </div>
@@ -540,6 +546,54 @@
                     <button class="upgrade-btn" id="energy-upg-btn" onclick="buyEnergyUpgrade()">Купити</button>
                 </div>
 
+                <!-- Еволюція "Аура" -->
+                <div class="upgrade-card evo-card" id="card-evolution">
+                    <div class="upgrade-img-wrap">
+                        <img src="img/evo_aura.jpg" alt="Еволюція" class="upgrade-img" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'65\' height=\'65\' viewBox=\'0 0 65 65\'><rect width=\'65\' height=\'65\' fill=\'%233a1f45\'/><text x=\'50%\' y=\'50%\' dominant-baseline=\'middle\' text-anchor=\'middle\' fill=\'%23f1c40f\' font-size=\'28\'>🧬</text></svg>';">
+                    </div>
+                    <div class="upgrade-info">
+                        <div class="upgrade-title">
+                            🧬 Еволюція "Аура"
+                        </div>
+                        <div class="upgrade-desc">Клік = 10% від фарма/сек, Енергія = 1000</div>
+                        <div class="upgrade-desc" id="evo-req-desc" style="color: #e74c3c;">Вимоги: Аура 0/50, Енергія 0/40</div>
+                        <div class="upgrade-desc" style="color: var(--accent-gold);">Ціна: 10M аури</div>
+                    </div>
+                    <button class="upgrade-btn" id="evo-btn" onclick="buyEvolution()">Еволюція</button>
+                </div>
+
+                <!-- Нова Прокачка Аура (Після Еволюції) -->
+                <div class="upgrade-card" id="card-aura-new" style="display: none;">
+                    <div class="upgrade-img-wrap">
+                        <img src="img/aura_click_evo.jpg" alt="Супер Аура" class="upgrade-img" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'65\' height=\'65\' viewBox=\'0 0 65 65\'><rect width=\'65\' height=\'65\' fill=\'%232a1f45\'/><text x=\'50%\' y=\'50%\' dominant-baseline=\'middle\' text-anchor=\'middle\' fill=\'%23f1c40f\' font-size=\'28\'>✨</text></svg>';">
+                    </div>
+                    <div class="upgrade-info">
+                        <div class="upgrade-title">
+                            ✨ Прокачка "Супер Аура"
+                            <span class="upgrade-level-badge" id="aura-new-lvl-badge">Рівень 0</span>
+                        </div>
+                        <div class="upgrade-desc" id="aura-new-upg-desc">Ефект: 10% від фарма/сек</div>
+                        <div class="upgrade-desc" style="color: var(--accent-gold);" id="aura-new-upg-cost">Ціна: 15M аури</div>
+                    </div>
+                    <button class="upgrade-btn" id="aura-new-upg-btn" onclick="buyPostEvoAuraUpgrade()">Купити</button>
+                </div>
+
+                <!-- Нова Прокачка Енергія (Після Еволюції) -->
+                <div class="upgrade-card" id="card-energy-new" style="display: none;">
+                    <div class="upgrade-img-wrap">
+                        <img src="img/energy_max_evo.jpg" alt="Супер Енергія" class="upgrade-img" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'65\' height=\'65\' viewBox=\'0 0 65 65\'><rect width=\'65\' height=\'65\' fill=\'%231f2a45\'/><text x=\'50%\' y=\'50%\' dominant-baseline=\'middle\' text-anchor=\'middle\' fill=\'%233498db\' font-size=\'28\'>⚡</text></svg>';">
+                    </div>
+                    <div class="upgrade-info">
+                        <div class="upgrade-title">
+                            ⚡ Прокачка "Супер Енергія"
+                            <span class="upgrade-level-badge" id="energy-new-lvl-badge">Рівень 0</span>
+                        </div>
+                        <div class="upgrade-desc" id="energy-new-upg-desc">Макс. Енергія: 1000</div>
+                        <div class="upgrade-desc" style="color: var(--accent-gold);" id="energy-new-upg-cost">Ціна: 25M аури</div>
+                    </div>
+                    <button class="upgrade-btn" id="energy-new-upg-btn" onclick="buyPostEvoEnergyUpgrade()">Купити</button>
+                </div>
+
                 <!-- Контейнер для активних пасивних прокачок -->
                 <div id="passive-upgrades-container"></div>
 
@@ -551,6 +605,9 @@
         const PRICE_MULTIPLIER = 1.2;
         const BASE_AURA_COST = 100;
         const BASE_ENERGY_COST = 500;
+        const EVO_COST = 10000000;       // 10M
+        const NEW_AURA_COST = 15000000;  // 15M
+        const NEW_ENERGY_COST = 25000000; // 25M
 
         const PASSIVE_UPGRADES = [
             // Імідж та Стиль
@@ -589,6 +646,9 @@
             energy: 1000,
             auraLvl: 0,
             energyLvl: 0,
+            hasEvolved: false,
+            postEvoAuraLvl: 0,
+            postEvoEnergyLvl: 0,
             passives: {},
             lastSaveTime: Date.now()
         };
@@ -600,7 +660,7 @@
             if (num >= 1e12) return (num / 1e12).toFixed(2) + 'T';
             if (num >= 1e6) return (num / 1e6).toFixed(2) + 'M';
             if (num >= 1e3) return (num / 1e3).toFixed(1) + 'k';
-            return Math.floor(num).toLocaleString('uk-UA');
+            return (num % 1 !== 0 ? num.toFixed(1) : Math.floor(num)).toLocaleString('uk-UA');
         }
 
         function formatTime(seconds) {
@@ -639,6 +699,11 @@
         }
 
         function getAuraPerClick() {
+            if (state.hasEvolved) {
+                const cps = getTotalCps();
+                const pct = 0.10 + (state.postEvoAuraLvl * 0.01);
+                return Math.max(1, cps * pct);
+            }
             return 1 + state.auraLvl;
         }
 
@@ -647,11 +712,22 @@
         }
 
         function getMaxEnergy() {
+            if (state.hasEvolved) {
+                return 1000 + (state.postEvoEnergyLvl * 50);
+            }
             return 1000 + (state.energyLvl * 1000);
         }
 
         function getEnergyUpgradeCost() {
             return Math.floor(BASE_ENERGY_COST * Math.pow(PRICE_MULTIPLIER, state.energyLvl));
+        }
+
+        function getPostEvoAuraCost() {
+            return Math.floor(NEW_AURA_COST * Math.pow(PRICE_MULTIPLIER, state.postEvoAuraLvl));
+        }
+
+        function getPostEvoEnergyCost() {
+            return Math.floor(NEW_ENERGY_COST * Math.pow(PRICE_MULTIPLIER, state.postEvoEnergyLvl));
         }
 
         function getPassiveCost(u) {
@@ -687,6 +763,10 @@
                 } catch(e) {}
             }
             if (!state.passives) state.passives = {};
+            if (state.hasEvolved === undefined) state.hasEvolved = false;
+            if (state.postEvoAuraLvl === undefined) state.postEvoAuraLvl = 0;
+            if (state.postEvoEnergyLvl === undefined) state.postEvoEnergyLvl = 0;
+
             if (state.energy > getMaxEnergy()) {
                 state.energy = getMaxEnergy();
             }
@@ -745,7 +825,7 @@
             state.aura += gain;
 
             playClickSound();
-            spawnFloatingText(x, y, `+${gain}`);
+            spawnFloatingText(x, y, `+${formatNum(gain)}`);
 
             const pigImg = document.getElementById('pig-img');
             pigImg.style.transform = 'scale(0.92)';
@@ -793,6 +873,38 @@
             if (state.aura >= cost) {
                 state.aura -= cost;
                 state.energyLvl += 1;
+                updateUI();
+                saveGame();
+            }
+        }
+
+        function buyEvolution() {
+            if (!state.hasEvolved && state.auraLvl >= 50 && state.energyLvl >= 40 && state.aura >= EVO_COST) {
+                state.aura -= EVO_COST;
+                state.hasEvolved = true;
+                if (state.energy > getMaxEnergy()) {
+                    state.energy = getMaxEnergy();
+                }
+                updateUI();
+                saveGame();
+            }
+        }
+
+        function buyPostEvoAuraUpgrade() {
+            const cost = getPostEvoAuraCost();
+            if (state.aura >= cost) {
+                state.aura -= cost;
+                state.postEvoAuraLvl += 1;
+                updateUI();
+                saveGame();
+            }
+        }
+
+        function buyPostEvoEnergyUpgrade() {
+            const cost = getPostEvoEnergyCost();
+            if (state.aura >= cost) {
+                state.aura -= cost;
+                state.postEvoEnergyLvl += 1;
                 updateUI();
                 saveGame();
             }
@@ -873,23 +985,66 @@
             const pct = Math.max(0, Math.min(100, (state.energy / maxE) * 100));
             document.getElementById('energy-bar-fill').style.width = pct + '%';
 
-            // 1. Прокачка Аура
-            const auraCost = getAuraUpgradeCost();
-            document.getElementById('aura-lvl-badge').innerText = `Рівень ${state.auraLvl}`;
-            document.getElementById('aura-upg-desc').innerText = `Поточний ефект: +${getAuraPerClick()} аури/клік`;
-            document.getElementById('aura-upg-cost').innerText = `Ціна: ${formatNum(auraCost)} аури`;
-            const auraBtn = document.getElementById('aura-upg-btn');
-            auraBtn.disabled = state.aura < auraCost;
+            // Відображення Базових Прокачок до/після Еволюції
+            const cardAuraOld = document.getElementById('card-aura-old');
+            const cardEnergyOld = document.getElementById('card-energy-old');
+            const cardEvo = document.getElementById('card-evolution');
+            const cardAuraNew = document.getElementById('card-aura-new');
+            const cardEnergyNew = document.getElementById('card-energy-new');
 
-            // 2. Прокачка Енергія
-            const energyCost = getEnergyUpgradeCost();
-            document.getElementById('energy-lvl-badge').innerText = `Рівень ${state.energyLvl}`;
-            document.getElementById('energy-upg-desc').innerText = `Макс. Енергія: ${maxE}`;
-            document.getElementById('energy-upg-cost').innerText = `Ціна: ${formatNum(energyCost)} аури`;
-            const energyBtn = document.getElementById('energy-upg-btn');
-            energyBtn.disabled = state.aura < energyCost;
+            if (!state.hasEvolved) {
+                cardAuraOld.style.display = 'flex';
+                cardEnergyOld.style.display = 'flex';
+                cardEvo.style.display = 'flex';
+                cardAuraNew.style.display = 'none';
+                cardEnergyNew.style.display = 'none';
 
-            // 3. Пасивні Прокачки
+                // Стара Аура
+                const auraCost = getAuraUpgradeCost();
+                document.getElementById('aura-lvl-badge').innerText = `Рівень ${state.auraLvl}`;
+                document.getElementById('aura-upg-desc').innerText = `Поточний ефект: +${getAuraPerClick()} аури/клік`;
+                document.getElementById('aura-upg-cost').innerText = `Ціна: ${formatNum(auraCost)} аури`;
+                document.getElementById('aura-upg-btn').disabled = state.aura < auraCost;
+
+                // Стара Енергія
+                const energyCost = getEnergyUpgradeCost();
+                document.getElementById('energy-lvl-badge').innerText = `Рівень ${state.energyLvl}`;
+                document.getElementById('energy-upg-desc').innerText = `Макс. Енергія: ${maxE}`;
+                document.getElementById('energy-upg-cost').innerText = `Ціна: ${formatNum(energyCost)} аури`;
+                document.getElementById('energy-upg-btn').disabled = state.aura < energyCost;
+
+                // Картка Еволюції
+                const reqAuraMet = state.auraLvl >= 50;
+                const reqEnergyMet = state.energyLvl >= 40;
+                const evoReqDesc = document.getElementById('evo-req-desc');
+                evoReqDesc.innerText = `Вимоги: Аура ${state.auraLvl}/50, Енергія ${state.energyLvl}/40`;
+                evoReqDesc.style.color = (reqAuraMet && reqEnergyMet) ? '#2ecc71' : '#e74c3c';
+
+                document.getElementById('evo-btn').disabled = !(reqAuraMet && reqEnergyMet && state.aura >= EVO_COST);
+            } else {
+                cardAuraOld.style.display = 'none';
+                cardEnergyOld.style.display = 'none';
+                cardEvo.style.display = 'none';
+                cardAuraNew.style.display = 'flex';
+                cardEnergyNew.style.display = 'flex';
+
+                // Нова Аура
+                const auraNewCost = getPostEvoAuraCost();
+                const auraPercent = 10 + (state.postEvoAuraLvl * 1);
+                document.getElementById('aura-new-lvl-badge').innerText = `Рівень ${state.postEvoAuraLvl}`;
+                document.getElementById('aura-new-upg-desc').innerText = `Ефект: ${auraPercent}% від фарма/сек за клік`;
+                document.getElementById('aura-new-upg-cost').innerText = `Ціна: ${formatNum(auraNewCost)} аури`;
+                document.getElementById('aura-new-upg-btn').disabled = state.aura < auraNewCost;
+
+                // Нова Енергія
+                const energyNewCost = getPostEvoEnergyCost();
+                document.getElementById('energy-new-lvl-badge').innerText = `Рівень ${state.postEvoEnergyLvl}`;
+                document.getElementById('energy-new-upg-desc').innerText = `Макс. Енергія: ${maxE} (+50/рівень)`;
+                document.getElementById('energy-new-upg-cost').innerText = `Ціна: ${formatNum(energyNewCost)} аури`;
+                document.getElementById('energy-new-upg-btn').disabled = state.aura < energyNewCost;
+            }
+
+            // Пасивні Прокачки
             PASSIVE_UPGRADES.forEach(u => {
                 const count = state.passives[u.id] || 0;
                 const cost = getPassiveCost(u);
@@ -960,7 +1115,6 @@
                         loadingScreen.style.display = 'none';
                         document.getElementById('game-screen').style.display = 'flex';
                         updateUI();
-                        // Відображення вікна офлайн-доходу ТІЛЬКИ ПІСЛЯ закриття екрану завантаження
                         displayOfflineModalIfAvailable();
                     }, 400);
                 } else {
