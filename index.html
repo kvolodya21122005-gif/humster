@@ -4,6 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Pet Simulator - Осінній Гай та Стартова Локація</title>
+    
+    <!-- Рядок для інтеграції з Telegram Mini App -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
     <style>
         :root {
             --bg-color: #1e1b2e;
@@ -842,13 +846,6 @@
             { count: 10, cost: 240000000 }
         ];
 
-        // Updated Egg Data & Prices based on requested rarities:
-        // 10%-1.01%: epic
-        // 1/100-1/9999 (1%-0.01%): legendary
-        // 1/10000-1/499999: mythic
-        // 1/500k-9.99m: divine (Божественний)
-        // 1/10m-99.99m: celestial (Небесний)
-        // 1/100m+: absolute (Абсолютний)
         const EGG_DATA = {
             1: {
                 name: "Звичайне Осіннє Яйце",
@@ -972,6 +969,12 @@
         }
 
         window.onload = function() {
+            // Ініціалізація Telegram Mini App
+            if (window.Telegram && window.Telegram.WebApp) {
+                window.Telegram.WebApp.ready();
+                window.Telegram.WebApp.expand();
+            }
+
             loadGame();
             renderEggs();
             renderUI();
