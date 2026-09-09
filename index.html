@@ -552,7 +552,6 @@
         const BASE_AURA_COST = 100;
         const BASE_ENERGY_COST = 500;
 
-        // Активні пасивні прокачки із оновленими цінами, доходом та без номерів у назвах
         const PASSIVE_UPGRADES = [
             // Імідж та Стиль
             { id: 1, cat: "Імідж та Стиль", name: "Стрижка «Чіткий напівбокс»", baseCost: 60, baseCps: 1, img: "img/upg1.jpg" },
@@ -674,7 +673,11 @@
         }
 
         function loadGame() {
-            const saved = localStorage.getItem("hrundel_clicker_save_v5") || localStorage.getItem("hrundel_clicker_save_v6");
+            // Очищення старих збережень для повного обнулення прогресу
+            localStorage.removeItem("hrundel_clicker_save_v3");
+            localStorage.removeItem("hrundel_clicker_save_v4");
+
+            const saved = localStorage.getItem("hrundel_clicker_save_v5");
             if (saved) {
                 try {
                     const parsed = JSON.parse(saved);
@@ -707,7 +710,12 @@
                         state.aura += offlineAura;
                         document.getElementById('offline-time').innerText = formatTime(elapsedSeconds);
                         document.getElementById('offline-aura-amount').innerText = formatNum(offlineAura);
-                        document.getElementById('offline-modal').classList.add('active');
+                        
+                        // Гарантований виклик модального вікна
+                        const modal = document.getElementById('offline-modal');
+                        if (modal) {
+                            modal.classList.add('active');
+                        }
                     }
                 }
             }
@@ -914,6 +922,7 @@
                 saveGame();
             } else if (document.visibilityState === 'visible') {
                 checkOfflineProgress();
+                updateUI();
             }
         });
 
@@ -938,6 +947,7 @@
                     setTimeout(() => {
                         loadingScreen.style.display = 'none';
                         document.getElementById('game-screen').style.display = 'flex';
+                        // Запуск перевірки офлайн-доходу та виклик модального вікна ЧІТКО ПІСЛЯ завершення завантаження
                         checkOfflineProgress();
                         updateUI();
                     }, 400);
