@@ -98,7 +98,7 @@
             transition: width 0.1s linear;
         }
 
-        /* Модальне вікно офлайн доходу */
+        /* Модальні вікна */
         .modal-overlay {
             position: fixed;
             top: 0;
@@ -469,6 +469,56 @@
             cursor: not-allowed;
             opacity: 0.6;
         }
+
+        /* Лідерборд Стилі */
+        .leaderboard-list {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .leaderboard-item {
+            background: var(--card-bg);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: 14px;
+            padding: 14px 18px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        }
+
+        .leaderboard-item.is-player {
+            border: 2px solid var(--accent-gold);
+            background: linear-gradient(135deg, #1e1730, #2c1d47);
+            box-shadow: 0 0 15px rgba(241, 196, 15, 0.3);
+        }
+
+        .leaderboard-rank {
+            font-weight: 900;
+            font-size: 1.2rem;
+            width: 40px;
+            color: var(--accent-gold);
+        }
+
+        .leaderboard-name {
+            font-weight: bold;
+            font-size: 1rem;
+            flex-grow: 1;
+            margin: 0 10px;
+            color: #fff;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .leaderboard-cps {
+            color: #2ecc71;
+            font-weight: bold;
+            font-size: 0.95rem;
+        }
     </style>
 </head>
 <body>
@@ -481,6 +531,16 @@
             <div class="progress-bar-container">
                 <div id="loading-progress-bar" class="progress-bar-fill"></div>
             </div>
+        </div>
+    </div>
+
+    <!-- Модальне Вікно Першого Входу (Ввід Нікнейму) -->
+    <div id="nickname-modal" class="modal-overlay">
+        <div class="modal-card">
+            <div class="modal-title">🐷 Вітаємо в грі!</div>
+            <div class="modal-text">Придумайте собі нікнейм для лідерборду:</div>
+            <input type="text" id="nickname-input" placeholder="Ваш нікнейм..." maxlength="15" style="width: 100%; padding: 12px; border-radius: 10px; border: 2px solid var(--accent-gold); background: #110d1a; color: #fff; font-size: 1rem; margin-bottom: 15px; text-align: center; outline: none;">
+            <button class="modal-btn" onclick="saveNickname()">Зберегти та грати</button>
         </div>
     </div>
 
@@ -510,6 +570,7 @@
         <div class="tab-nav">
             <button class="tab-btn active" onclick="switchTab('clicker')">🐷 Клікер</button>
             <button class="tab-btn" onclick="switchTab('upgrades')">⚡ Прокачки</button>
+            <button class="tab-btn" onclick="switchTab('leaderboard')">🏆 Топ</button>
         </div>
 
         <!-- Вкладка Клікер -->
@@ -617,6 +678,13 @@
 
             </div>
         </div>
+
+        <!-- Вкладка Лідерборд -->
+        <div id="tab-leaderboard" class="tab-content">
+            <div class="category-title" style="width: 100%; text-align: center;">🏆 Топ гравців за доходом</div>
+            <div id="leaderboard-list" class="leaderboard-list"></div>
+        </div>
+
     </div>
 
     <script>
@@ -626,6 +694,18 @@
         const EVO_COST = 10000000;       // 10M
         const NEW_AURA_COST = 15000000;  // 15M
         const NEW_ENERGY_COST = 25000000; // 25M
+
+        const MOCK_LEADERBOARD = [
+            { name: "МегаХряк_99", cps: 5000000 },
+            { name: "СвинМагнат", cps: 1200000 },
+            { name: "Трюфельний_Барон", cps: 250000 },
+            { name: "КабанОлігарх", cps: 45000 },
+            { name: "СальнийКороль", cps: 8000 },
+            { name: "ЗолотийП'ятачок", cps: 1200 },
+            { name: "БорзийХряк", cps: 250 },
+            { name: "ХрюшаPro", cps: 35 },
+            { name: "Ноб_Свиня", cps: 2 }
+        ];
 
         const PASSIVE_UPGRADES = [
             // Імідж та Стиль
@@ -660,6 +740,7 @@
         ];
 
         let state = {
+            nickname: "",
             aura: 0,
             energy: 1000,
             auraLvl: 0,
@@ -725,7 +806,6 @@
             return 1 + state.auraLvl;
         }
 
-        // Базові прокачки залишаються на x1.2 постійно
         function getAuraUpgradeCost() {
             return Math.floor(BASE_AURA_COST * Math.pow(BASE_PRICE_MULTIPLIER, state.auraLvl));
         }
@@ -749,7 +829,6 @@
             return Math.floor(NEW_ENERGY_COST * Math.pow(BASE_PRICE_MULTIPLIER, state.postEvoEnergyLvl));
         }
 
-        // Ціни на пасивні прокачки збільшуються за прогресією: x1.05, x1.10, x1.15...
         function getPassiveCost(u) {
             const count = state.passives[u.id] || 0;
             let cost = u.baseCost;
@@ -770,15 +849,11 @@
 
         function saveGame() {
             state.lastSaveTime = Date.now();
-            localStorage.setItem("hrundel_clicker_save_v6", JSON.stringify(state));
+            localStorage.setItem("hrundel_clicker_save_v7", JSON.stringify(state));
         }
 
         function loadGame() {
-            localStorage.removeItem("hrundel_clicker_save_v3");
-            localStorage.removeItem("hrundel_clicker_save_v4");
-            localStorage.removeItem("hrundel_clicker_save_v5");
-
-            const saved = localStorage.getItem("hrundel_clicker_save_v6");
+            const saved = localStorage.getItem("hrundel_clicker_save_v7") || localStorage.getItem("hrundel_clicker_save_v6");
             if (saved) {
                 try {
                     const parsed = JSON.parse(saved);
@@ -789,10 +864,24 @@
             if (state.hasEvolved === undefined) state.hasEvolved = false;
             if (state.postEvoAuraLvl === undefined) state.postEvoAuraLvl = 0;
             if (state.postEvoEnergyLvl === undefined) state.postEvoEnergyLvl = 0;
+            if (!state.nickname) state.nickname = "";
 
             if (state.energy > getMaxEnergy()) {
                 state.energy = getMaxEnergy();
             }
+        }
+
+        function saveNickname() {
+            const input = document.getElementById('nickname-input');
+            let val = input.value.trim();
+            if (!val) {
+                val = "Хрюндель_" + Math.floor(Math.random() * 8999 + 1000);
+            }
+            state.nickname = val;
+            saveGame();
+            document.getElementById('nickname-modal').classList.remove('active');
+            displayOfflineModalIfAvailable();
+            renderLeaderboard();
         }
 
         function calculateOfflineProgress() {
@@ -871,7 +960,6 @@
             }, 800);
         }
 
-        // Кліки зараховуються по всій області екрану клікера
         function setupMultiTouch() {
             const clickerTab = document.getElementById('tab-clicker');
 
@@ -983,16 +1071,57 @@
             });
         }
 
+        function renderLeaderboard() {
+            const list = document.getElementById('leaderboard-list');
+            if (!list) return;
+
+            const currentCps = getTotalCps();
+            const playerEntry = {
+                name: state.nickname || "Гравець",
+                cps: currentCps,
+                isPlayer: true
+            };
+
+            let allPlayers = [...MOCK_LEADERBOARD, playerEntry];
+            allPlayers.sort((a, b) => b.cps - a.cps);
+
+            list.innerHTML = '';
+            allPlayers.forEach((p, index) => {
+                const rank = index + 1;
+                let rankIcon = `#${rank}`;
+                if (rank === 1) rankIcon = '🥇';
+                else if (rank === 2) rankIcon = '🥈';
+                else if (rank === 3) rankIcon = '🥉';
+
+                const item = document.createElement('div');
+                item.className = `leaderboard-item ${p.isPlayer ? 'is-player' : ''}`;
+                item.innerHTML = `
+                    <div class="leaderboard-rank">${rankIcon}</div>
+                    <div class="leaderboard-name">${p.name}${p.isPlayer ? ' (Ви)' : ''}</div>
+                    <div class="leaderboard-cps">+${formatNum(p.cps)}/сек</div>
+                `;
+                list.appendChild(item);
+            });
+        }
+
         function switchTab(tabName) {
             document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
             document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
 
-            if (tabName === 'clicker') {
-                document.querySelectorAll('.tab-btn')[0].classList.add('active');
-                document.getElementById('tab-clicker').classList.add('active');
-            } else {
-                document.querySelectorAll('.tab-btn')[1].classList.add('active');
-                document.getElementById('tab-upgrades').classList.add('active');
+            const tabMap = {
+                'clicker': 0,
+                'upgrades': 1,
+                'leaderboard': 2
+            };
+
+            const index = tabMap[tabName];
+            if (index !== undefined) {
+                document.querySelectorAll('.tab-btn')[index].classList.add('active');
+                document.getElementById(`tab-${tabName}`).classList.add('active');
+            }
+
+            if (tabName === 'leaderboard') {
+                renderLeaderboard();
             }
         }
 
@@ -1075,6 +1204,10 @@
                 if (costEl) costEl.innerText = `Ціна: ${formatNum(cost)} аури`;
                 if (btn) btn.disabled = state.aura < cost;
             });
+
+            if (document.getElementById('tab-leaderboard').classList.contains('active')) {
+                renderLeaderboard();
+            }
         }
 
         // Ігровий Цикл (0.1 сек)
@@ -1104,7 +1237,9 @@
             } else if (document.visibilityState === 'visible') {
                 calculateOfflineProgress();
                 updateUI();
-                displayOfflineModalIfAvailable();
+                if (state.nickname) {
+                    displayOfflineModalIfAvailable();
+                }
             }
         });
 
@@ -1123,20 +1258,28 @@
             function finishLoading() {
                 if (finished) return;
                 finished = true;
+
+                const showGameScreen = () => {
+                    document.getElementById('game-screen').style.display = 'flex';
+                    updateUI();
+
+                    if (!state.nickname || state.nickname.trim() === "") {
+                        document.getElementById('nickname-modal').classList.add('active');
+                    } else {
+                        displayOfflineModalIfAvailable();
+                    }
+                };
+
                 const loadingScreen = document.getElementById('loading-screen');
                 if (loadingScreen) {
                     loadingScreen.style.opacity = '0';
                     loadingScreen.style.transition = 'opacity 0.4s ease';
                     setTimeout(() => {
                         loadingScreen.style.display = 'none';
-                        document.getElementById('game-screen').style.display = 'flex';
-                        updateUI();
-                        displayOfflineModalIfAvailable();
+                        showGameScreen();
                     }, 400);
                 } else {
-                    document.getElementById('game-screen').style.display = 'flex';
-                    updateUI();
-                    displayOfflineModalIfAvailable();
+                    showGameScreen();
                 }
             }
 
