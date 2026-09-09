@@ -121,25 +121,33 @@
 
         .stat-badge {
             display: flex;
+            flex-direction: column;
             align-items: center;
-            gap: 8px;
-            font-size: 1.2rem;
+            justify-content: center;
+            font-size: 1.1rem;
             font-weight: bold;
             background: rgba(0,0,0,0.3);
             padding: 8px 16px;
             border-radius: 20px;
             border: 1px solid rgba(255,255,255,0.1);
+            min-width: 130px;
         }
 
         .stat-badge.aura { color: var(--accent-gold); border-color: var(--accent-gold); }
         .stat-badge.energy { color: var(--accent-energy); border-color: var(--accent-energy); }
+        
+        .stat-subtext {
+            font-size: 0.75rem;
+            color: #2ecc71;
+            margin-top: 2px;
+        }
 
         .tab-nav {
             display: flex;
             gap: 10px;
             margin: 20px 0 10px 0;
             width: 100%;
-            max-width: 500px;
+            max-width: 550px;
             padding: 0 15px;
         }
 
@@ -164,7 +172,7 @@
         .tab-content {
             display: none;
             width: 100%;
-            max-width: 500px;
+            max-width: 550px;
             padding: 0 15px;
             flex-direction: column;
             align-items: center;
@@ -269,31 +277,63 @@
             margin-top: 10px;
         }
 
+        .category-title {
+            color: var(--accent-gold);
+            font-size: 1.2rem;
+            margin-top: 15px;
+            margin-bottom: 5px;
+            border-bottom: 2px solid var(--accent-purple);
+            padding-bottom: 4px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
         .upgrade-card {
             background: var(--card-bg);
             border: 2px solid rgba(255, 255, 255, 0.1);
             border-radius: 14px;
-            padding: 15px;
+            padding: 12px;
             display: flex;
-            justify-content: space-between;
+            gap: 12px;
             align-items: center;
             box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        }
+
+        /* Плейсхолдер та блок для зображення прокачки */
+        .upgrade-img-wrap {
+            width: 65px;
+            height: 65px;
+            min-width: 65px;
+            border-radius: 10px;
+            border: 2px solid var(--accent-purple);
+            overflow: hidden;
+            background: #110d1a;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .upgrade-img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
         }
 
         .upgrade-info {
             display: flex;
             flex-direction: column;
-            gap: 4px;
+            gap: 3px;
+            flex-grow: 1;
         }
 
         .upgrade-title {
-            font-size: 1.1rem;
+            font-size: 1rem;
             font-weight: bold;
-            color: var(--accent-gold);
+            color: #fff;
         }
 
         .upgrade-desc {
-            font-size: 0.85rem;
+            font-size: 0.8rem;
             color: #aaa;
         }
 
@@ -301,12 +341,13 @@
             background: linear-gradient(180deg, #2ecc71, #27ae60);
             border: none;
             color: #fff;
-            padding: 10px 16px;
+            padding: 10px 14px;
             border-radius: 8px;
             font-weight: bold;
-            font-size: 0.95rem;
+            font-size: 0.85rem;
             cursor: pointer;
             transition: opacity 0.2s, transform 0.1s;
+            white-space: nowrap;
         }
 
         .upgrade-btn:hover:not(:disabled) {
@@ -336,8 +377,14 @@
     <!-- Основна Гра -->
     <div id="game-screen">
         <header>
-            <div class="stat-badge aura">✨ <span id="aura-count">0</span></div>
-            <div class="stat-badge energy">⚡ <span id="energy-count">1000</span></div>
+            <div class="stat-badge aura">
+                <div>✨ <span id="aura-count">0</span></div>
+                <div class="stat-subtext">+<span id="cps-count">0</span>/сек</div>
+            </div>
+            <div class="stat-badge energy">
+                <div>⚡ <span id="energy-count">1000</span></div>
+                <div class="stat-subtext" style="color: #3498db;">відновл. 30хв</div>
+            </div>
         </header>
 
         <div class="tab-nav">
@@ -363,8 +410,13 @@
         <div id="tab-upgrades" class="tab-content">
             <div class="upgrades-list">
                 
+                <div class="category-title">Базові Покращення</div>
+
                 <!-- Прокачка Аура -->
                 <div class="upgrade-card">
+                    <div class="upgrade-img-wrap">
+                        <img src="img/aura_click.jpg" alt="Аура" class="upgrade-img" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'65\' height=\'65\' viewBox=\'0 0 65 65\'><rect width=\'65\' height=\'65\' fill=\'%232a1f45\'/><text x=\'50%\' y=\'50%\' dominant-baseline=\'middle\' text-anchor=\'middle\' fill=\'%23f1c40f\' font-size=\'28\'>✨</text></svg>';">
+                    </div>
                     <div class="upgrade-info">
                         <div class="upgrade-title">✨ Прокачка "Аура"</div>
                         <div class="upgrade-desc" id="aura-upg-desc">Рівень: 0 | Ефект: +1 аура/клік</div>
@@ -375,6 +427,9 @@
 
                 <!-- Прокачка Енергія -->
                 <div class="upgrade-card">
+                    <div class="upgrade-img-wrap">
+                        <img src="img/energy_max.jpg" alt="Енергія" class="upgrade-img" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'65\' height=\'65\' viewBox=\'0 0 65 65\'><rect width=\'65\' height=\'65\' fill=\'%231f2a45\'/><text x=\'50%\' y=\'50%\' dominant-baseline=\'middle\' text-anchor=\'middle\' fill=\'%233498db\' font-size=\'28\'>⚡</text></svg>';">
+                    </div>
                     <div class="upgrade-info">
                         <div class="upgrade-title">⚡ Прокачка "Енергія"</div>
                         <div class="upgrade-desc" id="energy-upg-desc">Рівень: 0 | Макс. Енергія: 1000</div>
@@ -383,12 +438,15 @@
                     <button class="upgrade-btn" id="energy-upg-btn" onclick="buyEnergyUpgrade()">Купити</button>
                 </div>
 
+                <!-- Динамічний список 30 пасивних прокачок -->
+                <div id="passive-upgrades-container"></div>
+
             </div>
         </div>
     </div>
 
     <script>
-        // Дані прокачок
+        // Дані базових прокачок
         const AURA_UPGRADES = [
             { lvl: 1, cost: 100, val: 2 },
             { lvl: 2, cost: 250, val: 3 },
@@ -408,16 +466,67 @@
             { lvl: 4, cost: 20000, val: 5000 }
         ];
 
+        // 30 Пасивних Прокачок за Категоріями
+        const PASSIVE_UPGRADES = [
+            // Імідж та Стиль
+            { id: 1, cat: "Імідж та Стиль", name: "1. Стрижка «Чіткий напівбокс»", baseCost: 15, baseCps: 0.5, img: "img/upg1.jpg" },
+            { id: 2, cat: "Імідж та Стиль", name: "2. Золота цепура «100 грам»", baseCost: 100, baseCps: 3, img: "img/upg2.jpg" },
+            { id: 3, cat: "Імідж та Стиль", name: "3. Спортивка з трикотажу", baseCost: 500, baseCps: 15, img: "img/upg3.jpg" },
+            { id: 4, cat: "Імідж та Стиль", name: "4. Лаковані мешті для авторитету", baseCost: 2000, baseCps: 50, img: "img/upg4.jpg" },
+            { id: 5, cat: "Імідж та Стиль", name: "5. Гель для щетини «Сталевий хряк»", baseCost: 7000, baseCps: 150, img: "img/upg5.jpg" },
+            { id: 6, cat: "Імідж та Стиль", name: "6. Сонячні окуляри «Бос загону»", baseCost: 20000, baseCps: 400, img: "img/upg6.jpg" },
+
+            // Трюфелі та Крипто-Бізнес
+            { id: 7, cat: "Трюфелі та Крипто-Бізнес", name: "7. Трюфельний майнінг-риг", baseCost: 50000, baseCps: 900, img: "img/upg7.jpg" },
+            { id: 8, cat: "Трюфелі та Крипто-Бізнес", name: "8. Акції м'ясокомбінату", baseCost: 120000, baseCps: 2000, img: "img/upg8.jpg" },
+            { id: 9, cat: "Трюфелі та Крипто-Бізнес", name: "9. Автоматичний роздавач комбікорму", baseCost: 300000, baseCps: 4500, img: "img/upg9.jpg" },
+            { id: 10, cat: "Трюфелі та Крипто-Бізнес", name: "10. Офшорна свиноферма", baseCost: 750000, baseCps: 10000, img: "img/upg10.jpg" },
+            { id: 11, cat: "Трюфелі та Крипто-Бізнес", name: "11. Монополія на жолуді", baseCost: 1800000, baseCps: 22000, img: "img/upg11.jpg" },
+            { id: 12, cat: "Трюфелі та Крипто-Бізнес", name: "12. Токенізація сало-фонду", baseCost: 4500000, baseCps: 50000, img: "img/upg12.jpg" },
+
+            // Вуличний Авторитет
+            { id: 13, cat: "Вуличний Авторитет", name: "13. Кришування сусіднього хліва", baseCost: 10000000, baseCps: 110000, img: "img/upg13.jpg" },
+            { id: 14, cat: "Вуличний Авторитет", name: "14. Братва з диких кабанів", baseCost: 25000000, baseCps: 250000, img: "img/upg14.jpg" },
+            { id: 15, cat: "Вуличний Авторитет", name: "15. Переговори у багнюці", baseCost: 60000000, baseCps: 550000, img: "img/upg15.jpg" },
+            { id: 16, cat: "Вуличний Авторитет", name: "16. Контроль головного корита", baseCost: 140000000, baseCps: 1200000, img: "img/upg16.jpg" },
+            { id: 17, cat: "Вуличний Авторитет", name: "17. Охорона загону", baseCost: 320000000, baseCps: 2600000, img: "img/upg17.jpg" },
+            { id: 18, cat: "Вуличний Авторитет", name: "18. Чітки з кісточок", baseCost: 750000000, baseCps: 5800000, img: "img/upg18.jpg" },
+
+            // Раціон та Енергія
+            { id: 19, cat: "Раціон та Енергія", name: "19. Відро добірного пійла", baseCost: 1700000000, baseCps: 12000000, img: "img/upg19.jpg" },
+            { id: 20, cat: "Раціон та Енергія", name: "20. Елітні трюфелі на сніданок", baseCost: 4000000000, baseCps: 27000000, img: "img/upg20.jpg" },
+            { id: 21, cat: "Раціон та Енергія", name: "21. Енергетик «Дикий Хряк»", baseCost: 9500000000, baseCps: 60000000, img: "img/upg21.jpg" },
+            { id: 22, cat: "Раціон та Енергія", name: "22. Преміальний вітамінний премікс", baseCost: 22000000000, baseCps: 130000000, img: "img/upg22.jpg" },
+            { id: 23, cat: "Раціон та Енергія", name: "23. Силосний бустер", baseCost: 50000000000, baseCps: 280000000, img: "img/upg23.jpg" },
+            { id: 24, cat: "Раціон та Енергія", name: "24. Протеїнові жолуді", baseCost: 120000000000, baseCps: 620000000, img: "img/upg24.jpg" },
+
+            // Бойові Навички
+            { id: 25, cat: "Бойові Навички", name: "25. Удар п'ятачком «Залізний таран»", baseCost: 280000000000, baseCps: 1300000000, img: "img/upg25.jpg" },
+            { id: 26, cat: "Бойові Навички", name: "26. Сальний хук справа", baseCost: 650000000000, baseCps: 2900000000, img: "img/upg26.jpg" },
+            { id: 27, cat: "Бойові Навички", name: "27. Броньоване черевце", baseCost: 1500000000000, baseCps: 6500000000, img: "img/upg27.jpg" },
+            { id: 28, cat: "Бойові Навички", name: "28. Загартування у багнюці", baseCost: 3500000000000, baseCps: 14500000000, img: "img/upg28.jpg" },
+            { id: 29, cat: "Бойові Навички", name: "29. Захисний шар щетини", baseCost: 8000000000000, baseCps: 32000000000, img: "img/upg29.jpg" },
+            { id: 30, cat: "Бойові Навички", name: "30. Прийом «Вільне качання»", baseCost: 20000000000000, baseCps: 75000000000, img: "img/upg30.jpg" }
+        ];
+
         // Стан гри
         let state = {
             aura: 0,
             energy: 1000,
             auraLvl: 0,
             energyLvl: 0,
-            lastTick: Date.now()
+            passives: {} // id -> level
         };
 
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        function formatNum(num) {
+            if (num >= 1e12) return (num / 1e12).toFixed(2) + 'T';
+            if (num >= 1e9) return (num / 1e9).toFixed(2) + 'B';
+            if (num >= 1e6) return (num / 1e6).toFixed(2) + 'M';
+            if (num >= 1e3) return (num / 1e3).toFixed(1) + 'k';
+            return Math.floor(num).toLocaleString('uk-UA');
+        }
 
         function playClickSound() {
             if (audioCtx.state === 'suspended') {
@@ -451,25 +560,39 @@
             return AURA_UPGRADES[state.auraLvl - 1].val;
         }
 
+        function getTotalCps() {
+            let cps = 0;
+            PASSIVE_UPGRADES.forEach(u => {
+                const count = state.passives[u.id] || 0;
+                cps += count * u.baseCps;
+            });
+            return cps;
+        }
+
+        function getPassiveCost(u) {
+            const count = state.passives[u.id] || 0;
+            return Math.floor(u.baseCost * Math.pow(1.15, count));
+        }
+
         // Завантаження / Збереження
         function saveGame() {
-            localStorage.setItem("hrundel_clicker_save_v1", JSON.stringify(state));
+            localStorage.setItem("hrundel_clicker_save_v2", JSON.stringify(state));
         }
 
         function loadGame() {
-            const saved = localStorage.getItem("hrundel_clicker_save_v1");
+            const saved = localStorage.getItem("hrundel_clicker_save_v2");
             if (saved) {
                 try {
                     const parsed = JSON.parse(saved);
                     state = Object.assign(state, parsed);
                 } catch(e) {}
             }
+            if (!state.passives) state.passives = {};
             if (state.energy > getMaxEnergy()) {
                 state.energy = getMaxEnergy();
             }
         }
 
-        // Обробник кліку по Хрюнделю
         function handlePigClick(e) {
             if (state.energy < 1) return;
 
@@ -496,7 +619,6 @@
             }, 800);
         }
 
-        // Покупка покращення Аури
         function buyAuraUpgrade() {
             if (state.auraLvl >= AURA_UPGRADES.length) return;
             const nextUpg = AURA_UPGRADES[state.auraLvl];
@@ -508,20 +630,65 @@
             }
         }
 
-        // Покупка покращення Енергії
         function buyEnergyUpgrade() {
             if (state.energyLvl >= ENERGY_UPGRADES.length) return;
             const nextUpg = ENERGY_UPGRADES[state.energyLvl];
             if (state.aura >= nextUpg.cost) {
                 state.aura -= nextUpg.cost;
                 state.energyLvl += 1;
-                state.energy = getMaxEnergy(); // заповнюємо при покупці
+                // Енергія НЕ відновлюється миттєво при покупці за вимогою
                 updateUI();
                 saveGame();
             }
         }
 
-        // Перемикання вкладок
+        function buyPassiveUpgrade(id) {
+            const u = PASSIVE_UPGRADES.find(item => item.id === id);
+            if (!u) return;
+            const cost = getPassiveCost(u);
+            if (state.aura >= cost) {
+                state.aura -= cost;
+                state.passives[id] = (state.passives[id] || 0) + 1;
+                updateUI();
+                saveGame();
+            }
+        }
+
+        function renderPassiveUpgrades() {
+            const container = document.getElementById('passive-upgrades-container');
+            container.innerHTML = '';
+
+            let currentCategory = '';
+
+            PASSIVE_UPGRADES.forEach(u => {
+                if (u.cat !== currentCategory) {
+                    currentCategory = u.cat;
+                    const catEl = document.createElement('div');
+                    catEl.className = 'category-title';
+                    catEl.innerText = currentCategory;
+                    container.appendChild(catEl);
+                }
+
+                const count = state.passives[u.id] || 0;
+                const cost = getPassiveCost(u);
+
+                const card = document.createElement('div');
+                card.className = 'upgrade-card';
+                card.innerHTML = `
+                    <div class="upgrade-img-wrap">
+                        <img src="${u.img}" alt="${u.name}" class="upgrade-img" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'65\\' height=\\'65\\' viewBox=\\'0 0 65 65\\'><rect width=\\'65\\' height=\\'65\\' fill=\\'%23251a3a\\'/><text x=\\'50%\\' y=\\'50%\\' dominant-baseline=\\'middle\\' text-anchor=\\'middle\\' fill=\\'%239b59b6\\' font-size=\\'20\\' font-weight=\\'bold\\'>${u.id}</text></svg>';">
+                    </div>
+                    <div class="upgrade-info">
+                        <div class="upgrade-title">${u.name}</div>
+                        <div class="upgrade-desc">Рівень: ${count} | +${formatNum(u.baseCps)} аури/сек</div>
+                        <div class="upgrade-desc" style="color: var(--accent-gold);">Ціна: ${formatNum(cost)} аури</div>
+                    </div>
+                    <button class="upgrade-btn" id="passive-btn-${u.id}" onclick="buyPassiveUpgrade(${u.id})">Купити</button>
+                `;
+                container.appendChild(card);
+            });
+        }
+
         function switchTab(tabName) {
             document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
             document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
@@ -535,18 +702,19 @@
             }
         }
 
-        // Оновлення UI
         function updateUI() {
             const maxE = getMaxEnergy();
-            document.getElementById('aura-count').innerText = Math.floor(state.aura).toLocaleString('uk-UA');
+            const totalCps = getTotalCps();
+
+            document.getElementById('aura-count').innerText = formatNum(state.aura);
+            document.getElementById('cps-count').innerText = formatNum(totalCps);
             document.getElementById('energy-count').innerText = Math.floor(state.energy);
 
             document.getElementById('energy-bar-text').innerText = `${Math.floor(state.energy)} / ${maxE}`;
             const pct = Math.max(0, Math.min(100, (state.energy / maxE) * 100));
             document.getElementById('energy-bar-fill').style.width = pct + '%';
 
-            // Оновлення карток прокачок
-            // 1. Аура
+            // 1. Аура Клік
             const auraDesc = document.getElementById('aura-upg-desc');
             const auraCost = document.getElementById('aura-upg-cost');
             const auraBtn = document.getElementById('aura-upg-btn');
@@ -559,12 +727,12 @@
             } else {
                 const nextAura = AURA_UPGRADES[state.auraLvl];
                 auraDesc.innerText = `Рівень: ${state.auraLvl} | Наст. ефект: +${nextAura.val} аури/клік`;
-                auraCost.innerText = `Ціна: ${nextAura.cost.toLocaleString('uk-UA')} аури`;
+                auraCost.innerText = `Ціна: ${formatNum(nextAura.cost)} аури`;
                 auraBtn.disabled = state.aura < nextAura.cost;
                 auraBtn.innerText = "Купити";
             }
 
-            // 2. Енергія
+            // 2. Енергія Макс
             const energyDesc = document.getElementById('energy-upg-desc');
             const energyCost = document.getElementById('energy-upg-cost');
             const energyBtn = document.getElementById('energy-upg-btn');
@@ -577,25 +745,48 @@
             } else {
                 const nextEnergy = ENERGY_UPGRADES[state.energyLvl];
                 energyDesc.innerText = `Рівень: ${state.energyLvl} | Наст. Макс. Енергія: ${nextEnergy.val}`;
-                energyCost.innerText = `Ціна: ${nextEnergy.cost.toLocaleString('uk-UA')} аури`;
+                energyCost.innerText = `Ціна: ${formatNum(nextEnergy.cost)} аури`;
                 energyBtn.disabled = state.aura < nextEnergy.cost;
                 energyBtn.innerText = "Купити";
             }
+
+            // 3. Пасивні Прокачки
+            PASSIVE_UPGRADES.forEach(u => {
+                const btn = document.getElementById(`passive-btn-${u.id}`);
+                if (btn) {
+                    const cost = getPassiveCost(u);
+                    btn.disabled = state.aura < cost;
+                }
+            });
         }
 
-        // Цикл відновлення енергії (повна відновлюваність за 5 хвилин = 300 секунд)
+        // Головний Ігровий Цикл (0.1 сек)
         setInterval(() => {
+            const dt = 0.1;
             const maxE = getMaxEnergy();
+
+            // Відновлення енергії: 30 хвилин (1800 секунд) для повного відновлення від 0 до maxE
             if (state.energy < maxE) {
-                const regenPerSec = maxE / 300; // за 5 хвилин до 100%
-                state.energy = Math.min(maxE, state.energy + regenPerSec * 0.2);
-                updateUI();
+                const regenPerSec = maxE / 1800; // 30 хвилин = 1800s
+                state.energy = Math.min(maxE, state.energy + regenPerSec * dt);
             }
-        }, 200);
+
+            // Нарахування Пасивного Доходу (Аура/сек)
+            const cps = getTotalCps();
+            if (cps > 0) {
+                state.aura += cps * dt;
+            }
+
+            updateUI();
+        }, 100);
+
+        // Автозбереження кожні 5 секунд
+        setInterval(saveGame, 5000);
 
         // Старт заставки
         window.onload = function() {
             loadGame();
+            renderPassiveUpgrades();
             updateUI();
 
             const video = document.getElementById('loading-video');
@@ -619,7 +810,7 @@
             }
 
             if (video) {
-                video.play().catch(e => console.log("Автовідтворення блоковано браузером:", e));
+                video.play().catch(e => console.log("Автовідтворення блоковано:", e));
 
                 video.addEventListener('timeupdate', () => {
                     if (video.duration && video.duration > 0) {
