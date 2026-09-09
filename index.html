@@ -301,7 +301,6 @@
             text-shadow: 1px 1px 2px black;
         }
 
-        /* Оптимізація для багатьох пальців та затискання */
         .pig-wrapper {
             position: relative;
             cursor: pointer;
@@ -320,7 +319,6 @@
             pointer-events: none;
         }
 
-        /* Анімація вилітаючих цифр */
         .floating-text {
             position: absolute;
             font-weight: 900;
@@ -542,7 +540,7 @@
                     <button class="upgrade-btn" id="energy-upg-btn" onclick="buyEnergyUpgrade()">Купити</button>
                 </div>
 
-                <!-- Динамічний список 30 пасивних прокачок -->
+                <!-- Контейнер для активних пасивних прокачок -->
                 <div id="passive-upgrades-container"></div>
 
             </div>
@@ -554,46 +552,37 @@
         const BASE_AURA_COST = 100;
         const BASE_ENERGY_COST = 500;
 
+        // Активні пасивні прокачки із оновленими цінами, доходом та без номерів у назвах
         const PASSIVE_UPGRADES = [
             // Імідж та Стиль
-            { id: 1, cat: "Імідж та Стиль", name: "1. Стрижка «Чіткий напівбокс»", baseCost: 15, baseCps: 0.5, img: "img/upg1.jpg" },
-            { id: 2, cat: "Імідж та Стиль", name: "2. Золота цепура «100 грам»", baseCost: 100, baseCps: 3, img: "img/upg2.jpg" },
-            { id: 3, cat: "Імідж та Стиль", name: "3. Спортивка з трикотажу", baseCost: 500, baseCps: 15, img: "img/upg3.jpg" },
-            { id: 4, cat: "Імідж та Стиль", name: "4. Лаковані мешті для авторитету", baseCost: 2000, baseCps: 50, img: "img/upg4.jpg" },
-            { id: 5, cat: "Імідж та Стиль", name: "5. Гель для щетини «Сталевий хряк»", baseCost: 7000, baseCps: 150, img: "img/upg5.jpg" },
-            { id: 6, cat: "Імідж та Стиль", name: "6. Сонячні окуляри «Бос загону»", baseCost: 20000, baseCps: 400, img: "img/upg6.jpg" },
+            { id: 1, cat: "Імідж та Стиль", name: "Стрижка «Чіткий напівбокс»", baseCost: 60, baseCps: 1, img: "img/upg1.jpg" },
+            { id: 2, cat: "Імідж та Стиль", name: "Золота цепура «100 грам»", baseCost: 100, baseCps: 1, img: "img/upg2.jpg" },
+            { id: 3, cat: "Імідж та Стиль", name: "Спортивка з трикотажу", baseCost: 650, baseCps: 5, img: "img/upg3.jpg" },
+            { id: 4, cat: "Імідж та Стиль", name: "Лаковані мешті для авторитету", baseCost: 1400, baseCps: 10, img: "img/upg4.jpg" },
+            { id: 5, cat: "Імідж та Стиль", name: "Гель для щетини «Сталевий хряк»", baseCost: 2500, baseCps: 12, img: "img/upg5.jpg" },
+            { id: 6, cat: "Імідж та Стиль", name: "Сонячні окуляри «Бос загону»", baseCost: 8000, baseCps: 35, img: "img/upg6.jpg" },
 
             // Трюфелі та Крипто-Бізнес
-            { id: 7, cat: "Трюфелі та Крипто-Бізнес", name: "7. Трюфельний майнінг-риг", baseCost: 50000, baseCps: 900, img: "img/upg7.jpg" },
-            { id: 8, cat: "Трюфелі та Крипто-Бізнес", name: "8. Акції м'ясокомбінату", baseCost: 120000, baseCps: 2000, img: "img/upg8.jpg" },
-            { id: 9, cat: "Трюфелі та Крипто-Бізнес", name: "9. Автоматичний роздавач комбікорму", baseCost: 300000, baseCps: 4500, img: "img/upg9.jpg" },
-            { id: 10, cat: "Трюфелі та Крипто-Бізнес", name: "10. Офшорна свиноферма", baseCost: 750000, baseCps: 10000, img: "img/upg10.jpg" },
-            { id: 11, cat: "Трюфелі та Крипто-Бізнес", name: "11. Монополія на жолуді", baseCost: 1800000, baseCps: 22000, img: "img/upg11.jpg" },
-            { id: 12, cat: "Трюфелі та Крипто-Бізнес", name: "12. Токенізація сало-фонду", baseCost: 4500000, baseCps: 50000, img: "img/upg12.jpg" },
+            { id: 7, cat: "Трюфелі та Крипто-Бізнес", name: "Трюфельний майнінг-риг", baseCost: 25000, baseCps: 75, img: "img/upg7.jpg" },
+            { id: 8, cat: "Трюфелі та Крипто-Бізнес", name: "Акції м'ясокомбінату", baseCost: 32000, baseCps: 80, img: "img/upg8.jpg" },
+            { id: 9, cat: "Трюфелі та Крипто-Бізнес", name: "Автоматичний роздавач комбікорму", baseCost: 120000, baseCps: 220, img: "img/upg9.jpg" },
+            { id: 10, cat: "Трюфелі та Крипто-Бізнес", name: "Офшорна свиноферма", baseCost: 500000, baseCps: 650, img: "img/upg10.jpg" },
+            { id: 11, cat: "Трюфелі та Крипто-Бізнес", name: "Монополія на жолуді", baseCost: 400000, baseCps: 250, img: "img/upg11.jpg" },
+            { id: 12, cat: "Трюфелі та Крипто-Бізнес", name: "Токенізація сало-фонду", baseCost: 1000000, baseCps: 600, img: "img/upg12.jpg" },
 
             // Вуличний Авторитет
-            { id: 13, cat: "Вуличний Авторитет", name: "13. Кришування сусіднього хліва", baseCost: 10000000, baseCps: 110000, img: "img/upg13.jpg" },
-            { id: 14, cat: "Вуличний Авторитет", name: "14. Братва з диких кабанів", baseCost: 25000000, baseCps: 250000, img: "img/upg14.jpg" },
-            { id: 15, cat: "Вуличний Авторитет", name: "15. Переговори у багнюці", baseCost: 60000000, baseCps: 550000, img: "img/upg15.jpg" },
-            { id: 16, cat: "Вуличний Авторитет", name: "16. Контроль головного корита", baseCost: 140000000, baseCps: 1200000, img: "img/upg16.jpg" },
-            { id: 17, cat: "Вуличний Авторитет", name: "17. Охорона загону", baseCost: 320000000, baseCps: 2600000, img: "img/upg17.jpg" },
-            { id: 18, cat: "Вуличний Авторитет", name: "18. Чітки з кісточок", baseCost: 750000000, baseCps: 5800000, img: "img/upg18.jpg" },
+            { id: 13, cat: "Вуличний Авторитет", name: "Кришування сусіднього хліва", baseCost: 20000, baseCps: 45, img: "img/upg13.jpg" },
+            { id: 14, cat: "Вуличний Авторитет", name: "Братва з диких кабанів", baseCost: 100000, baseCps: 90, img: "img/upg14.jpg" },
 
             // Раціон та Енергія
-            { id: 19, cat: "Раціон та Енергія", name: "19. Відро добірного пійла", baseCost: 1700000000, baseCps: 12000000, img: "img/upg19.jpg" },
-            { id: 20, cat: "Раціон та Енергія", name: "20. Елітні трюфелі на сніданок", baseCost: 4000000000, baseCps: 27000000, img: "img/upg20.jpg" },
-            { id: 21, cat: "Раціон та Енергія", name: "21. Енергетик «Дикий Хряк»", baseCost: 9500000000, baseCps: 60000000, img: "img/upg21.jpg" },
-            { id: 22, cat: "Раціон та Енергія", name: "22. Преміальний вітамінний премікс", baseCost: 22000000000, baseCps: 130000000, img: "img/upg22.jpg" },
-            { id: 23, cat: "Раціон та Енергія", name: "23. Силосний бустер", baseCost: 50000000000, baseCps: 280000000, img: "img/upg23.jpg" },
-            { id: 24, cat: "Раціон та Енергія", name: "24. Протеїнові жолуді", baseCost: 120000000000, baseCps: 620000000, img: "img/upg24.jpg" },
+            { id: 19, cat: "Раціон та Енергія", name: "Відро добірного пійла", baseCost: 4000, baseCps: 5, img: "img/upg19.jpg" },
+            { id: 20, cat: "Раціон та Енергія", name: "Елітні трюфелі на сніданок", baseCost: 15000, baseCps: 12, img: "img/upg20.jpg" },
+            { id: 21, cat: "Раціон та Енергія", name: "Енергетик «Дикий Хряк»", baseCost: 500000, baseCps: 150, img: "img/upg21.jpg" },
 
             // Бойові Навички
-            { id: 25, cat: "Бойові Навички", name: "25. Удар п'ятачком «Залізний таран»", baseCost: 280000000000, baseCps: 1300000000, img: "img/upg25.jpg" },
-            { id: 26, cat: "Бойові Навички", name: "26. Сальний хук справа", baseCost: 650000000000, baseCps: 2900000000, img: "img/upg26.jpg" },
-            { id: 27, cat: "Бойові Навички", name: "27. Броньоване черевце", baseCost: 1500000000000, baseCps: 6500000000, img: "img/upg27.jpg" },
-            { id: 28, cat: "Бойові Навички", name: "28. Загартування у багнюці", baseCost: 3500000000000, baseCps: 14500000000, img: "img/upg28.jpg" },
-            { id: 29, cat: "Бойові Навички", name: "29. Захисний шар щетини", baseCost: 8000000000000, baseCps: 32000000000, img: "img/upg29.jpg" },
-            { id: 30, cat: "Бойові Навички", name: "30. Прийом «Вільне качання»", baseCost: 20000000000000, baseCps: 75000000000, img: "img/upg30.jpg" }
+            { id: 25, cat: "Бойові Навички", name: "Удар п'ятачком «Залізний таран»", baseCost: 2000000, baseCps: 700, img: "img/upg25.jpg" },
+            { id: 26, cat: "Бойові Навички", name: "Сальний хук справа", baseCost: 2500000, baseCps: 650, img: "img/upg26.jpg" },
+            { id: 27, cat: "Бойові Навички", name: "Броньоване черевце", baseCost: 4000000, baseCps: 850, img: "img/upg27.jpg" }
         ];
 
         let state = {
@@ -609,7 +598,6 @@
 
         function formatNum(num) {
             if (num >= 1e12) return (num / 1e12).toFixed(2) + 'T';
-            if (num >= 1e9) return (num / 1e9).toFixed(2) + 'B';
             if (num >= 1e6) return (num / 1e6).toFixed(2) + 'M';
             if (num >= 1e3) return (num / 1e3).toFixed(1) + 'k';
             return Math.floor(num).toLocaleString('uk-UA');
@@ -706,11 +694,9 @@
                 const elapsedSeconds = (now - state.lastSaveTime) / 1000;
                 const cps = getTotalCps();
 
-                // Якщо гравця не було більше 5 секунд
                 if (elapsedSeconds >= 5) {
                     const offlineAura = cps * elapsedSeconds;
 
-                    // Відновлення енергії за офлайн час (30 хв = 1800 сек до макс)
                     const maxE = getMaxEnergy();
                     if (state.energy < maxE) {
                         const regenPerSec = maxE / 1800;
@@ -765,11 +751,9 @@
             }, 800);
         }
 
-        // Ініціалізація мультитачу без блокування
         function setupMultiTouch() {
             const pigWrapper = document.getElementById('pig-wrapper');
 
-            // Використовуємо pointerdown: працює незалежно для КОЖНОГО пальця, навіть якщо один затиснутий
             pigWrapper.addEventListener('pointerdown', (e) => {
                 e.preventDefault();
                 processTap(e.clientX, e.clientY);
@@ -830,7 +814,7 @@
                 card.className = 'upgrade-card';
                 card.innerHTML = `
                     <div class="upgrade-img-wrap">
-                        <img src="${u.img}" alt="${u.name}" class="upgrade-img" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'65\\' height=\\'65\\' viewBox=\\'0 0 65 65\\'><rect width=\\'65\\' height=\\'65\\' fill=\\'%23251a3a\\'/><text x=\\'50%\\' y=\\'50%\\' dominant-baseline=\\'middle\\' text-anchor=\\'middle\\' fill=\\'%239b59b6\\' font-size=\\'20\\' font-weight=\\'bold\\'>${u.id}</text></svg>';">
+                        <img src="${u.img}" alt="${u.name}" class="upgrade-img" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'65\\' height=\\'65\\' viewBox=\\'0 0 65 65\\'><rect width=\\'65\\' height=\\'65\\' fill=\\'%23251a3a\\'/><text x=\\'50%\\' y=\\'50%\\' dominant-baseline=\\'middle\\' text-anchor=\\'middle\\' fill=\\'%239b59b6\\' font-size=\\'20\\' font-weight=\\'bold\\'>✨</text></svg>';">
                     </div>
                     <div class="upgrade-info">
                         <div class="upgrade-title">
@@ -909,13 +893,11 @@
             const dt = 0.1;
             const maxE = getMaxEnergy();
 
-            // Відновлення енергії (30 хвилин = 1800 секунд)
             if (state.energy < maxE) {
                 const regenPerSec = maxE / 1800;
                 state.energy = Math.min(maxE, state.energy + regenPerSec * dt);
             }
 
-            // Нарахування Пасивного Доходу
             const cps = getTotalCps();
             if (cps > 0) {
                 state.aura += cps * dt;
@@ -924,10 +906,8 @@
             updateUI();
         }, 100);
 
-        // Автозбереження кожні 3 секунди
         setInterval(saveGame, 3000);
 
-        // Збереження при закритті/згортанні вкладки
         window.addEventListener('beforeunload', saveGame);
         document.addEventListener('visibilitychange', () => {
             if (document.visibilityState === 'hidden') {
@@ -937,10 +917,9 @@
             }
         });
 
-        // Запуск
+        // Запуск після завантаження вікна
         window.onload = function() {
             loadGame();
-            checkOfflineProgress();
             renderPassiveUpgrades();
             setupMultiTouch();
             updateUI();
@@ -959,9 +938,13 @@
                     setTimeout(() => {
                         loadingScreen.style.display = 'none';
                         document.getElementById('game-screen').style.display = 'flex';
+                        checkOfflineProgress();
+                        updateUI();
                     }, 400);
                 } else {
                     document.getElementById('game-screen').style.display = 'flex';
+                    checkOfflineProgress();
+                    updateUI();
                 }
             }
 
