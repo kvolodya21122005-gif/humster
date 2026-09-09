@@ -670,11 +670,11 @@
 
         function saveGame() {
             state.lastSaveTime = Date.now();
-            localStorage.setItem("hrundel_clicker_save_v4", JSON.stringify(state));
+            localStorage.setItem("hrundel_clicker_save_v5", JSON.stringify(state));
         }
 
         function loadGame() {
-            const saved = localStorage.getItem("hrundel_clicker_save_v4") || localStorage.getItem("hrundel_clicker_save_v3");
+            const saved = localStorage.getItem("hrundel_clicker_save_v5") || localStorage.getItem("hrundel_clicker_save_v6");
             if (saved) {
                 try {
                     const parsed = JSON.parse(saved);
