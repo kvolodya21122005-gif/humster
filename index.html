@@ -869,12 +869,12 @@
 
         function saveGame() {
             state.lastSaveTime = Date.now();
-            localStorage.setItem("hrundel_clicker_save_v8", JSON.stringify(state));
+            localStorage.setItem("hrundel_clicker_save_v9", JSON.stringify(state));
             syncToCloudLeaderboard();
         }
 
         function loadGame() {
-            const saved = localStorage.getItem("hrundel_clicker_save_v8") || localStorage.getItem("hrundel_clicker_save_v7");
+            const saved = localStorage.getItem("hrundel_clicker_save_v9") || localStorage.getItem("hrundel_clicker_save_v9");
             if (saved) {
                 try {
                     const parsed = JSON.parse(saved);
