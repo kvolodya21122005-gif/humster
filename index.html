@@ -2,8 +2,8 @@
 <html lang="uk">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Pet Simulator - Mobile Landscape Edition</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Pet Simulator - Mobile Version</title>
     
     <!-- SDK Telegram WebApp -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
@@ -41,11 +41,10 @@
             box-sizing: border-box;
             margin: 0;
             padding: 0;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
             user-select: none;
             -webkit-user-select: none;
-            -webkit-touch-callout: none;
-            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
         }
 
         body {
@@ -54,18 +53,17 @@
             display: flex;
             flex-direction: column;
             min-height: 100vh;
-            min-height: -webkit-fill-available;
             overflow-x: hidden;
         }
 
-        /* ----- Меню вибору ----- */
+        /* Екран меню */
         #menu-screen {
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             min-height: 100vh;
-            padding: 15px;
+            padding: 16px;
             background: radial-gradient(circle, #2d2640 0%, #110d1a 100%);
         }
 
@@ -79,30 +77,32 @@
 
         .locations-grid {
             display: flex;
-            gap: 15px;
-            flex-wrap: wrap;
-            justify-content: center;
-            max-width: 900px;
+            flex-direction: column;
+            gap: 16px;
             width: 100%;
+            max-width: 480px;
         }
 
         .location-card {
             background: var(--card-bg);
             border: 2px solid var(--accent-blue);
-            border-radius: 12px;
-            width: 240px;
-            padding: 15px;
+            border-radius: 16px;
+            padding: 16px;
             text-align: center;
             cursor: pointer;
             transition: transform 0.2s, box-shadow 0.2s;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
         }
 
         .location-card.autumn-card {
             border-color: var(--accent-orange);
+        }
+
+        .location-card:active:not(.locked) {
+            transform: scale(0.98);
         }
 
         .location-card.locked {
@@ -119,49 +119,48 @@
         .lock-badge {
             background: #c0392b;
             color: white;
-            font-size: 0.75rem;
+            font-size: 0.8rem;
             font-weight: bold;
-            padding: 4px 8px;
-            border-radius: 12px;
-            margin-top: 8px;
+            padding: 6px 12px;
+            border-radius: 20px;
+            margin-top: 10px;
             display: inline-block;
         }
 
-        /* ----- Ігровий екран ----- */
+        /* Основний ігровий екран */
         #game-screen {
             display: none;
             flex-direction: column;
-            height: 100vh;
-            height: -webkit-fill-available;
-            overflow: hidden;
+            min-height: 100vh;
         }
 
+        /* Закріплена шапка з ресурсами */
         header {
-            background-color: #110d1a;
-            padding: 6px 12px;
-            display: flex;
-            justify-content: flex-start;
-            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background-color: rgba(17, 13, 26, 0.95);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            padding: 8px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+            gap: 6px;
             border-bottom: 2px solid var(--accent-blue);
-            gap: 8px;
-            overflow-x: auto;
-            white-space: nowrap;
-            -webkit-overflow-scrolling: touch;
-            flex-shrink: 0;
-        }
-
-        header::-webkit-scrollbar {
-            display: none;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
         }
 
         .stat-box {
-            background: rgba(0,0,0,0.4);
-            padding: 4px 8px;
-            border-radius: 6px;
+            background: rgba(0,0,0,0.5);
+            padding: 6px 4px;
+            border-radius: 8px;
             border: 1px solid var(--accent-blue);
             font-weight: bold;
             font-size: 0.75rem;
-            flex-shrink: 0;
+            text-align: center;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         .stat-box.coins { border-color: var(--accent-orange); }
@@ -170,24 +169,24 @@
         main {
             display: flex;
             flex: 1;
-            padding: 10px;
-            gap: 10px;
+            padding: 12px;
+            gap: 16px;
             flex-direction: column;
-            overflow-y: auto;
         }
 
         .location-header {
             text-align: center;
             background: linear-gradient(45deg, #2980b9, #8e44ad);
-            padding: 6px 12px;
-            border-radius: 8px;
-            font-size: 0.95rem;
+            padding: 10px 14px;
+            border-radius: 12px;
+            font-size: 1.1rem;
             font-weight: bold;
             text-shadow: 1px 1px 2px black;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            flex-shrink: 0;
+            flex-wrap: wrap;
+            gap: 8px;
         }
 
         .location-header.autumn-theme {
@@ -197,34 +196,27 @@
         .header-btns {
             display: flex;
             gap: 6px;
+            width: 100%;
+            justify-content: space-between;
         }
 
-        /* Двохколонкова адаптивна структура для альбомного режиму */
-        .game-layout {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
+        .header-btns .btn {
             flex: 1;
-            min-height: 0;
+            margin-top: 0;
+            padding: 8px 10px;
+            font-size: 0.85rem;
         }
 
-        .layout-left, .layout-right {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-
-        /* Сенсорна зона збору */
+        /* Ігрова зона для збирання проведенням пальця */
         .click-zone {
             position: relative;
             width: 100%;
-            height: 180px;
+            height: 220px;
             background: rgba(0, 0, 0, 0.3);
             border: 2px dashed var(--accent-blue);
-            border-radius: 10px;
+            border-radius: 12px;
             overflow: hidden;
-            touch-action: none; /* Забігає прокручуванню екрана при свайпі */
-            flex-shrink: 0;
+            touch-action: none; /* Запобігає скролу сторінки під час проведення пальцем */
         }
 
         .click-zone.autumn-theme {
@@ -233,11 +225,16 @@
 
         .click-zone-info {
             position: absolute;
-            top: 6px;
+            top: 8px;
             left: 8px;
-            font-size: 0.75em;
-            color: #aaa;
+            right: 8px;
+            font-size: 0.75rem;
+            color: #ccc;
             pointer-events: none;
+            text-align: center;
+            background: rgba(0,0,0,0.4);
+            padding: 4px;
+            border-radius: 6px;
         }
 
         .spawned-item {
@@ -248,8 +245,6 @@
             animation: fadeIn 0.2s ease-in;
             will-change: transform, top, left;
             touch-action: none;
-            padding: 10px; /* Збільшена область для пальця */
-            margin: -10px;
         }
 
         @keyframes fadeIn {
@@ -260,7 +255,7 @@
         .floating-text {
             position: absolute;
             font-weight: bold;
-            font-size: 1rem;
+            font-size: 1.1rem;
             pointer-events: none;
             animation: floatUp 0.8s forwards;
             text-shadow: 1px 1px 2px black;
@@ -269,47 +264,50 @@
 
         @keyframes floatUp {
             0% { opacity: 1; transform: translateY(0); }
-            100% { opacity: 0; transform: translateY(-25px); }
+            100% { opacity: 0; transform: translateY(-30px); }
         }
 
         /* Diamond Chest Banner */
         .diamond-chest-card {
             background: linear-gradient(135deg, #1e3799, #0c2461);
             border: 2px solid var(--accent-diamond);
-            border-radius: 10px;
-            padding: 10px;
+            border-radius: 12px;
+            padding: 12px;
             display: flex;
-            justify-content: space-between;
-            align-items: center;
+            flex-direction: column;
             gap: 10px;
+            box-shadow: 0 4px 10px rgba(0, 210, 211, 0.2);
         }
 
         .chest-info {
             display: flex;
             align-items: center;
-            gap: 10px;
-            font-size: 0.8rem;
+            gap: 12px;
         }
 
         .chest-icon {
-            font-size: 2rem;
+            font-size: 2.5rem;
         }
 
+        .chest-info h3 { font-size: 1rem; }
+        .chest-info p { font-size: 0.8rem; }
+
         .eggs-container {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-            gap: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
         }
 
         .egg-card {
             background: var(--card-bg);
             border: 2px solid var(--accent-blue);
-            border-radius: 10px;
-            padding: 10px;
+            border-radius: 12px;
+            padding: 12px;
             text-align: center;
             display: flex;
             flex-direction: column;
-            justify-content: space-between;
+            gap: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
             position: relative;
         }
 
@@ -317,123 +315,127 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 6px;
+            gap: 8px;
         }
 
         .info-icon {
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            width: 18px;
-            height: 18px;
+            width: 22px;
+            height: 22px;
             background-color: var(--accent-blue);
             color: #ffffff;
             border-radius: 4px;
             font-weight: bold;
-            font-size: 0.75rem;
+            font-size: 0.85rem;
             cursor: help;
             position: relative;
         }
 
         .info-icon .tooltip {
             visibility: hidden;
-            width: 220px;
+            width: 240px;
             background-color: #110d1a;
             color: #ecf0f1;
             text-align: left;
-            border-radius: 6px;
-            padding: 8px;
+            border-radius: 8px;
+            padding: 8px 10px;
             position: absolute;
             z-index: 20;
-            bottom: 125%;
+            bottom: 130%;
             left: 50%;
             transform: translateX(-50%);
+            box-shadow: 0 6px 16px rgba(0,0,0,0.8);
             border: 1px solid var(--accent-gold);
-            font-size: 0.7rem;
+            font-size: 0.75rem;
             opacity: 0;
             transition: opacity 0.2s ease-in-out;
             pointer-events: none;
         }
 
-        .info-icon:hover .tooltip, .info-icon:focus .tooltip {
+        .info-icon:hover .tooltip, .info-icon:active .tooltip {
             visibility: visible;
             opacity: 1;
         }
 
         .egg-icon {
-            font-size: 2.5rem;
-            margin: 2px 0;
+            font-size: 3rem;
         }
 
         .pet-chances-list {
-            font-size: 0.7em;
+            font-size: 0.75em;
             text-align: left;
-            margin: 6px 0;
             color: #ddd;
             background: rgba(0,0,0,0.25);
-            padding: 6px;
+            padding: 8px;
             border-radius: 6px;
-            max-height: 90px;
+            max-height: 120px;
             overflow-y: auto;
         }
 
         .egg-action-btns {
             display: flex;
             flex-direction: column;
-            gap: 4px;
+            gap: 6px;
         }
 
         .egg-btn-row {
             display: flex;
-            gap: 4px;
+            gap: 6px;
         }
 
         .egg-btn-row .btn {
             flex: 1;
-            padding: 6px 4px;
-            font-size: 0.75rem;
+            margin-top: 0;
+            padding: 10px;
         }
 
         .mini-chat-container {
             background: var(--card-bg);
             border: 1px solid var(--accent-blue);
-            border-radius: 8px;
-            padding: 8px;
+            border-radius: 10px;
+            padding: 10px;
         }
 
         .mini-chat-title {
-            font-size: 0.8rem;
+            font-size: 0.85rem;
             font-weight: bold;
             color: var(--accent-gold);
-            margin-bottom: 4px;
+            margin-bottom: 5px;
         }
 
         .mini-chat-messages {
-            max-height: 80px;
+            max-height: 90px;
             overflow-y: auto;
             display: flex;
             flex-direction: column;
-            gap: 3px;
-            font-size: 0.75rem;
+            gap: 4px;
+            font-size: 0.78rem;
         }
 
         .chat-msg {
             background: rgba(0, 0, 0, 0.25);
-            padding: 3px 6px;
+            padding: 4px 6px;
             border-radius: 4px;
-            border-left: 2px solid var(--accent-blue);
+            border-left: 3px solid var(--accent-blue);
         }
 
         .btn {
             background: linear-gradient(180deg, #3498db, #2980b9);
             border: none;
             color: white;
-            padding: 6px 10px;
-            border-radius: 6px;
+            padding: 10px 12px;
+            border-radius: 8px;
             cursor: pointer;
             font-weight: bold;
-            font-size: 0.8rem;
-            transition: background 0.15s;
+            font-size: 0.9rem;
+            margin-top: 5px;
+            transition: background 0.15s, transform 0.05s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
         }
 
         .btn:active {
@@ -448,60 +450,59 @@
 
         .btn-auto { background: #7f8c8d; }
         .btn-auto.active { background: linear-gradient(180deg, #27ae60, #2ecc71); }
-        .btn-best { background: linear-gradient(180deg, #2980b9, #3498db); }
+        .btn-best { background: linear-gradient(180deg, #2980b9, #3498db); width: 100%; }
         .btn-menu { background: linear-gradient(180deg, #7f8c8d, #34495e); }
         .merchant-btn { background: linear-gradient(180deg, #00d2d3, #01a3a4); color: #fff; }
-        .chest-btn { background: linear-gradient(180deg, #f1c40f, #f39c12); color: #110d1a; font-size: 0.85rem; padding: 6px 12px; }
+        .chest-btn { background: linear-gradient(180deg, #f1c40f, #f39c12); color: #110d1a; font-size: 1rem; width: 100%; }
 
         .inventory-section {
             background: var(--card-bg);
-            border-radius: 10px;
-            padding: 10px;
+            border-radius: 12px;
+            padding: 12px;
             border: 1px solid var(--accent-blue);
         }
 
         .inventory-controls {
             display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 8px;
-            gap: 6px;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 12px;
         }
 
         .inventory-controls h2 {
-            font-size: 1rem;
+            font-size: 1.1rem;
         }
 
         .auto-delete-panel {
             background: rgba(0,0,0,0.2);
-            padding: 6px;
-            border-radius: 6px;
+            padding: 8px;
+            border-radius: 8px;
             display: flex;
             gap: 10px;
             align-items: center;
-            font-size: 0.75em;
+            font-size: 0.8em;
             flex-wrap: wrap;
         }
 
         .pets-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
-            gap: 8px;
-            max-height: 250px;
+            grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+            gap: 10px;
+            max-height: 380px;
             overflow-y: auto;
-            padding-right: 4px;
+            padding-right: 2px;
         }
 
         .pet-card {
-            border-radius: 6px;
-            padding: 6px;
+            border-radius: 8px;
+            padding: 8px;
             text-align: center;
-            position: relative;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
-            font-size: 0.75em;
+            font-size: 0.78em;
             border: 2px solid transparent;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.4);
             color: #fff;
         }
 
@@ -515,11 +516,20 @@
         .pet-card.secret { background: linear-gradient(135deg, #701a75, #831843); border-color: #ec4899; }
 
         .pet-card.equipped {
-            border: 2px solid #2ecc71 !important;
-            box-shadow: 0 0 6px #2ecc71;
+            border: 3px solid #2ecc71 !important;
+            box-shadow: 0 0 8px #2ecc71;
         }
 
-        .pet-card.shiny { box-shadow: 0 0 6px #f1c40f; }
+        .pet-card.shiny { box-shadow: 0 0 8px #f1c40f; }
+
+        .common-text { color: var(--text-common); }
+        .epic-text { color: var(--text-epic); font-weight: bold; }
+        .legendary-text { color: var(--text-legendary); font-weight: bold; }
+        .mythic-text { color: var(--text-mythic); font-weight: bold; }
+        .divine-text { color: var(--text-divine); font-weight: bold; }
+        .celestial-text { color: var(--text-celestial); font-weight: bold; }
+        .absolute-text { color: var(--text-absolute); font-weight: bold; }
+        .secret-text { color: var(--text-secret); font-weight: bold; }
 
         .modal {
             display: none;
@@ -529,17 +539,17 @@
             justify-content: center;
             align-items: center;
             z-index: 1000;
-            padding: 10px;
+            padding: 12px;
         }
 
         .modal-content {
             background: var(--card-bg);
             border: 2px solid var(--accent-blue);
-            border-radius: 10px;
+            border-radius: 12px;
             width: 100%;
-            max-width: 500px;
-            padding: 15px;
-            max-height: 90vh;
+            max-width: 480px;
+            padding: 16px;
+            max-height: 85vh;
             overflow-y: auto;
             position: relative;
         }
@@ -547,7 +557,7 @@
         .close-btn {
             position: absolute;
             top: 8px; right: 12px;
-            font-size: 1.3rem;
+            font-size: 1.5rem;
             cursor: pointer;
             color: #aaa;
         }
@@ -557,10 +567,18 @@
             justify-content: space-between;
             align-items: center;
             background: rgba(0,0,0,0.3);
-            padding: 8px;
+            padding: 10px;
             margin-bottom: 8px;
-            border-radius: 6px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            gap: 8px;
+        }
+
+        .shop-item .btn {
+            padding: 6px 10px;
             font-size: 0.8rem;
+            margin-top: 0;
+            white-space: nowrap;
         }
 
         #hatch-modal .modal-content {
@@ -594,43 +612,14 @@
         }
 
         .pet-drop-result {
-            font-size: 0.9rem;
+            font-size: 0.95rem;
             font-weight: bold;
             margin-top: 10px;
-            min-height: 35px;
+            min-height: 40px;
             color: var(--accent-gold);
             display: flex;
             flex-direction: column;
-            gap: 4px;
-        }
-
-        /* ----- Оптимізація під альбомну орієнтацію (Mobile Landscape) ----- */
-        @media screen and (orientation: landscape) {
-            .game-layout {
-                flex-direction: row;
-            }
-
-            .layout-left {
-                flex: 1.1;
-                min-width: 0;
-            }
-
-            .layout-right {
-                flex: 1.2;
-                min-width: 0;
-                overflow-y: auto;
-                max-height: calc(100vh - 80px);
-                padding-right: 4px;
-            }
-
-            .click-zone {
-                height: 100%;
-                min-height: 150px;
-            }
-
-            .pets-grid {
-                max-height: 180px;
-            }
+            gap: 6px;
         }
     </style>
 </head>
@@ -638,26 +627,26 @@
 
     <!-- Екран вибору локації -->
     <div id="menu-screen">
-        <h1 class="menu-title">Оберіть локацію</h1>
+        <h1 class="menu-title">Pet Simulator</h1>
         <div class="locations-grid">
             <div class="location-card" onclick="selectLocation('start')">
                 <h2>Стартова Локація</h2>
                 <div class="location-icon">💎</div>
-                <p style="font-size:0.8rem;">Основна локація з діамантами, скринею нагород та торговцем!</p>
-                <button class="btn" style="margin-top: 10px;">Увійти</button>
+                <p>Основна локація з діамантами, скринею нагород та торговцем покращень!</p>
+                <button class="btn" style="margin-top: 12px;">Увійти</button>
             </div>
 
             <div class="location-card autumn-card" onclick="selectLocation('autumn')">
                 <h2>Осінній Гай</h2>
                 <div class="location-icon">🍁</div>
-                <p style="font-size:0.8rem;">Локація з осіннім листям, унікальними улюбленцями та яйцями!</p>
-                <button class="btn" style="margin-top: 10px; background: linear-gradient(180deg, #e67e22, #d35400);">Увійти</button>
+                <p>Локація з теплим осіннім листям, унікальними улюбленцями та яйцями!</p>
+                <button class="btn" style="margin-top: 12px; background: linear-gradient(180deg, #e67e22, #d35400);">Увійти</button>
             </div>
 
             <div class="location-card locked">
                 <h2>Планета прибульців</h2>
                 <div class="location-icon">👽</div>
-                <p style="font-size:0.8rem;">Загадкова космічна локація з інопланетними улюбленцями.</p>
+                <p>Загадкова космічна локація з інопланетними улюбленцями.</p>
                 <div>
                     <span class="lock-badge">Незабаром</span>
                 </div>
@@ -667,12 +656,12 @@
 
     <!-- Основний ігровий екран -->
     <div id="game-screen">
+        <!-- Закріплена шапка ресурсів -->
         <header>
             <div class="stat-box coins">🍂 <span id="coin-count">0</span></div>
             <div class="stat-box diamonds">💎 <span id="diamond-count">0</span></div>
-            <div class="stat-box">🍂 x<span id="team-mult">1.0</span></div>
-            <div class="stat-box">💎 x<span id="diamond-mult">1.0</span></div>
-            <div class="stat-box">🥚 <span id="eggs-opened-count">0</span></div>
+            <div class="stat-box">🍂x<span id="team-mult">1.0</span></div>
+            <div class="stat-box">💎x<span id="diamond-mult">1.0</span></div>
             <div class="stat-box">🐾 <span id="equipped-count">0</span>/<span id="max-equipped">3</span></div>
             <div class="stat-box">📦 <span id="inventory-count">0</span>/2500</div>
         </header>
@@ -686,73 +675,70 @@
                 </div>
             </div>
 
-            <div class="game-layout">
-                <!-- Ліва колонка в альбомному режимі: Зона збору, Скриня, Чат -->
-                <div class="layout-left">
-                    <div class="click-zone" id="click-zone">
-                        <div class="click-zone-info" id="click-zone-info">Проведіть пальцем, щоб зібрати!</div>
+            <!-- Скриня з діамантами (тільки для стартової локації) -->
+            <div class="diamond-chest-card" id="diamond-chest-section">
+                <div class="chest-info">
+                    <div class="chest-icon">🎁</div>
+                    <div>
+                        <h3>Скриня з Діамантами</h3>
+                        <p>Дає <b>1000 × Множник Діамантів</b>! Доступна кожні 15 хвилин.</p>
+                        <span id="chest-timer-text" style="color: var(--accent-gold); font-weight: bold; font-size: 0.85rem;"></span>
                     </div>
+                </div>
+                <button class="btn chest-btn" id="claim-claim-btn" onclick="claimDiamondChest()">Отримати нагороду!</button>
+            </div>
 
-                    <div class="diamond-chest-card" id="diamond-chest-section">
-                        <div class="chest-info">
-                            <div class="chest-icon">🎁</div>
-                            <div>
-                                <h3>Скриня з Діамантами</h3>
-                                <span id="chest-timer-text" style="color: var(--accent-gold); font-weight: bold;"></span>
-                            </div>
-                        </div>
-                        <button class="btn chest-btn" id="claim-chest-btn" onclick="claimDiamondChest()">Забрати</button>
-                    </div>
+            <!-- Поле збирання предметів (з підтримкою проведення пальцем) -->
+            <div class="click-zone" id="click-zone">
+                <div class="click-zone-info" id="click-zone-info">Проведіть пальцем або мишкою, щоб зібрати!</div>
+            </div>
 
-                    <div class="mini-chat-container">
-                        <div class="mini-chat-title">💬 Чат подій</div>
-                        <div class="mini-chat-messages" id="chat-messages">
-                            <div class="chat-msg" style="color:#aaa;">Готово до подій...</div>
-                        </div>
+            <div class="eggs-container" id="eggs-container"></div>
+
+            <!-- Міні Чат Подій -->
+            <div class="mini-chat-container">
+                <div class="mini-chat-title">💬 Чат подій</div>
+                <div class="mini-chat-messages" id="chat-messages">
+                    <div class="chat-msg" style="color:#aaa;">Чат подій готовий.</div>
+                </div>
+            </div>
+
+            <div class="inventory-section">
+                <div class="inventory-controls">
+                    <h2>Інвентар Улюбленців</h2>
+                    <button class="btn btn-best" onclick="equipBestPets()">⭐ Одягнути найкращих</button>
+                    
+                    <div class="auto-delete-panel">
+                        <span><strong>Авто-видалення:</strong></span>
+                        <label><input type="checkbox" id="autodel-common" onchange="toggleAutoDelete('common')"> Common</label>
+                        <label><input type="checkbox" id="autodel-epic" onchange="toggleAutoDelete('epic')"> Epic</label>
                     </div>
                 </div>
 
-                <!-- Права колонка в альбомному режимі: Яйця та Інвентар -->
-                <div class="layout-right">
-                    <div class="eggs-container" id="eggs-container"></div>
-
-                    <div class="inventory-section">
-                        <div class="inventory-controls">
-                            <h2>Інвентар</h2>
-                            <button class="btn btn-best" onclick="equipBestPets()">⭐ Кращі</button>
-                        </div>
-
-                        <div class="auto-delete-panel">
-                            <span><b>Авто-видалення:</b></span>
-                            <label><input type="checkbox" id="autodel-common" onchange="toggleAutoDelete('common')"> Common</label>
-                            <label><input type="checkbox" id="autodel-epic" onchange="toggleAutoDelete('epic')"> Epic</label>
-                        </div>
-
-                        <div class="pets-grid" id="pets-grid" style="margin-top: 10px;"></div>
-                    </div>
-                </div>
+                <div class="pets-grid" id="pets-grid"></div>
             </div>
         </main>
     </div>
 
-    <!-- Модалка Торговця -->
+    <!-- Modal Merchant -->
     <div class="modal" id="merchant-modal">
         <div class="modal-content">
             <span class="close-btn" onclick="closeMerchant()">&times;</span>
             <h2>🧙‍♂️ Торговець Покращень</h2>
-            <p style="margin-bottom: 10px; color: #aaa; font-size:0.8rem;">Покращення за діаманти:</p>
+            <p style="margin-bottom: 12px; color: #aaa; font-size: 0.85rem;">Купляйте покращення за діаманти!</p>
+            
             <div id="shop-items-container"></div>
         </div>
     </div>
 
-    <!-- Модалка відкриття яєць -->
+    <!-- Modal Egg Hatching Animation -->
     <div class="modal" id="hatch-modal">
         <div class="modal-content">
             <span class="close-btn" onclick="stopAutoHatch()">&times;</span>
-            <h3 id="hatch-title">Відкриття...</h3>
+            <h2 id="hatch-title" style="font-size: 1.2rem;">Відкриття...</h2>
             <div class="hatch-eggs-container" id="hatch-eggs-container"></div>
             <div class="pet-drop-result" id="hatch-result"></div>
-            <button class="btn btn-menu" style="margin-top: 10px;" onclick="stopAutoHatch()">Зупинити</button>
+            <button class="btn btn-menu" style="margin-top: 15px; width: 100%;" onclick="stopAutoHatch()">Закрити</button>
         </div>
     </div>
 
@@ -817,7 +803,10 @@
             maxEquipped: 3,
             maxHatchAmount: 1,
             lastChestClaim: 0,
-            autoDelete: { common: false, epic: false },
+            autoDelete: {
+                common: false,
+                epic: false
+            },
             autoHatchEggId: null,
             autoHatchAmount: 1
         };
@@ -850,7 +839,7 @@
 
         const EGG_DATA = {
             1: {
-                name: "Звичайне Яйце",
+                name: "Звичайне Осіннє Яйце",
                 icon: "🥚",
                 cost: 25,
                 pets: [
@@ -861,26 +850,31 @@
                 ]
             },
             2: {
-                name: "Листяне Яйце",
+                name: "Велике Листяне Яйце",
                 icon: "🌰",
                 cost: 75,
                 pets: [
                     { name: "Жолудева Білка", rarity: "common", mult: 3, diamondMult: 2, chance: 60 },
                     { name: "Кленовий Єнот", rarity: "common", mult: 3, diamondMult: 3, chance: 30 },
                     { name: "Грибний Борсук", rarity: "epic", mult: 7, diamondMult: 7, chance: 9 },
-                    { name: "Золотий Вовк", rarity: "legendary", mult: 35, diamondMult: 50, chance: 0.5 }
+                    { name: "Золотий Вовк", rarity: "legendary", mult: 35, diamondMult: 50, chance: 0.5 },
+                    { name: "Сова Осінньої Ночі", rarity: "legendary", mult: 120, diamondMult: 180, chance: 0.05 }
                 ]
             },
             3: {
-                name: "Золоте Яйце",
+                name: "Золоте Деревне Яйце",
                 icon: "🌟",
                 cost: 300,
                 pets: [
                     { name: "Багряний Ведмедик", rarity: "common", mult: 4, diamondMult: 3, chance: 40 },
                     { name: "Каштановий Рись", rarity: "common", mult: 5, diamondMult: 4, chance: 30 },
+                    { name: "Гарбузовий Лис", rarity: "common", mult: 6, diamondMult: 5, chance: 25 },
                     { name: "Ягідний Грифон", rarity: "epic", mult: 18, diamondMult: 16, chance: 4 },
                     { name: "Сонячний Фенікс", rarity: "legendary", mult: 65, diamondMult: 80, chance: 0.4 },
-                    { name: "Прадавній Дуб", rarity: "mythic", mult: 320, diamondMult: 600, chance: 0.01 }
+                    { name: "Бурштиновий Король", rarity: "legendary", mult: 190, diamondMult: 270, chance: 0.04 },
+                    { name: "Прадавній Дуб", rarity: "mythic", mult: 320, diamondMult: 600, chance: 0.01 },
+                    { name: "Божество Урожаю", rarity: "mythic", mult: 500, diamondMult: 1250, chance: 0.004 },
+                    { name: "Секретний Деревний Дракон", rarity: "divine", mult: 1500, diamondMult: 4800, chance: 0.0001 }
                 ]
             }
         };
@@ -888,7 +882,73 @@
         function formatChanceToFraction(percent) {
             let val = 100 / percent;
             if (val >= 100) return `1/${Math.round(val).toLocaleString('uk-UA')}`;
-            return `1/${(Math.round(val * 10) / 10)}`;
+            if (val >= 10) return `1/${Math.round(val * 10) / 10}`;
+            return `1/${(Math.round(val * 100) / 100)}`;
+        }
+
+        function getCumulativeChanceText(chancePercent, n) {
+            if (n <= 0) return "0%";
+            let p = chancePercent / 100;
+            if (p >= 1) return "100%";
+            let logOneMinusP = Math.log1p(-p);
+            let logProbFail = n * logOneMinusP;
+            if (logProbFail < -30) return "~100%";
+            let probFail = Math.exp(logProbFail);
+            let probSuccess = 1 - probFail;
+            let successPercent = probSuccess * 100;
+
+            if (successPercent >= 99.99) return ">99.99%";
+            if (successPercent < 0.01) {
+                if (successPercent < 0.0001) return "<0.01%";
+                return successPercent.toFixed(4) + "%";
+            }
+            return successPercent.toFixed(2) + "%";
+        }
+
+        function formatAFKTime(totalSeconds) {
+            if (totalSeconds <= 0) return "0 сек";
+            const days = Math.floor(totalSeconds / 86400);
+            const hours = Math.floor((totalSeconds % 86400) / 3600);
+            const minutes = Math.floor((totalSeconds % 3600) / 60);
+            const seconds = Math.floor(totalSeconds % 60);
+
+            let result = [];
+            if (days > 0) result.push(`${days} дн`);
+            if (hours > 0) result.push(`${hours} год`);
+            if (minutes > 0) result.push(`${minutes} хв`);
+            if (seconds > 0 || result.length === 0) result.push(`${seconds} сек`);
+
+            return result.join(' ');
+        }
+
+        function updateEggInfoTooltip(elem, eggId) {
+            const egg = EGG_DATA[eggId];
+            if (!egg) return;
+
+            const tooltip = elem.querySelector('.tooltip');
+            if (!tooltip) return;
+
+            const affordableEggs = Math.floor(gameState.coins / egg.cost);
+            const batchSize = gameState.maxHatchAmount || 1;
+            const batches = Math.ceil(affordableEggs / batchSize);
+            const totalSeconds = batches * 1.2;
+
+            let petChancesHTML = egg.pets.map(p => {
+                const rarityUk = RARITY_NAMES[p.rarity] || p.rarity;
+                const prob = getCumulativeChanceText(p.chance, affordableEggs);
+                return `<div style="display:flex; justify-content:space-between; margin-top:2px; font-size:0.7rem;">
+                    <span>• ${p.name} (${rarityUk}):</span>
+                    <b style="color:#2ecc71;">${prob}</b>
+                </div>`;
+            }).join('');
+
+            tooltip.innerHTML = `
+                <div><b>Доступно:</b> ${affordableEggs.toLocaleString('uk-UA')} яєць</div>
+                <div style="margin-top: 2px;"><b>Час AFK:</b> ${formatAFKTime(totalSeconds)}</div>
+                <hr style="border:0; border-top:1px solid rgba(255,255,255,0.2); margin: 4px 0;">
+                <div style="font-weight:bold; color:var(--accent-gold); margin-bottom:2px;">Імовірність за ${affordableEggs.toLocaleString('uk-UA')} яєць:</div>
+                ${petChancesHTML}
+            `;
         }
 
         window.onload = function() {
@@ -900,33 +960,42 @@
             loadGame();
             renderEggs();
             renderUI();
-            setupSwipeCollection();
+            renderInventory();
 
-            setInterval(autoHatchTick, 250);
+            setupTouchCollect();
+
+            setInterval(autoHatchTick, 200);
             timerInterval = setInterval(gameLoopTick, 1000);
         };
 
-        /* ----- Сенсорне збирання проведенням пальця (Swipe) ----- */
-        function setupSwipeCollection() {
+        // Логіка збирання пальцем (Touch Move & Drag)
+        function setupTouchCollect() {
             const zone = document.getElementById('click-zone');
+            if (!zone) return;
 
-            function handleTouch(e) {
-                e.preventDefault(); // блокує прокрутку екрана при проведення пальцем по ігровій зоні
-                const touches = e.touches || [e];
-                for (let i = 0; i < touches.length; i++) {
-                    const touch = touches[i];
-                    const target = document.elementFromPoint(touch.clientX, touch.clientY);
-                    if (target && target.classList.contains('spawned-item')) {
-                        const rect = zone.getBoundingClientRect();
-                        const x = touch.clientX - rect.left;
-                        const y = touch.clientY - rect.top;
-                        collectItem(target, x, y);
-                    }
+            function checkCollectAtPoint(clientX, clientY) {
+                const elem = document.elementFromPoint(clientX, clientY);
+                if (elem && elem.classList.contains('spawned-item')) {
+                    const rect = zone.getBoundingClientRect();
+                    const x = clientX - rect.left;
+                    const y = clientY - rect.top;
+                    collectItem(elem, x, y);
                 }
             }
 
-            zone.addEventListener('touchmove', handleTouch, { passive: false });
-            zone.addEventListener('touchstart', handleTouch, { passive: false });
+            zone.addEventListener('touchmove', function(e) {
+                e.preventDefault();
+                for (let i = 0; i < e.touches.length; i++) {
+                    const touch = e.touches[i];
+                    checkCollectAtPoint(touch.clientX, touch.clientY);
+                }
+            }, { passive: false });
+
+            zone.addEventListener('pointermove', function(e) {
+                if (e.buttons === 1 || e.pointerType === 'touch') {
+                    checkCollectAtPoint(e.clientX, e.clientY);
+                }
+            });
         }
 
         function selectLocation(loc) {
@@ -946,22 +1015,22 @@
                 titleElem.innerText = '💎 Стартова Локація';
                 headerBg.className = 'location-header';
                 zone.className = 'click-zone';
-                zoneInfo.innerText = 'Проведіть пальцем по діамантах!';
-                merchantBtn.style.display = 'inline-block';
+                zoneInfo.innerText = 'Проведіть пальцем або мишкою по діамантах!';
+                merchantBtn.style.display = 'inline-flex';
                 chestSection.style.display = 'flex';
                 eggsContainer.style.display = 'none';
             } else if (loc === 'autumn') {
                 titleElem.innerText = '🍁 Осінній Гай';
                 headerBg.className = 'location-header autumn-theme';
                 zone.className = 'click-zone autumn-theme';
-                zoneInfo.innerText = 'Проведіть пальцем по листю!';
+                zoneInfo.innerText = 'Проведіть пальцем або мишкою по листю!';
                 merchantBtn.style.display = 'none';
                 chestSection.style.display = 'none';
-                eggsContainer.style.display = 'grid';
+                eggsContainer.style.display = 'flex';
             }
 
             if (!itemSpawnInterval) {
-                itemSpawnInterval = setInterval(spawnClickItem, 140);
+                itemSpawnInterval = setInterval(spawnClickItem, 120);
             }
         }
 
@@ -974,7 +1043,10 @@
             }
             
             const zone = document.getElementById('click-zone');
-            if (zone) zone.querySelectorAll('.spawned-item').forEach(i => i.remove());
+            if (zone) {
+                const items = zone.querySelectorAll('.spawned-item');
+                items.forEach(i => i.remove());
+            }
 
             document.getElementById('game-screen').style.display = 'none';
             document.getElementById('menu-screen').style.display = 'flex';
@@ -982,16 +1054,24 @@
         }
 
         function saveGame() {
-            localStorage.setItem("start_pet_game_save_v17", JSON.stringify(gameState));
+            localStorage.setItem("start_pet_game_save_v16", JSON.stringify(gameState));
         }
 
         function loadGame() {
-            const saved = localStorage.getItem("start_pet_game_save_v17");
+            const saved = localStorage.getItem("start_pet_game_save_v16");
             if (saved) {
                 try {
-                    gameState = Object.assign(gameState, JSON.parse(saved));
-                } catch(e) {}
+                    const parsed = JSON.parse(saved);
+                    gameState = Object.assign(gameState, parsed);
+                } catch(e) { console.error("Save load failed", e); }
             }
+            if (!gameState.maxHatchAmount) gameState.maxHatchAmount = 1;
+            if (gameState.maxEquipped === undefined) gameState.maxEquipped = 3;
+            if (gameState.diamonds === undefined) gameState.diamonds = 0;
+            if (gameState.lastChestClaim === undefined) gameState.lastChestClaim = 0;
+
+            document.getElementById('autodel-common').checked = gameState.autoDelete.common;
+            document.getElementById('autodel-epic').checked = gameState.autoDelete.epic;
         }
 
         function gameLoopTick() {
@@ -1004,46 +1084,52 @@
 
         function spawnClickItem() {
             if (!currentActiveLocation) return;
+
             const zone = document.getElementById('click-zone');
             if (!zone) return;
-
-            // Обмеження кількості одночасних предметів
-            if (zone.children.length > 20) return;
 
             const item = document.createElement('div');
             item.className = 'spawned-item';
             
-            item.innerText = currentActiveLocation === 'start' 
-                ? diamondEmojis[Math.floor(Math.random() * diamondEmojis.length)]
-                : leafEmojis[Math.floor(Math.random() * leafEmojis.length)];
+            if (currentActiveLocation === 'start') {
+                item.innerText = diamondEmojis[Math.floor(Math.random() * diamondEmojis.length)];
+            } else {
+                item.innerText = leafEmojis[Math.floor(Math.random() * leafEmojis.length)];
+            }
             
             const maxTop = zone.clientHeight - 40;
             const maxLeft = zone.clientWidth - 40;
 
-            const randomTop = Math.max(5, Math.floor(Math.random() * maxTop));
-            const randomLeft = Math.max(5, Math.floor(Math.random() * maxLeft));
+            const randomTop = Math.max(10, Math.floor(Math.random() * maxTop));
+            const randomLeft = Math.max(10, Math.floor(Math.random() * maxLeft));
 
             item.style.top = `${randomTop}px`;
             item.style.left = `${randomLeft}px`;
 
-            // Підтримка для мишки на десктопі
-            item.addEventListener('mouseenter', () => collectItem(item, randomLeft, randomTop));
+            item.addEventListener('mouseenter', function() {
+                collectItem(item, randomLeft, randomTop);
+            });
 
             zone.appendChild(item);
-            setTimeout(() => item.remove(), 8000);
+
+            setTimeout(() => {
+                if (item.parentElement) {
+                    item.remove();
+                }
+            }, 10000);
         }
 
         function collectItem(itemElem, x, y) {
-            if (!itemElem.parentNode) return;
+            if (!itemElem.parentElement) return;
 
             if (currentActiveLocation === 'start') {
                 const gain = getEquippedDiamondMultiplier();
                 gameState.diamonds += gain;
-                showFloatingText(x, y, `+${Math.floor(gain)} 💎`, "#00d2d3");
+                showFloatingText(x, y, `+${Math.floor(gain).toLocaleString()} 💎`, "#00d2d3");
             } else {
                 const gain = getEquippedMultiplier();
                 gameState.coins += gain;
-                showFloatingText(x, y, `+${Math.floor(gain)} 🍂`, "#2ecc71");
+                showFloatingText(x, y, `+${Math.floor(gain).toLocaleString()} 🍂`, "#2ecc71");
             }
 
             itemElem.remove();
@@ -1061,14 +1147,14 @@
             popup.style.top = `${y}px`;
             zone.appendChild(popup);
 
-            setTimeout(() => popup.remove(), 700);
+            setTimeout(() => popup.remove(), 800);
         }
 
         function getEquippedMultiplier() {
             let mult = 1;
             gameState.inventory.forEach(pet => {
                 if (gameState.equippedIds.includes(pet.id)) {
-                    mult += (pet.shiny ? pet.baseMult * 2 : pet.baseMult);
+                    mult += calculatePetMultiplier(pet);
                 }
             });
             return mult;
@@ -1078,22 +1164,36 @@
             let mult = 1;
             gameState.inventory.forEach(pet => {
                 if (gameState.equippedIds.includes(pet.id)) {
-                    const dMult = pet.diamondMult || 1;
-                    mult += (pet.shiny ? dMult * 2 : dMult);
+                    mult += calculatePetDiamondMult(pet);
                 }
             });
             return mult;
         }
 
+        function calculatePetMultiplier(pet) {
+            let petMult = pet.baseMult;
+            if (pet.shiny) petMult *= 2;
+            return petMult;
+        }
+
+        function calculatePetDiamondMult(pet) {
+            let dMult = pet.diamondMult || 1;
+            if (pet.shiny) dMult *= 2;
+            return dMult;
+        }
+
         function claimDiamondChest() {
             const now = Date.now();
-            if (now - gameState.lastChestClaim >= 15 * 60 * 1000) {
+            const fifteenMins = 15 * 60 * 1000;
+            if (now - gameState.lastChestClaim >= fifteenMins) {
                 const reward = 1000 * getEquippedDiamondMultiplier();
                 gameState.diamonds += reward;
                 gameState.lastChestClaim = now;
                 chestReadyNotified = false;
 
-                addChatMessage(`🎁 Отримано <b>${reward.toLocaleString()} 💎</b> з сонячної скрині!`);
+                const timeStr = new Date().toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                addChatMessage(`<span style="color:#aaa;">[${timeStr}]</span> 🎁 <b>Гравець</b> відкрив скриню та отримав <b>${reward.toLocaleString()} 💎</b>!`);
+
                 updateHeaderOnly();
                 updateChestUI();
                 saveGame();
@@ -1101,20 +1201,28 @@
         }
 
         function updateChestUI() {
-            const chestBtn = document.getElementById('claim-chest-btn');
+            const chestBtn = document.getElementById('claim-claim-btn');
             const timerText = document.getElementById('chest-timer-text');
             if (!chestBtn || !timerText) return;
 
-            const remaining = (15 * 60 * 1000) - (Date.now() - gameState.lastChestClaim);
+            const now = Date.now();
+            const fifteenMins = 15 * 60 * 1000;
+            const remaining = fifteenMins - (now - gameState.lastChestClaim);
 
             if (remaining <= 0) {
                 chestBtn.disabled = false;
-                timerText.innerText = "Готово!";
+                timerText.innerText = "Готово до збору!";
+                if (!chestReadyNotified && gameState.lastChestClaim > 0) {
+                    const timeStr = new Date().toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                    addChatMessage(`<span style="color:#aaa;">[${timeStr}]</span> 🎁 <b>Скриня</b> доступна для збору!`);
+                    chestReadyNotified = true;
+                }
             } else {
                 chestBtn.disabled = true;
                 const minutes = Math.floor(remaining / (1000 * 60));
                 const seconds = Math.floor((remaining % (1000 * 60)) / 1000);
-                timerText.innerText = `${String(minutes).padStart(2,'0')}:${String(seconds).padStart(2,'0')}`;
+                const pad = n => String(n).padStart(2, '0');
+                timerText.innerText = `Доступно через: ${pad(minutes)}:${pad(seconds)}`;
             }
         }
 
@@ -1131,31 +1239,40 @@
         }
 
         function selectPetFromEgg(egg) {
-            let totalWeight = egg.pets.reduce((acc, p) => acc + p.chance, 0);
+            let petsList = egg.pets;
+            let totalWeight = petsList.reduce((acc, p) => acc + p.chance, 0);
             let random = Math.random() * totalWeight;
 
-            for (let p of egg.pets) {
-                if (random < p.chance) return p;
+            for (let p of petsList) {
+                if (random < p.chance) {
+                    return p;
+                }
                 random -= p.chance;
             }
-            return egg.pets[0];
+            return petsList[0];
         }
 
         function hatchEgg(eggId, amount = 1, isAuto = false) {
             if (isHatching) return;
+            if (currentActiveLocation === 'start') {
+                stopAutoHatch();
+                alert("На стартовій локації не можна відкривати яйця!");
+                return;
+            }
+
             const egg = EGG_DATA[eggId];
             if (!egg) return;
 
             if (gameState.inventory.length + amount > 2500) {
                 stopAutoHatch();
-                alert("Інвентар повний!");
+                alert("Інвентар повний (2500 max)!");
                 return;
             }
 
             const totalCost = egg.cost * amount;
             if (gameState.coins < totalCost) {
                 stopAutoHatch();
-                if (!isAuto) alert("Недостатньо коїнів!");
+                if (!isAuto) alert("Недостатньо листя-коїнів!");
                 return;
             }
 
@@ -1163,6 +1280,7 @@
             gameState.eggsOpened += amount;
             isHatching = true;
 
+            const droppedPets = [];
             let resultHTML = "";
 
             for (let i = 0; i < amount; i++) {
@@ -1171,7 +1289,7 @@
 
                 if (!gameState.autoDelete[petDropped.rarity]) {
                     const newPet = {
-                        id: Date.now() + "_" + Math.random().toString(36).substr(2, 5),
+                        id: Date.now() + "_" + Math.random().toString(36).substr(2, 9) + "_" + i,
                         name: petDropped.name,
                         rarity: petDropped.rarity,
                         baseMult: petDropped.mult,
@@ -1179,14 +1297,20 @@
                         shiny: false
                     };
                     gameState.inventory.push(newPet);
-                    resultHTML += `<div>🎉 <b>${newPet.name}</b> (${rarityUk})</div>`;
+                    droppedPets.push(newPet);
+                    resultHTML += `<div>🎉 <b>${newPet.name}</b> (<span class="${petDropped.rarity}-text">${rarityUk}</span>)</div>`;
                 } else {
-                    resultHTML += `<div>🗑️ ${petDropped.name} (Авто-видалено)</div>`;
+                    resultHTML += `<div>🗑️ <b>${petDropped.name}</b> - Видалено</div>`;
                 }
 
-                if (['epic', 'legendary', 'mythic'].includes(petDropped.rarity)) {
+                if (['epic', 'legendary', 'mythic', 'divine', 'celestial', 'absolute', 'secret'].includes(petDropped.rarity)) {
                     playSound(petDropped.rarity);
-                    addChatMessage(`🎉 Вибито <b>${petDropped.name}</b> (${rarityUk})!`);
+                }
+
+                if (['legendary', 'mythic', 'divine', 'celestial', 'absolute', 'secret'].includes(petDropped.rarity)) {
+                    const baseChanceStr = formatChanceToFraction(petDropped.chance);
+                    const timeStr = new Date().toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                    addChatMessage(`<span style="color:#aaa;">[${timeStr}]</span> 🎉 <b>Гравець</b> вибив <b>${petDropped.name}</b> (<span class="${petDropped.rarity}-text">${rarityUk}</span>)! Шанс: <b>${baseChanceStr}</b>`);
                 }
             }
 
@@ -1200,18 +1324,22 @@
             for (let i = 0; i < amount; i++) {
                 const eggIcon = document.createElement('div');
                 eggIcon.className = 'hatch-egg-icon shaking-egg';
-                eggIcon.innerText = egg.icon;
+                eggIcon.innerText = egg.icon || "🥚";
                 eggsContainer.appendChild(eggIcon);
             }
 
             resultDiv.innerHTML = resultHTML;
+
             renderInventory();
             updateHeaderOnly();
             saveGame();
 
             setTimeout(() => {
+                const eggIcons = eggsContainer.querySelectorAll('.hatch-egg-icon');
+                eggIcons.forEach(icon => icon.className = "hatch-egg-icon");
                 isHatching = false;
-                if (gameState.autoHatchEggId === eggId) {
+
+                if (gameState.autoHatchEggId === eggId && currentActiveLocation !== null) {
                     hatchEgg(eggId, gameState.autoHatchAmount, true);
                 } else {
                     modal.style.display = 'none';
@@ -1232,7 +1360,9 @@
                 gameState.autoHatchEggId = eggId;
                 gameState.autoHatchAmount = amount;
                 renderEggs();
-                if (!isHatching) hatchEgg(eggId, amount, true);
+                if (!isHatching) {
+                    hatchEgg(eggId, amount, true);
+                }
             }
         }
 
@@ -1246,6 +1376,7 @@
         function renderEggs() {
             const container = document.getElementById('eggs-container');
             container.innerHTML = '';
+
             const maxAmount = gameState.maxHatchAmount || 1;
 
             Object.keys(EGG_DATA).forEach(eggId => {
@@ -1253,31 +1384,39 @@
                 const isAuto1 = gameState.autoHatchEggId === parseInt(eggId) && gameState.autoHatchAmount === 1;
                 const isAutoX = gameState.autoHatchEggId === parseInt(eggId) && gameState.autoHatchAmount === maxAmount;
 
-                let petsListHTML = egg.pets.map(p => 
-                    `• ${p.name} (${RARITY_NAMES[p.rarity]}) - Шанс: ${formatChanceToFraction(p.chance)}`
-                ).join('<br>');
+                let petsListHTML = egg.pets.map(p => {
+                    const chanceFormatted = formatChanceToFraction(p.chance);
+                    const rarityUk = RARITY_NAMES[p.rarity] || p.rarity;
+                    return `• ${p.name} (<span class="${p.rarity}-text">${rarityUk}</span>) - 🍂x${p.mult} | 💎x${p.diamondMult || 1} | <b>${chanceFormatted}</b>`;
+                }).join('<br>');
 
                 const card = document.createElement('div');
                 card.className = 'egg-card';
                 card.innerHTML = `
                     <div class="egg-header-row">
-                        <h4>${egg.name}</h4>
-                        <div class="info-icon" tabindex="0">i<div class="tooltip">${petsListHTML}</div></div>
+                        <h3>${egg.name}</h3>
+                        <div class="info-icon" onmouseenter="updateEggInfoTooltip(this, ${eggId})" onclick="updateEggInfoTooltip(this, ${eggId})">
+                            i
+                            <div class="tooltip"></div>
+                        </div>
                     </div>
                     <div class="egg-icon">${egg.icon}</div>
-                    <p style="font-size:0.8rem;">Ціна: <b>${egg.cost}</b> 🍂</p>
+                    <p>Ціна: <strong>${egg.cost.toLocaleString()}</strong> 🍂</p>
+                    <div class="pet-chances-list">
+                        ${petsListHTML}
+                    </div>
                     <div class="egg-action-btns">
                         <div class="egg-btn-row">
-                            <button class="btn" onclick="hatchEgg(${eggId}, 1)">x1</button>
+                            <button class="btn" onclick="hatchEgg(${eggId}, 1)">Відкрити 1</button>
                             ${maxAmount > 1 ? `<button class="btn" onclick="hatchEgg(${eggId}, ${maxAmount})">x${maxAmount}</button>` : ''}
                         </div>
                         <div class="egg-btn-row">
                             <button class="btn btn-auto ${isAuto1 ? 'active' : ''}" onclick="toggleAutoHatch(${eggId}, 1)">
-                                Auto x1
+                                Авто 1: ${isAuto1 ? 'ON' : 'OFF'}
                             </button>
                             ${maxAmount > 1 ? `
                             <button class="btn btn-auto ${isAutoX ? 'active' : ''}" onclick="toggleAutoHatch(${eggId}, ${maxAmount})">
-                                Auto x${maxAmount}
+                                Авто x${maxAmount}: ${isAutoX ? 'ON' : 'OFF'}
                             </button>` : ''}
                         </div>
                     </div>
@@ -1287,10 +1426,14 @@
         }
 
         function equipBestPets() {
-            if (!gameState.inventory.length) return;
+            if (!gameState.inventory || gameState.inventory.length === 0) return;
 
-            const sorted = [...gameState.inventory].sort((a, b) => b.baseMult - a.baseMult);
-            gameState.equippedIds = sorted.slice(0, gameState.maxEquipped).map(p => p.id);
+            const sortedPets = [...gameState.inventory].sort((a, b) => {
+                return calculatePetMultiplier(b) - calculatePetMultiplier(a);
+            });
+
+            const bestPets = sortedPets.slice(0, gameState.maxEquipped);
+            gameState.equippedIds = bestPets.map(p => p.id);
 
             renderInventory();
             updateHeaderOnly();
@@ -1302,7 +1445,10 @@
             if (index > -1) {
                 gameState.equippedIds.splice(index, 1);
             } else {
-                if (gameState.equippedIds.length >= gameState.maxEquipped) return;
+                if (gameState.equippedIds.length >= gameState.maxEquipped) {
+                    alert(`Ліміт носіння (${gameState.maxEquipped})!`);
+                    return;
+                }
                 gameState.equippedIds.push(petId);
             }
             renderInventory();
@@ -1313,7 +1459,43 @@
         function deletePet(petId) {
             const index = gameState.equippedIds.indexOf(petId);
             if (index > -1) gameState.equippedIds.splice(index, 1);
+
             gameState.inventory = gameState.inventory.filter(p => p.id !== petId);
+            renderInventory();
+            updateHeaderOnly();
+            saveGame();
+        }
+
+        function makeShiny(petName) {
+            const samePets = gameState.inventory.filter(p => p.name === petName && !p.shiny);
+            if (samePets.length < 10) return;
+
+            let count = 0;
+            gameState.inventory = gameState.inventory.filter(p => {
+                if (p.name === petName && !p.shiny && count < 10) {
+                    const eqIndex = gameState.equippedIds.indexOf(p.id);
+                    if (eqIndex > -1) gameState.equippedIds.splice(eqIndex, 1);
+                    count++;
+                    return false;
+                }
+                return true;
+            });
+
+            const baseTemplate = Object.values(EGG_DATA).flatMap(e => e.pets).find(p => p.name === petName);
+            const shinyPet = {
+                id: Date.now() + "_" + Math.random().toString(36).substr(2, 9),
+                name: petName,
+                rarity: baseTemplate ? baseTemplate.rarity : 'common',
+                baseMult: baseTemplate ? baseTemplate.mult : 2,
+                diamondMult: baseTemplate ? (baseTemplate.diamondMult || 1) : 1,
+                shiny: true
+            };
+
+            gameState.inventory.push(shinyPet);
+
+            const timeStr = new Date().toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            addChatMessage(`<span style="color:#aaa;">[${timeStr}]</span> ✨ <b>Гравець</b> створив Shiny <b>${petName}</b>!`);
+
             renderInventory();
             updateHeaderOnly();
             saveGame();
@@ -1338,10 +1520,13 @@
             if (gameState.diamonds >= cost) {
                 gameState.diamonds -= cost;
                 gameState.maxHatchAmount = targetLevel;
+                alert(`Тепер можна відкривати ${targetLevel} яєць одночасно!`);
                 renderShop();
                 renderEggs();
                 updateHeaderOnly();
                 saveGame();
+            } else {
+                alert("Недостатньо діамантів!");
             }
         }
 
@@ -1349,44 +1534,64 @@
             if (gameState.diamonds >= cost) {
                 gameState.diamonds -= cost;
                 gameState.maxEquipped = targetCount;
+                alert(`Тепер можна носити ${targetCount} улюбленців!`);
                 renderShop();
                 updateHeaderOnly();
                 saveGame();
+            } else {
+                alert("Недостатньо діамантів!");
             }
         }
 
         function renderShop() {
             const container = document.getElementById('shop-items-container');
-            container.innerHTML = '<h4 style="color:var(--accent-gold); margin-bottom:6px;">🥚 Відкриття яєць</h4>';
+            container.innerHTML = '<h3 style="margin-bottom:8px; color:var(--accent-gold); font-size:1rem;">🥚 Відкриття яєць</h3>';
+
+            const currentMaxHatch = gameState.maxHatchAmount || 1;
 
             HATCH_UPGRADES.forEach(upg => {
-                const isUnlocked = gameState.maxHatchAmount >= upg.level;
-                const canBuy = gameState.maxHatchAmount === upg.level - 1;
+                const isUnlocked = currentMaxHatch >= upg.level;
+                const canBuy = currentMaxHatch === upg.level - 1;
 
-                container.innerHTML += `
-                    <div class="shop-item">
-                        <span>Відкривати <b>x${upg.level}</b> (Ціна: ${upg.cost.toLocaleString()} 💎)</span>
-                        <button class="btn" onclick="buyHatchUpgrade(${upg.level}, ${upg.cost})" ${isUnlocked || !canBuy ? 'disabled' : ''}>
-                            ${isUnlocked ? 'Є' : 'Купити'}
-                        </button>
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'shop-item';
+                itemDiv.innerHTML = `
+                    <div>
+                        <b>Відкривати ${upg.level} яйця</b><br>
+                        <span>${upg.cost.toLocaleString()} 💎</span>
                     </div>
+                    <button class="btn" onclick="buyHatchUpgrade(${upg.level}, ${upg.cost})" 
+                        ${isUnlocked ? 'disabled' : (!canBuy ? 'disabled' : '')}>
+                        ${isUnlocked ? 'Куплено' : 'Купити'}
+                    </button>
                 `;
+                container.appendChild(itemDiv);
             });
 
-            container.innerHTML += '<h4 style="color:var(--accent-gold); margin:10px 0 6px;">🐾 Кількість улюбленців</h4>';
+            const equipHeader = document.createElement('h3');
+            equipHeader.style.cssText = 'margin-top:14px; margin-bottom:8px; color:var(--accent-gold); font-size:1rem;';
+            equipHeader.innerText = '🐾 Кількість улюбленців';
+            container.appendChild(equipHeader);
+
+            const currentMaxEquip = gameState.maxEquipped || 3;
 
             EQUIP_UPGRADES.forEach(upg => {
-                const isUnlocked = gameState.maxEquipped >= upg.count;
-                const canBuy = gameState.maxEquipped === upg.count - 1;
+                const isUnlocked = currentMaxEquip >= upg.count;
+                const canBuy = currentMaxEquip === upg.count - 1;
 
-                container.innerHTML += `
-                    <div class="shop-item">
-                        <span>Слотів: <b>${upg.count}</b> (Ціна: ${upg.cost.toLocaleString()} 💎)</span>
-                        <button class="btn" onclick="buyEquipUpgrade(${upg.count}, ${upg.cost})" ${isUnlocked || !canBuy ? 'disabled' : ''}>
-                            ${isUnlocked ? 'Є' : 'Купити'}
-                        </button>
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'shop-item';
+                itemDiv.innerHTML = `
+                    <div>
+                        <b>Носити ${upg.count} улюбленців</b><br>
+                        <span>${upg.cost.toLocaleString()} 💎</span>
                     </div>
+                    <button class="btn" onclick="buyEquipUpgrade(${upg.count}, ${upg.cost})" 
+                        ${isUnlocked ? 'disabled' : (!canBuy ? 'disabled' : '')}>
+                        ${isUnlocked ? 'Куплено' : 'Купити'}
+                    </button>
                 `;
+                container.appendChild(itemDiv);
             });
         }
 
@@ -1399,9 +1604,13 @@
         function updateHeaderOnly() {
             document.getElementById('coin-count').innerText = Math.floor(gameState.coins).toLocaleString();
             document.getElementById('diamond-count').innerText = Math.floor(gameState.diamonds).toLocaleString();
-            document.getElementById('team-mult').innerText = getEquippedMultiplier().toFixed(1);
-            document.getElementById('diamond-mult').innerText = getEquippedDiamondMultiplier().toFixed(1);
-            document.getElementById('eggs-opened-count').innerText = gameState.eggsOpened.toLocaleString();
+
+            const totalTeamMult = getEquippedMultiplier();
+            document.getElementById('team-mult').innerText = totalTeamMult.toFixed(1);
+
+            const totalDiamondMult = getEquippedDiamondMultiplier();
+            document.getElementById('diamond-mult').innerText = totalDiamondMult.toFixed(1);
+
             document.getElementById('equipped-count').innerText = gameState.equippedIds.length;
             document.getElementById('max-equipped').innerText = gameState.maxEquipped;
             document.getElementById('inventory-count').innerText = gameState.inventory.length;
@@ -1412,23 +1621,39 @@
             if (!grid) return;
             grid.innerHTML = '';
 
-            gameState.inventory.sort((a, b) => b.baseMult - a.baseMult);
+            gameState.inventory.sort((a, b) => calculatePetMultiplier(b) - calculatePetMultiplier(a));
+
+            const countsByName = {};
+            gameState.inventory.forEach(p => {
+                if (!p.shiny) countsByName[p.name] = (countsByName[p.name] || 0) + 1;
+            });
 
             gameState.inventory.forEach(pet => {
                 const isEquipped = gameState.equippedIds.includes(pet.id);
+                const currentMult = calculatePetMultiplier(pet);
+                const currentDMult = calculatePetDiamondMult(pet);
+                const countNormal = countsByName[pet.name] || 0;
+
                 const card = document.createElement('div');
-                card.className = `pet-card ${pet.rarity} ${isEquipped ? 'equipped' : ''}`;
+                card.className = `pet-card ${pet.rarity} ${isEquipped ? 'equipped' : ''} ${pet.shiny ? 'shiny' : ''}`;
+
+                const shinyBtnText = pet.shiny ? '✨ Shiny' : `✨ Shiny (${countNormal}/10)`;
+                const canMakeShiny = !pet.shiny && countNormal >= 10;
 
                 card.innerHTML = `
                     <div>
-                        <b>${pet.name}</b><br>
-                        <span>🍂x${pet.baseMult} | 💎x${pet.diamondMult || 1}</span>
+                        <strong>${pet.shiny ? '✨ ' : ''}${pet.name}</strong><br>
+                        <span>🍂x${currentMult.toFixed(1)} | 💎x${currentDMult.toFixed(1)}</span>
                     </div>
-                    <div style="margin-top:4px; display:flex; gap:2px;">
-                        <button class="btn" style="padding:2px 4px; font-size:0.65rem; flex:1;" onclick="toggleEquip('${pet.id}')">
+                    <div style="margin-top:6px; display:flex; flex-direction:column; gap:3px;">
+                        <button class="btn" style="padding:4px; font-size:0.7em; margin-top:0;" onclick="toggleEquip('${pet.id}')">
                             ${isEquipped ? 'Зняти' : 'Одягти'}
                         </button>
-                        <button class="btn" style="padding:2px 4px; font-size:0.65rem; background:#c0392b;" onclick="deletePet('${pet.id}')">✕</button>
+                        <button class="btn" style="padding:4px; font-size:0.7em; margin-top:0; background:#f1c40f; color:#1a100b;" 
+                                onclick="makeShiny('${pet.name}')" ${!canMakeShiny ? 'disabled' : ''}>
+                            ${shinyBtnText}
+                        </button>
+                        <button class="btn" style="padding:4px; font-size:0.7em; margin-top:0; background:#c0392b;" onclick="deletePet('${pet.id}')">🗑️</button>
                     </div>
                 `;
                 grid.appendChild(card);
