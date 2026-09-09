@@ -135,7 +135,7 @@
 
         .stat-badge.aura { color: var(--accent-gold); border-color: var(--accent-gold); }
         .stat-badge.energy { color: var(--accent-energy); border-color: var(--accent-energy); }
-        
+
         .stat-subtext {
             font-size: 0.75rem;
             color: #2ecc71;
@@ -299,7 +299,6 @@
             box-shadow: 0 4px 10px rgba(0,0,0,0.3);
         }
 
-        /* Плейсхолдер та блок для зображення прокачки */
         .upgrade-img-wrap {
             width: 65px;
             height: 65px;
@@ -330,6 +329,17 @@
             font-size: 1rem;
             font-weight: bold;
             color: #fff;
+        }
+
+        .upgrade-level-badge {
+            display: inline-block;
+            background: var(--accent-purple);
+            color: #fff;
+            font-size: 0.75rem;
+            font-weight: bold;
+            padding: 2px 6px;
+            border-radius: 6px;
+            margin-left: 6px;
         }
 
         .upgrade-desc {
@@ -418,8 +428,11 @@
                         <img src="img/aura_click.jpg" alt="Аура" class="upgrade-img" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'65\' height=\'65\' viewBox=\'0 0 65 65\'><rect width=\'65\' height=\'65\' fill=\'%232a1f45\'/><text x=\'50%\' y=\'50%\' dominant-baseline=\'middle\' text-anchor=\'middle\' fill=\'%23f1c40f\' font-size=\'28\'>✨</text></svg>';">
                     </div>
                     <div class="upgrade-info">
-                        <div class="upgrade-title">✨ Прокачка "Аура"</div>
-                        <div class="upgrade-desc" id="aura-upg-desc">Рівень: 0 | Ефект: +1 аура/клік</div>
+                        <div class="upgrade-title">
+                            ✨ Прокачка "Аура"
+                            <span class="upgrade-level-badge" id="aura-lvl-badge">Рівень 0</span>
+                        </div>
+                        <div class="upgrade-desc" id="aura-upg-desc">Ефект: +1 аура/клік</div>
                         <div class="upgrade-desc" style="color: var(--accent-gold);" id="aura-upg-cost">Ціна: 100 аури</div>
                     </div>
                     <button class="upgrade-btn" id="aura-upg-btn" onclick="buyAuraUpgrade()">Купити</button>
@@ -431,8 +444,11 @@
                         <img src="img/energy_max.jpg" alt="Енергія" class="upgrade-img" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'65\' height=\'65\' viewBox=\'0 0 65 65\'><rect width=\'65\' height=\'65\' fill=\'%231f2a45\'/><text x=\'50%\' y=\'50%\' dominant-baseline=\'middle\' text-anchor=\'middle\' fill=\'%233498db\' font-size=\'28\'>⚡</text></svg>';">
                     </div>
                     <div class="upgrade-info">
-                        <div class="upgrade-title">⚡ Прокачка "Енергія"</div>
-                        <div class="upgrade-desc" id="energy-upg-desc">Рівень: 0 | Макс. Енергія: 1000</div>
+                        <div class="upgrade-title">
+                            ⚡ Прокачка "Енергія"
+                            <span class="upgrade-level-badge" id="energy-lvl-badge">Рівень 0</span>
+                        </div>
+                        <div class="upgrade-desc" id="energy-upg-desc">Макс. Енергія: 1000</div>
                         <div class="upgrade-desc" style="color: var(--accent-gold);" id="energy-upg-cost">Ціна: 500 аури</div>
                     </div>
                     <button class="upgrade-btn" id="energy-upg-btn" onclick="buyEnergyUpgrade()">Купити</button>
@@ -446,25 +462,12 @@
     </div>
 
     <script>
-        // Дані базових прокачок
-        const AURA_UPGRADES = [
-            { lvl: 1, cost: 100, val: 2 },
-            { lvl: 2, cost: 250, val: 3 },
-            { lvl: 3, cost: 500, val: 4 },
-            { lvl: 4, cost: 1000, val: 5 },
-            { lvl: 5, cost: 2000, val: 6 },
-            { lvl: 6, cost: 3000, val: 7 },
-            { lvl: 7, cost: 5000, val: 8 },
-            { lvl: 8, cost: 7500, val: 9 },
-            { lvl: 9, cost: 10000, val: 10 }
-        ];
+        // Коефіцієнт подорожчання прокачки за кожен рівень (х1.2)
+        const PRICE_MULTIPLIER = 1.2;
 
-        const ENERGY_UPGRADES = [
-            { lvl: 1, cost: 500, val: 2000 },
-            { lvl: 2, cost: 1500, val: 3000 },
-            { lvl: 3, cost: 5000, val: 4000 },
-            { lvl: 4, cost: 20000, val: 5000 }
-        ];
+        // Базові вартості та бонуси для Аура і Енергія
+        const BASE_AURA_COST = 100;
+        const BASE_ENERGY_COST = 500;
 
         // 30 Пасивних Прокачок за Категоріями
         const PASSIVE_UPGRADES = [
@@ -550,14 +553,28 @@
             osc.stop(now + 0.08);
         }
 
-        function getMaxEnergy() {
-            if (state.energyLvl === 0) return 1000;
-            return ENERGY_UPGRADES[state.energyLvl - 1].val;
+        // Розрахунок параметрів Аури
+        function getAuraPerClick() {
+            return 1 + state.auraLvl;
         }
 
-        function getAuraPerClick() {
-            if (state.auraLvl === 0) return 1;
-            return AURA_UPGRADES[state.auraLvl - 1].val;
+        function getAuraUpgradeCost() {
+            return Math.floor(BASE_AURA_COST * Math.pow(PRICE_MULTIPLIER, state.auraLvl));
+        }
+
+        // Розрахунок параметрів Енергії
+        function getMaxEnergy() {
+            return 1000 + (state.energyLvl * 1000);
+        }
+
+        function getEnergyUpgradeCost() {
+            return Math.floor(BASE_ENERGY_COST * Math.pow(PRICE_MULTIPLIER, state.energyLvl));
+        }
+
+        // Розрахунок вартість пасивних прокачок (х1.2 за рівень)
+        function getPassiveCost(u) {
+            const count = state.passives[u.id] || 0;
+            return Math.floor(u.baseCost * Math.pow(PRICE_MULTIPLIER, count));
         }
 
         function getTotalCps() {
@@ -569,18 +586,13 @@
             return cps;
         }
 
-        function getPassiveCost(u) {
-            const count = state.passives[u.id] || 0;
-            return Math.floor(u.baseCost * Math.pow(1.15, count));
-        }
-
         // Завантаження / Збереження
         function saveGame() {
-            localStorage.setItem("hrundel_clicker_save_v2", JSON.stringify(state));
+            localStorage.setItem("hrundel_clicker_save_v3", JSON.stringify(state));
         }
 
         function loadGame() {
-            const saved = localStorage.getItem("hrundel_clicker_save_v2");
+            const saved = localStorage.getItem("hrundel_clicker_save_v3");
             if (saved) {
                 try {
                     const parsed = JSON.parse(saved);
@@ -619,29 +631,29 @@
             }, 800);
         }
 
+        // Купівля прокачки Аура (+1 аура за клік, ціна х1.2)
         function buyAuraUpgrade() {
-            if (state.auraLvl >= AURA_UPGRADES.length) return;
-            const nextUpg = AURA_UPGRADES[state.auraLvl];
-            if (state.aura >= nextUpg.cost) {
-                state.aura -= nextUpg.cost;
+            const cost = getAuraUpgradeCost();
+            if (state.aura >= cost) {
+                state.aura -= cost;
                 state.auraLvl += 1;
                 updateUI();
                 saveGame();
             }
         }
 
+        // Купівля прокачки Енергія (+1000 макс енергії, ціна х1.2, енергія НЕ відновлюється)
         function buyEnergyUpgrade() {
-            if (state.energyLvl >= ENERGY_UPGRADES.length) return;
-            const nextUpg = ENERGY_UPGRADES[state.energyLvl];
-            if (state.aura >= nextUpg.cost) {
-                state.aura -= nextUpg.cost;
+            const cost = getEnergyUpgradeCost();
+            if (state.aura >= cost) {
+                state.aura -= cost;
                 state.energyLvl += 1;
-                // Енергія НЕ відновлюється миттєво при покупці за вимогою
                 updateUI();
                 saveGame();
             }
         }
 
+        // Купівля пасивної прокачки
         function buyPassiveUpgrade(id) {
             const u = PASSIVE_UPGRADES.find(item => item.id === id);
             if (!u) return;
@@ -654,6 +666,7 @@
             }
         }
 
+        // Генерація списку 30 пасивних прокачок
         function renderPassiveUpgrades() {
             const container = document.getElementById('passive-upgrades-container');
             container.innerHTML = '';
@@ -679,9 +692,12 @@
                         <img src="${u.img}" alt="${u.name}" class="upgrade-img" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'65\\' height=\\'65\\' viewBox=\\'0 0 65 65\\'><rect width=\\'65\\' height=\\'65\\' fill=\\'%23251a3a\\'/><text x=\\'50%\\' y=\\'50%\\' dominant-baseline=\\'middle\\' text-anchor=\\'middle\\' fill=\\'%239b59b6\\' font-size=\\'20\\' font-weight=\\'bold\\'>${u.id}</text></svg>';">
                     </div>
                     <div class="upgrade-info">
-                        <div class="upgrade-title">${u.name}</div>
-                        <div class="upgrade-desc">Рівень: ${count} | +${formatNum(u.baseCps)} аури/сек</div>
-                        <div class="upgrade-desc" style="color: var(--accent-gold);">Ціна: ${formatNum(cost)} аури</div>
+                        <div class="upgrade-title">
+                            ${u.name}
+                            <span class="upgrade-level-badge" id="passive-lvl-badge-${u.id}">Рівень ${count}</span>
+                        </div>
+                        <div class="upgrade-desc" id="passive-desc-${u.id}">Дохід: +${formatNum(count * u.baseCps)} аури/сек (+${formatNum(u.baseCps)})</div>
+                        <div class="upgrade-desc" style="color: var(--accent-gold);" id="passive-cost-${u.id}">Ціна: ${formatNum(cost)} аури</div>
                     </div>
                     <button class="upgrade-btn" id="passive-btn-${u.id}" onclick="buyPassiveUpgrade(${u.id})">Купити</button>
                 `;
@@ -714,49 +730,36 @@
             const pct = Math.max(0, Math.min(100, (state.energy / maxE) * 100));
             document.getElementById('energy-bar-fill').style.width = pct + '%';
 
-            // 1. Аура Клік
-            const auraDesc = document.getElementById('aura-upg-desc');
-            const auraCost = document.getElementById('aura-upg-cost');
+            // 1. Оновлення Аура Прокачки
+            const auraCost = getAuraUpgradeCost();
+            document.getElementById('aura-lvl-badge').innerText = `Рівень ${state.auraLvl}`;
+            document.getElementById('aura-upg-desc').innerText = `Поточний ефект: +${getAuraPerClick()} аури/клік`;
+            document.getElementById('aura-upg-cost').innerText = `Ціна: ${formatNum(auraCost)} аури`;
             const auraBtn = document.getElementById('aura-upg-btn');
+            auraBtn.disabled = state.aura < auraCost;
 
-            if (state.auraLvl >= AURA_UPGRADES.length) {
-                auraDesc.innerText = `Рівень: ${state.auraLvl} (МАКС) | Ефект: +${getAuraPerClick()} аури/клік`;
-                auraCost.innerText = `Максимальний рівень`;
-                auraBtn.disabled = true;
-                auraBtn.innerText = "МАКС";
-            } else {
-                const nextAura = AURA_UPGRADES[state.auraLvl];
-                auraDesc.innerText = `Рівень: ${state.auraLvl} | Наст. ефект: +${nextAura.val} аури/клік`;
-                auraCost.innerText = `Ціна: ${formatNum(nextAura.cost)} аури`;
-                auraBtn.disabled = state.aura < nextAura.cost;
-                auraBtn.innerText = "Купити";
-            }
-
-            // 2. Енергія Макс
-            const energyDesc = document.getElementById('energy-upg-desc');
-            const energyCost = document.getElementById('energy-upg-cost');
+            // 2. Оновлення Енергія Прокачки
+            const energyCost = getEnergyUpgradeCost();
+            document.getElementById('energy-lvl-badge').innerText = `Рівень ${state.energyLvl}`;
+            document.getElementById('energy-upg-desc').innerText = `Макс. Енергія: ${maxE}`;
+            document.getElementById('energy-upg-cost').innerText = `Ціна: ${formatNum(energyCost)} аури`;
             const energyBtn = document.getElementById('energy-upg-btn');
+            energyBtn.disabled = state.aura < energyCost;
 
-            if (state.energyLvl >= ENERGY_UPGRADES.length) {
-                energyDesc.innerText = `Рівень: ${state.energyLvl} (МАКС) | Макс. Енергія: ${maxE}`;
-                energyCost.innerText = `Максимальний рівень`;
-                energyBtn.disabled = true;
-                energyBtn.innerText = "МАКС";
-            } else {
-                const nextEnergy = ENERGY_UPGRADES[state.energyLvl];
-                energyDesc.innerText = `Рівень: ${state.energyLvl} | Наст. Макс. Енергія: ${nextEnergy.val}`;
-                energyCost.innerText = `Ціна: ${formatNum(nextEnergy.cost)} аури`;
-                energyBtn.disabled = state.aura < nextEnergy.cost;
-                energyBtn.innerText = "Купити";
-            }
-
-            // 3. Пасивні Прокачки
+            // 3. Динамічне оновлення 30 пасивних прокачок
             PASSIVE_UPGRADES.forEach(u => {
+                const count = state.passives[u.id] || 0;
+                const cost = getPassiveCost(u);
+
+                const lvlBadge = document.getElementById(`passive-lvl-badge-${u.id}`);
+                const desc = document.getElementById(`passive-desc-${u.id}`);
+                const costEl = document.getElementById(`passive-cost-${u.id}`);
                 const btn = document.getElementById(`passive-btn-${u.id}`);
-                if (btn) {
-                    const cost = getPassiveCost(u);
-                    btn.disabled = state.aura < cost;
-                }
+
+                if (lvlBadge) lvlBadge.innerText = `Рівень ${count}`;
+                if (desc) desc.innerText = `Дохід: +${formatNum(count * u.baseCps)} аури/сек (+${formatNum(u.baseCps)})`;
+                if (costEl) costEl.innerText = `Ціна: ${formatNum(cost)} аури`;
+                if (btn) btn.disabled = state.aura < cost;
             });
         }
 
@@ -765,13 +768,13 @@
             const dt = 0.1;
             const maxE = getMaxEnergy();
 
-            // Відновлення енергії: 30 хвилин (1800 секунд) для повного відновлення від 0 до maxE
+            // Відновлення енергії за 30 хвилин (1800 секунд)
             if (state.energy < maxE) {
-                const regenPerSec = maxE / 1800; // 30 хвилин = 1800s
+                const regenPerSec = maxE / 1800;
                 state.energy = Math.min(maxE, state.energy + regenPerSec * dt);
             }
 
-            // Нарахування Пасивного Доходу (Аура/сек)
+            // Нарахування Пасивного Доходу
             const cps = getTotalCps();
             if (cps > 0) {
                 state.aura += cps * dt;
@@ -783,7 +786,7 @@
         // Автозбереження кожні 5 секунд
         setInterval(saveGame, 5000);
 
-        // Старт заставки
+        // Запуск після завантаження сторінки
         window.onload = function() {
             loadGame();
             renderPassiveUpgrades();
