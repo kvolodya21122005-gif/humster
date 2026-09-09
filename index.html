@@ -56,9 +56,80 @@
             overflow-x: hidden;
         }
 
+        /* Екран завантаження (Splash Loading Screen) */
+        #loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle, #2d2640 0%, #0d0a14 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+            padding: 20px;
+        }
+
+        .loading-content {
+            width: 100%;
+            max-width: 380px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            gap: 16px;
+        }
+
+        .loading-character {
+            font-size: 5rem;
+            animation: bounce 0.8s infinite alternate ease-in-out;
+        }
+
+        @keyframes bounce {
+            0% { transform: translateY(0) scale(1); }
+            100% { transform: translateY(-15px) scale(1.05); }
+        }
+
+        .loading-title {
+            font-size: 1.6rem;
+            color: var(--accent-gold);
+            font-weight: bold;
+            text-shadow: 0 2px 8px rgba(0,0,0,0.8);
+        }
+
+        .loading-bar-container {
+            width: 100%;
+            height: 22px;
+            background: rgba(0, 0, 0, 0.5);
+            border: 2px solid var(--accent-blue);
+            border-radius: 12px;
+            overflow: hidden;
+            position: relative;
+            box-shadow: 0 0 12px rgba(52, 152, 219, 0.3);
+        }
+
+        .loading-bar-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #3498db, #00d2d3, #f1c40f);
+            border-radius: 8px;
+            transition: width 0.05s linear;
+        }
+
+        .loading-status {
+            font-size: 0.9rem;
+            color: #bdc3c7;
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            padding: 0 4px;
+        }
+
         /* Екран меню */
         #menu-screen {
-            display: flex;
+            display: none;
             flex-direction: column;
             align-items: center;
             justify-content: center;
@@ -216,7 +287,7 @@
             border: 2px dashed var(--accent-blue);
             border-radius: 12px;
             overflow: hidden;
-            touch-action: none; /* Запобігає скролу сторінки під час проведення пальцем */
+            touch-action: none;
         }
 
         .click-zone.autumn-theme {
@@ -267,7 +338,6 @@
             100% { opacity: 0; transform: translateY(-30px); }
         }
 
-        /* Diamond Chest Banner */
         .diamond-chest-card {
             background: linear-gradient(135deg, #1e3799, #0c2461);
             border: 2px solid var(--accent-diamond);
@@ -625,6 +695,23 @@
 </head>
 <body>
 
+    <!-- Екран Завантаження (Loading Screen) -->
+    <div id="loading-screen">
+        <div class="loading-content">
+            <div class="loading-character">🐷🏴‍☠️</div>
+            <div class="loading-title">Pet Simulator</div>
+            
+            <div class="loading-bar-container">
+                <div class="loading-bar-fill" id="loading-bar-fill"></div>
+            </div>
+            
+            <div class="loading-status">
+                <span id="loading-status-text">Завантаження ресурсів...</span>
+                <span id="loading-percent">0%</span>
+            </div>
+        </div>
+    </div>
+
     <!-- Екран вибору локації -->
     <div id="menu-screen">
         <h1 class="menu-title">Pet Simulator</h1>
@@ -675,7 +762,7 @@
                 </div>
             </div>
 
-            <!-- Скриня з діамантами (тільки для стартової локації) -->
+            <!-- Скриня з діамантами -->
             <div class="diamond-chest-card" id="diamond-chest-section">
                 <div class="chest-info">
                     <div class="chest-icon">🎁</div>
@@ -688,7 +775,7 @@
                 <button class="btn chest-btn" id="claim-claim-btn" onclick="claimDiamondChest()">Отримати нагороду!</button>
             </div>
 
-            <!-- Поле збирання предметів (з підтримкою проведення пальцем) -->
+            <!-- Поле збирання предметів -->
             <div class="click-zone" id="click-zone">
                 <div class="click-zone-info" id="click-zone-info">Проведіть пальцем або мишкою, щоб зібрати!</div>
             </div>
@@ -793,7 +880,6 @@
             }
         }
 
-        // Game State
         let gameState = {
             coins: 0,
             diamonds: 0,
@@ -879,6 +965,46 @@
             }
         };
 
+        function startLoadingScreen() {
+            const loadingScreen = document.getElementById('loading-screen');
+            const fill = document.getElementById('loading-bar-fill');
+            const percentText = document.getElementById('loading-percent');
+            const statusText = document.getElementById('loading-status-text');
+
+            let progress = 0;
+            const totalDuration = 4000; // Тривалість анімації завантаження в мілісекундах (4 секунди)
+            const intervalTime = 30;
+            const increment = 100 / (totalDuration / intervalTime);
+
+            const loadingInterval = setInterval(() => {
+                progress += increment;
+
+                if (progress >= 30 && progress < 70) {
+                    statusText.innerText = "Підготовка світів...";
+                } else if (progress >= 70 && progress < 99) {
+                    statusText.innerText = "Майже готово...";
+                }
+
+                if (progress >= 100) {
+                    progress = 100;
+                    clearInterval(loadingInterval);
+                    statusText.innerText = "Готово!";
+                    
+                    setTimeout(() => {
+                        loadingScreen.style.transition = 'opacity 0.6s ease';
+                        loadingScreen.style.opacity = '0';
+                        setTimeout(() => {
+                            loadingScreen.style.display = 'none';
+                            document.getElementById('menu-screen').style.display = 'flex';
+                        }, 600);
+                    }, 200);
+                }
+
+                fill.style.width = `${progress}%`;
+                percentText.innerText = `${Math.floor(progress)}%`;
+            }, intervalTime);
+        }
+
         function formatChanceToFraction(percent) {
             let val = 100 / percent;
             if (val >= 100) return `1/${Math.round(val).toLocaleString('uk-UA')}`;
@@ -936,7 +1062,7 @@
             let petChancesHTML = egg.pets.map(p => {
                 const rarityUk = RARITY_NAMES[p.rarity] || p.rarity;
                 const prob = getCumulativeChanceText(p.chance, affordableEggs);
-                return `<div style="display:flex; justify-content:space-between; margin-top:2px; font-size:0.7rem;">
+                return `<div style="display:flex; justify-space-between; margin-top:2px; font-size:0.7rem;">
                     <span>• ${p.name} (${rarityUk}):</span>
                     <b style="color:#2ecc71;">${prob}</b>
                 </div>`;
@@ -961,14 +1087,14 @@
             renderEggs();
             renderUI();
             renderInventory();
-
             setupTouchCollect();
+
+            startLoadingScreen();
 
             setInterval(autoHatchTick, 200);
             timerInterval = setInterval(gameLoopTick, 1000);
         };
 
-        // Логіка збирання пальцем (Touch Move & Drag)
         function setupTouchCollect() {
             const zone = document.getElementById('click-zone');
             if (!zone) return;
