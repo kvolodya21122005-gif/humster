@@ -593,6 +593,7 @@
             lastSaveTime: Date.now()
         };
 
+        let offlineReport = null;
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
         function formatNum(num) {
@@ -669,15 +670,16 @@
 
         function saveGame() {
             state.lastSaveTime = Date.now();
-            localStorage.setItem("hrundel_clicker_save_v5", JSON.stringify(state));
+            localStorage.setItem("hrundel_clicker_save_v6", JSON.stringify(state));
         }
 
         function loadGame() {
-            // Очищення старих збережень для повного обнулення прогресу
+            // Очищення попередніх версій для повного обнулення прогресу
             localStorage.removeItem("hrundel_clicker_save_v3");
             localStorage.removeItem("hrundel_clicker_save_v4");
+            localStorage.removeItem("hrundel_clicker_save_v5");
 
-            const saved = localStorage.getItem("hrundel_clicker_save_v5");
+            const saved = localStorage.getItem("hrundel_clicker_save_v6");
             if (saved) {
                 try {
                     const parsed = JSON.parse(saved);
@@ -690,14 +692,14 @@
             }
         }
 
-        // Обробка офлайн-прогресу
-        function checkOfflineProgress() {
+        // Обробка та підрахунок офлайн-прогресу при завантаженні
+        function calculateOfflineProgress() {
             const now = Date.now();
             if (state.lastSaveTime) {
                 const elapsedSeconds = (now - state.lastSaveTime) / 1000;
                 const cps = getTotalCps();
 
-                if (elapsedSeconds >= 5) {
+                if (elapsedSeconds >= 3 && cps > 0) {
                     const offlineAura = cps * elapsedSeconds;
 
                     const maxE = getMaxEnergy();
@@ -706,20 +708,28 @@
                         state.energy = Math.min(maxE, state.energy + regenPerSec * elapsedSeconds);
                     }
 
-                    if (offlineAura > 0) {
-                        state.aura += offlineAura;
-                        document.getElementById('offline-time').innerText = formatTime(elapsedSeconds);
-                        document.getElementById('offline-aura-amount').innerText = formatNum(offlineAura);
-                        
-                        // Гарантований виклик модального вікна
-                        const modal = document.getElementById('offline-modal');
-                        if (modal) {
-                            modal.classList.add('active');
-                        }
-                    }
+                    state.aura += offlineAura;
+                    offlineReport = {
+                        time: elapsedSeconds,
+                        aura: offlineAura
+                    };
                 }
             }
-            state.lastSaveTime = Date.now();
+            state.lastSaveTime = now;
+            saveGame();
+        }
+
+        function displayOfflineModalIfAvailable() {
+            if (offlineReport && offlineReport.aura > 0) {
+                document.getElementById('offline-time').innerText = formatTime(offlineReport.time);
+                document.getElementById('offline-aura-amount').innerText = formatNum(offlineReport.aura);
+                
+                const modal = document.getElementById('offline-modal');
+                if (modal) {
+                    modal.classList.add('active');
+                }
+                offlineReport = null;
+            }
         }
 
         function closeOfflineModal() {
@@ -921,14 +931,16 @@
             if (document.visibilityState === 'hidden') {
                 saveGame();
             } else if (document.visibilityState === 'visible') {
-                checkOfflineProgress();
+                calculateOfflineProgress();
                 updateUI();
+                displayOfflineModalIfAvailable();
             }
         });
 
-        // Запуск після завантаження вікна
+        // Запуск гри при завантаженні
         window.onload = function() {
             loadGame();
+            calculateOfflineProgress();
             renderPassiveUpgrades();
             setupMultiTouch();
             updateUI();
@@ -947,14 +959,14 @@
                     setTimeout(() => {
                         loadingScreen.style.display = 'none';
                         document.getElementById('game-screen').style.display = 'flex';
-                        // Запуск перевірки офлайн-доходу та виклик модального вікна ЧІТКО ПІСЛЯ завершення завантаження
-                        checkOfflineProgress();
                         updateUI();
+                        // Відображення вікна офлайн-доходу ТІЛЬКИ ПІСЛЯ закриття екрану завантаження
+                        displayOfflineModalIfAvailable();
                     }, 400);
                 } else {
                     document.getElementById('game-screen').style.display = 'flex';
-                    checkOfflineProgress();
                     updateUI();
+                    displayOfflineModalIfAvailable();
                 }
             }
 
