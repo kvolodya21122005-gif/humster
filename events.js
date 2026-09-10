@@ -332,12 +332,18 @@ function renderEventUI() {
 
         html += `</div>`;
     } else if (eventSubTab === 'leaderboard') {
+        const existingList = document.getElementById('stone-leaderboard-list');
+        const hasItems = existingList && existingList.children.length > 0 && !existingList.innerHTML.includes('Завантаження');
+        const listContent = hasItems ? existingList.innerHTML : '<div style="text-align: center; color: #888; padding: 20px;">Завантаження онлайнового топу...</div>';
+    
         html += `
             <div id="stone-leaderboard-list" class="leaderboard-list">
-                <div style="text-align: center; color: #888; padding: 20px;">Завантаження онлайнового топу...</div>
+                ${listContent}
             </div>`;
-
-        setTimeout(renderStoneLeaderboard, 50);
+    
+        if (!hasItems) {
+            setTimeout(renderStoneLeaderboard, 50);
+        }
     }
 
     container.innerHTML = html;
