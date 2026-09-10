@@ -530,6 +530,7 @@
         </div>
     </div>
 
+    <!-- Модальне вікно тільки для аури -->
     <div id="offline-modal" class="modal-overlay">
         <div class="modal-card">
             <div class="modal-title">🐷 З поверненням!</div>
@@ -665,8 +666,52 @@
         let dbAvailable = false;
         let dbRef = null;
         let serverTimeOffset = 0;
+        let timeApiOffset = 0;
+        let isTimeApiSynced = false;
 
+        // Синхронізація часу через WorldTimeAPI (із резервним джерелом)
+        async function syncWorldTime() {
+            try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 3500);
+                
+                const response = await fetch('https://worldtimeapi.org/api/timezone/Etc/UTC', { signal: controller.signal });
+                clearTimeout(timeoutId);
+
+                if (response.ok) {
+                    const data = await response.json();
+                    const realServerMs = data.unixtime * 1000;
+                    timeApiOffset = realServerMs - Date.now();
+                    isTimeApiSynced = true;
+                    return;
+                }
+            } catch(e) {
+                console.warn("WorldTimeAPI недоступний, пробуємо резервний API:", e);
+            }
+
+            try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 3500);
+                const res = await fetch('https://timeapi.io/api/time/current/zone?timeZone=UTC', { signal: controller.signal });
+                clearTimeout(timeoutId);
+
+                if (res.ok) {
+                    const data = await res.json();
+                    const realServerMs = new Date(data.dateTime).getTime();
+                    timeApiOffset = realServerMs - Date.now();
+                    isTimeApiSynced = true;
+                    return;
+                }
+            } catch(e) {
+                console.warn("Резервний API часу також недоступний:", e);
+            }
+        }
+
+        // Поточний точний час ( WorldTimeAPI -> Firebase -> Local Date.now() )
         function getServerTime() {
+            if (isTimeApiSynced) {
+                return Date.now() + timeApiOffset;
+            }
             return Date.now() + serverTimeOffset;
         }
 
@@ -1102,7 +1147,7 @@
                 card.className = 'upgrade-card';
                 card.innerHTML = `
                     <div class="upgrade-img-wrap">
-                        <img src="${u.img}" alt="${u.name}" class="upgrade-img" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'65\\' height=\\'65\\'><rect width=\\'65\\' height=\\'65\\' fill=\\'%23251a3a\\'/><text x=\\'50%\\' y=\\'50%\\' dominant-baseline=\\'middle\\' text-anchor=\\'middle\\' fill=\\'%239b59b6\\' font-size=\\'20\\'>✨</text></svg>';">
+                        <img src="${u.img}" alt="${u.name}" class="upgrade-img" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'65\\' height=\\'65\\'><rect width=\\'65\\' height=\\'65\\' fill=\'%23251a3a\\'/><text x=\\'50%\\' y=\\'50%\\' dominant-baseline=\\'middle\\' text-anchor=\\'middle\\' fill=\'%239b59b6\\' font-size=\\'20\\'>✨</text></svg>';">
                     </div>
                     <div class="upgrade-info">
                         <div class="upgrade-title">${u.name} <span class="upgrade-level-badge" id="passive-lvl-badge-${u.id}">Рівень ${count}</span></div>
@@ -1333,19 +1378,22 @@
         }, 100);
 
         setInterval(saveGame, 5000);
+        setInterval(syncWorldTime, 60000); // Періодичне калібрування серверного часу
         window.addEventListener('beforeunload', saveGame);
 
-        document.addEventListener('visibilitychange', () => {
+        document.addEventListener('visibilitychange', async () => {
             if (document.visibilityState === 'hidden') {
                 saveGame();
             } else if (document.visibilityState === 'visible') {
+                await syncWorldTime();
                 calculateOfflineProgress();
                 updateUI();
                 if (state.nickname) displayOfflineModalIfAvailable();
             }
         });
 
-        window.onload = function() {
+        window.onload = async function() {
+            await syncWorldTime();
             loadGame();
             calculateOfflineProgress();
             renderPassiveUpgrades();
