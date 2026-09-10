@@ -908,19 +908,27 @@
             const now = Date.now();
             if (state.lastSaveTime) {
                 const elapsedSeconds = (now - state.lastSaveTime) / 1000;
-                const cps = getTotalCps();
 
-                if (elapsedSeconds >= 3 && cps > 0) {
-                    const offlineAura = cps * elapsedSeconds;
-                    const maxE = getMaxEnergy();
+                if (elapsedSeconds >= 3) {
+                    const cps = getTotalCps();
 
-                    if (state.energy < maxE) {
-                        const regenPerSec = maxE / 1800;
-                        state.energy = Math.min(maxE, state.energy + regenPerSec * elapsedSeconds);
+                    if (cps > 0) {
+                        const offlineAura = cps * elapsedSeconds;
+                        const maxE = getMaxEnergy();
+
+                        if (state.energy < maxE) {
+                            const regenPerSec = maxE / 1800;
+                            state.energy = Math.min(maxE, state.energy + regenPerSec * elapsedSeconds);
+                        }
+
+                        state.aura += offlineAura;
+                        offlineReport = { time: elapsedSeconds, aura: offlineAura };
                     }
 
-                    state.aura += offlineAura;
-                    offlineReport = { time: elapsedSeconds, aura: offlineAura };
+                    // Офлайн-видобуток каменю
+                    if (typeof calculateOfflineStone === 'function') {
+                        calculateOfflineStone(state.lastSaveTime, now);
+                    }
                 }
             }
             state.lastSaveTime = now;
