@@ -1057,7 +1057,7 @@
             }
 
             if (u.cat === "Навчання хрюнделя" && state.cooldowns && state.cooldowns[u.id]) {
-                const nowTime = typeof getServerTime === 'function' ? getServerTime() : Date.now();
+                const nowTime = getServerTime();
                 if (nowTime < state.cooldowns[u.id]) return;
             }
 
@@ -1071,7 +1071,7 @@
                     const cdSec = getCooldownSeconds(newLvl);
                     if (cdSec > 0) {
                         if (!state.cooldowns) state.cooldowns = {};
-                        const nowTime = typeof getServerTime === 'function' ? getServerTime() : Date.now();
+                        const nowTime = getServerTime();
                         state.cooldowns[id] = nowTime + (cdSec * 1000);
                     }
                 }
