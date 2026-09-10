@@ -530,7 +530,6 @@
         </div>
     </div>
 
-    <!-- Модальне вікно тільки для аури -->
     <div id="offline-modal" class="modal-overlay">
         <div class="modal-card">
             <div class="modal-title">🐷 З поверненням!</div>
@@ -669,6 +668,9 @@
         let timeApiOffset = 0;
         let isTimeApiSynced = false;
 
+        // Часова мітка відкриття нових карточок (13.09 10:00 за київським часом UTC+3)
+        const TARGET_RELEASE_TIME = Date.parse("2026-09-13T10:00:00+03:00");
+
         // Синхронізація часу через WorldTimeAPI (із резервним джерелом)
         async function syncWorldTime() {
             try {
@@ -753,8 +755,8 @@
 
             { id: 13, cat: "Вуличний Авторитет", name: "Кришування сусіднього хліва", baseCost: 20000, baseCps: 45, img: "img/upg13.jpg" },
             { id: 14, cat: "Вуличний Авторитет", name: "Братва з диких кабанів", baseCost: 100000, baseCps: 90, img: "img/upg14.jpg" },
-            { id: 15, cat: "Вуличний Авторитет", name: "Переговори у багнюці", baseCost: 650000, baseCps: 450, img: "img/upg15.jpg", req: { id: 9, lvl: 6, name: "Автоматичний роздавач комбікорму" }  },
-            { id: 16, cat: "Вуличний Авторитет", name: "Контроль головного корита", baseCost: 7500000, baseCps: 2000, img: "img/upg16.jpg", req: { id: 11, lvl: 10, name: "Монополія на жолуді" } },
+            { id: 15, cat: "Вуличний Авторитет", name: "Переговори у багнюці", baseCost: 650000, baseCps: 450, img: "img/upg15.jpg", req: { id: 9, lvl: 6, name: "Автоматичний роздавач комбікорму" }, releaseTime: TARGET_RELEASE_TIME },
+            { id: 16, cat: "Вуличний Авторитет", name: "Контроль головного корита", baseCost: 7500000, baseCps: 2000, img: "img/upg16.jpg", req: { id: 11, lvl: 10, name: "Монополія на жолуді" }, releaseTime: TARGET_RELEASE_TIME },
 
             { id: 19, cat: "Раціон та Енергія", name: "Відро добірного пійла", baseCost: 4000, baseCps: 5, img: "img/upg19.jpg" },
             { id: 20, cat: "Раціон та Енергія", name: "Елітні трюфелі на сніданок", baseCost: 15000, baseCps: 12, img: "img/upg20.jpg" },
@@ -763,7 +765,7 @@
             { id: 25, cat: "Бойові Навички", name: "Удар п'ятачком «Залізний таран»", baseCost: 2000000, baseCps: 700, img: "img/upg25.jpg" },
             { id: 26, cat: "Бойові Навички", name: "Сальний хук справа", baseCost: 2500000, baseCps: 650, img: "img/upg26.jpg" },
             { id: 27, cat: "Бойові Навички", name: "Броньоване черевце", baseCost: 4000000, baseCps: 850, img: "img/upg27.jpg" },
-            { id: 41, cat: "Бойові Навички", name: "Загартування у багнюці", baseCost: 16000000, baseCps: 1700, img: "img/upg41.jpg", req: { id: 25, lvl: 11, name: "Удар п'ятачком «Залізний таран»" } },
+            { id: 41, cat: "Бойові Навички", name: "Загартування у багнюці", baseCost: 16000000, baseCps: 1700, img: "img/upg41.jpg", req: { id: 25, lvl: 11, name: "Удар п'ятачком «Залізний таран»" }, releaseTime: TARGET_RELEASE_TIME },
 
             { 
                 id: 28, 
@@ -1099,6 +1101,9 @@
             const u = PASSIVE_UPGRADES.find(item => item.id === id);
             if (!u) return;
 
+            // Перевірка часу релізу за точним сервером WorldTime
+            if (u.releaseTime && getServerTime() < u.releaseTime) return;
+
             if (u.req) {
                 const reqLvl = state.passives[u.req.id] || 0;
                 if (reqLvl < u.req.lvl) return;
@@ -1311,6 +1316,8 @@
                 document.getElementById('energy-new-upg-btn').disabled = state.aura < energyNewCost;
             }
 
+            const nowTime = getServerTime();
+
             PASSIVE_UPGRADES.forEach(u => {
                 const count = state.passives[u.id] || 0;
                 const cost = getPassiveCost(u);
@@ -1325,32 +1332,47 @@
                 if (desc) desc.innerText = `Дохід: +${formatNum(count * u.baseCps)} аури/сек (+${formatNum(u.baseCps)})`;
                 if (costEl) costEl.innerText = `Ціна: ${formatNum(cost)} аури`;
 
-                let reqMet = true;
-                if (u.req) {
-                    const reqLvl = state.passives[u.req.id] || 0;
-                    reqMet = reqLvl >= u.req.lvl;
+                const isReleased = !u.releaseTime || nowTime >= u.releaseTime;
+
+                if (!isReleased) {
+                    const leftSec = Math.ceil((u.releaseTime - nowTime) / 1000);
                     if (reqEl) {
-                        if (!reqMet) {
-                            reqEl.innerText = `Вимога: ${u.req.name} ${reqLvl}/${u.req.lvl} лвл`;
-                            reqEl.style.display = 'block';
-                        } else reqEl.style.display = 'none';
+                        reqEl.innerText = `🔒 Відкриється 13.09 о 10:00 (через ${formatTime(leftSec)})`;
+                        reqEl.style.color = '#f39c12';
+                        reqEl.style.display = 'block';
                     }
-                } else if (reqEl) reqEl.style.display = 'none';
-
-                let cooldownSec = 0;
-                if (u.cat === "Навчання хрюнделя" && state.cooldowns && state.cooldowns[u.id]) {
-                    const nowTime = getServerTime();
-                    const diff = state.cooldowns[u.id] - nowTime;
-                    if (diff > 0) cooldownSec = Math.ceil(diff / 1000);
-                }
-
-                if (btn) {
-                    if (cooldownSec > 0) {
-                        btn.innerText = `⏱️ ${formatTime(cooldownSec)}`;
+                    if (btn) {
+                        btn.innerText = "🔒 13.09 10:00";
                         btn.disabled = true;
-                    } else {
-                        btn.innerText = "Купити";
-                        btn.disabled = !reqMet || state.aura < cost;
+                    }
+                } else {
+                    let reqMet = true;
+                    if (u.req) {
+                        const reqLvl = state.passives[u.req.id] || 0;
+                        reqMet = reqLvl >= u.req.lvl;
+                        if (reqEl) {
+                            if (!reqMet) {
+                                reqEl.innerText = `Вимога: ${u.req.name} ${reqLvl}/${u.req.lvl} лвл`;
+                                reqEl.style.color = '#e74c3c';
+                                reqEl.style.display = 'block';
+                            } else reqEl.style.display = 'none';
+                        }
+                    } else if (reqEl) reqEl.style.display = 'none';
+
+                    let cooldownSec = 0;
+                    if (u.cat === "Навчання хрюнделя" && state.cooldowns && state.cooldowns[u.id]) {
+                        const diff = state.cooldowns[u.id] - nowTime;
+                        if (diff > 0) cooldownSec = Math.ceil(diff / 1000);
+                    }
+
+                    if (btn) {
+                        if (cooldownSec > 0) {
+                            btn.innerText = `⏱️ ${formatTime(cooldownSec)}`;
+                            btn.disabled = true;
+                        } else {
+                            btn.innerText = "Купити";
+                            btn.disabled = !reqMet || state.aura < cost;
+                        }
                     }
                 }
             });
