@@ -2,6 +2,11 @@
 // КОНФІГУРАЦІЯ ТА ДАНІ ІВЕНТУ
 // ==========================================
 
+// Отримання поточного серверного або локального часу
+function getCurrentTime() {
+    return (typeof getServerTime === 'function') ? getServerTime() : Date.now();
+}
+
 // Вимога доступу: "Енергетик «Дикий Хряк»" (ID 21) >= 9 рівень
 const EVENT_REQ_PASSIVE_ID = 21;
 const EVENT_REQ_PASSIVE_LVL = 9;
@@ -32,8 +37,8 @@ let eventSubTab = 'statue'; // 'statue', 'cards', 'leaderboard'
 
 // Визначення часу завершення івенту (17 червня о 09:00)
 function getEventEndTime() {
-    const now = new Date();
-    let end = new Date(now.getFullYear(), 5, 17, 9, 0, 0); // 5 = Червень (0-based)
+    const now = new Date(getCurrentTime());
+    let end = new Date(now.getFullYear(), 5, 17, 9, 0, 0); // 5 = Червень
     if (now.getTime() > end.getTime() && (!state.event || !state.event.startTime)) {
         end = new Date(now.getFullYear() + 1, 5, 17, 9, 0, 0);
     }
@@ -67,14 +72,14 @@ function isEventUnlocked() {
 // Перевірка активності івенту
 function isEventActive() {
     if (!state.event || !state.event.startTime || state.event.ended) return false;
-    return Date.now() < getEventEndTime();
+    return getCurrentTime() < getEventEndTime();
 }
 
 // Старт івенту при першому виконанні умов
 function checkAndStartEvent() {
     initEventState();
     if (isEventUnlocked() && !state.event.startTime && !state.event.ended) {
-        state.event.startTime = Date.now();
+        state.event.startTime = getCurrentTime();
         saveGame();
     }
 }
@@ -82,7 +87,7 @@ function checkAndStartEvent() {
 // Розрахунок поточного дня івенту (1..7)
 function getEventDay() {
     if (!state.event || !state.event.startTime) return 1;
-    const elapsed = Date.now() - state.event.startTime;
+    const elapsed = getCurrentTime() - state.event.startTime;
     const day = Math.floor(elapsed / (24 * 3600 * 1000)) + 1;
     return Math.min(Math.max(day, 1), 7);
 }
@@ -196,13 +201,13 @@ function buyStoneCard(cardId) {
     if (card.day > getEventDay()) return;
 
     const cd = state.event.cooldowns[cardId] || 0;
-    if (Date.now() < cd) return;
+    if (getCurrentTime() < cd) return;
 
     const cost = getStoneCardCost(card);
     if (state.aura >= cost) {
         state.aura -= cost;
         state.event.cards[cardId] = (state.event.cards[cardId] || 0) + 1;
-        state.event.cooldowns[cardId] = Date.now() + (card.cdSec * 1000);
+        state.event.cooldowns[cardId] = getCurrentTime() + (card.cdSec * 1000);
         
         syncStoneLeaderboard();
         saveGame();
@@ -221,7 +226,6 @@ function upgradeStatue() {
         state.event.stone -= req.stoneCost;
         state.event.statueLvl = nextLvl;
 
-        // Видаляємо картку статуї, щоб при наступному кадрі вона перебудувалася
         const statueCard = document.getElementById('statue-upgrade-card');
         if (statueCard) statueCard.remove();
 
@@ -312,7 +316,7 @@ function renderEventUI() {
             const lvl = state.event.cards[card.id] || 0;
             const cost = getStoneCardCost(card);
             const cd = state.event.cooldowns[card.id] || 0;
-            const cdLeftSec = Math.max(0, Math.ceil((cd - Date.now()) / 1000));
+            const cdLeftSec = Math.max(0, Math.ceil((cd - getCurrentTime()) / 1000));
             const canAfford = state.aura >= cost && cdLeftSec === 0;
 
             if (cardBadge) cardBadge.innerText = `Рвн ${lvl}`;
@@ -429,7 +433,7 @@ function renderEventUI() {
             const lvl = state.event.cards[card.id] || 0;
             const cost = getStoneCardCost(card);
             const cd = state.event.cooldowns[card.id] || 0;
-            const cdLeftSec = Math.max(0, Math.ceil((cd - Date.now()) / 1000));
+            const cdLeftSec = Math.max(0, Math.ceil((cd - getCurrentTime()) / 1000));
 
             if (!isUnlocked) {
                 html += `
