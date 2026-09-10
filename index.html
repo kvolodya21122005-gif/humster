@@ -450,6 +450,12 @@
             color: #aaa;
         }
 
+        .upgrade-req {
+            font-size: 0.8rem;
+            color: #e74c3c;
+            font-weight: bold;
+        }
+
         .upgrade-btn {
             background: linear-gradient(180deg, #2ecc71, #27ae60);
             border: none;
@@ -687,18 +693,17 @@
     </div>
 
     <script>
-        // ВСТАВТЕ СВОЇ ДАНІ З FIREBASE (безкоштовно на firebase.google.com)
+        // ВСТАВТЕ СВОЇ ДАНІ З FIREBASE
         const firebaseConfig = {
-              apiKey: "AIzaSyAcYTnQk5wUuc1j16aYKtGEZfxtNyUJddo",
-              authDomain: "hrundel-322e4.firebaseapp.com",
-              databaseURL: "https://hrundel-322e4-default-rtdb.europe-west1.firebasedatabase.app",
-              projectId: "hrundel-322e4",
-              storageBucket: "hrundel-322e4.firebasestorage.app",
-              messagingSenderId: "1054014349465",
-              appId: "1:1054014349465:web:f24da597e53eed49761808",
-              measurementId: "G-KQ3CW5PV6T"
-            };
-
+            apiKey: "AIzaSyAcYTnQk5wUuc1j16aYKtGEZfxtNyUJddo",
+            authDomain: "hrundel-322e4.firebaseapp.com",
+            databaseURL: "https://hrundel-322e4-default-rtdb.europe-west1.firebasedatabase.app",
+            projectId: "hrundel-322e4",
+            storageBucket: "hrundel-322e4.firebasestorage.app",
+            messagingSenderId: "1054014349465",
+            appId: "1:1054014349465:web:f24da597e53eed49761808",
+            measurementId: "G-KQ3CW5PV6T"
+        };
 
         let dbAvailable = false;
         let dbRef = null;
@@ -744,7 +749,27 @@
 
             { id: 25, cat: "Бойові Навички", name: "Удар п'ятачком «Залізний таран»", baseCost: 2000000, baseCps: 700, img: "img/upg25.jpg" },
             { id: 26, cat: "Бойові Навички", name: "Сальний хук справа", baseCost: 2500000, baseCps: 650, img: "img/upg26.jpg" },
-            { id: 27, cat: "Бойові Навички", name: "Броньоване черевце", baseCost: 4000000, baseCps: 850, img: "img/upg27.jpg" }
+            { id: 27, cat: "Бойові Навички", name: "Броньоване черевце", baseCost: 4000000, baseCps: 850, img: "img/upg27.jpg" },
+
+            /* Нова сітка прокачок */
+            { 
+                id: 28, 
+                cat: "Навчання хрюнделя", 
+                name: "Глобус трюфельних родовищ", 
+                baseCost: 50000000, 
+                baseCps: 15000, 
+                img: "img/upg28.jpg",
+                req: { id: 26, lvl: 12, name: "Сальний хук справа" } 
+            },
+            { 
+                id: 29, 
+                cat: "Навчання хрюнделя", 
+                name: "Контурні карти сусідніх калюж", 
+                baseCost: 250000000, 
+                baseCps: 55000, 
+                img: "img/upg29.jpg",
+                req: { id: 28, lvl: 10, name: "Глобус трюфельних родовищ" } 
+            }
         ];
 
         let state = {
@@ -758,11 +783,24 @@
             postEvoAuraLvl: 0,
             postEvoEnergyLvl: 0,
             passives: {},
+            cooldowns: {},
             lastSaveTime: Date.now()
         };
 
         let offlineReport = null;
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        function getCooldownSeconds(lvl) {
+            if (lvl === 1) return 15;
+            if (lvl === 2) return 30;
+            if (lvl === 3) return 60;
+            if (lvl === 4) return 120;
+            if (lvl === 5) return 900;
+            if (lvl === 6) return 1800;
+            if (lvl >= 7 && lvl <= 12) return 7200;
+            if (lvl >= 13) return 43200;
+            return 0;
+        }
 
         function formatNum(num) {
             if (num >= 1e12) return (num / 1e12).toFixed(2) + 'T';
@@ -874,7 +912,7 @@
         }
 
         function loadGame() {
-            const saved = localStorage.getItem("hrundel_clicker_save_v9") || localStorage.getItem("hrundel_clicker_save_v9");
+            const saved = localStorage.getItem("hrundel_clicker_save_v9");
             if (saved) {
                 try {
                     const parsed = JSON.parse(saved);
@@ -886,6 +924,7 @@
                 state.playerId = 'player_' + Math.random().toString(36).substring(2, 10) + '_' + Date.now();
             }
             if (!state.passives) state.passives = {};
+            if (!state.cooldowns) state.cooldowns = {};
             if (state.hasEvolved === undefined) state.hasEvolved = false;
             if (state.postEvoAuraLvl === undefined) state.postEvoAuraLvl = 0;
             if (state.postEvoEnergyLvl === undefined) state.postEvoEnergyLvl = 0;
@@ -1049,10 +1088,33 @@
         function buyPassiveUpgrade(id) {
             const u = PASSIVE_UPGRADES.find(item => item.id === id);
             if (!u) return;
+
+            // Перевірка вимоги
+            if (u.req) {
+                const reqLvl = state.passives[u.req.id] || 0;
+                if (reqLvl < u.req.lvl) return;
+            }
+
+            // Перевірка кулдауну
+            if (u.cat === "Навчання хрюнделя" && state.cooldowns && state.cooldowns[u.id]) {
+                if (Date.now() < state.cooldowns[u.id]) return;
+            }
+
             const cost = getPassiveCost(u);
             if (state.aura >= cost) {
                 state.aura -= cost;
-                state.passives[id] = (state.passives[id] || 0) + 1;
+                const newLvl = (state.passives[id] || 0) + 1;
+                state.passives[id] = newLvl;
+
+                // Запуск кулдауну для сітки "Навчання хрюнделя"
+                if (u.cat === "Навчання хрюнделя") {
+                    const cdSec = getCooldownSeconds(newLvl);
+                    if (cdSec > 0) {
+                        if (!state.cooldowns) state.cooldowns = {};
+                        state.cooldowns[id] = Date.now() + (cdSec * 1000);
+                    }
+                }
+
                 updateUI();
                 saveGame();
             }
@@ -1088,6 +1150,7 @@
                             <span class="upgrade-level-badge" id="passive-lvl-badge-${u.id}">Рівень ${count}</span>
                         </div>
                         <div class="upgrade-desc" id="passive-desc-${u.id}">Дохід: +${formatNum(count * u.baseCps)} аури/сек (+${formatNum(u.baseCps)})</div>
+                        <div class="upgrade-req" id="passive-req-${u.id}" style="display: none;"></div>
                         <div class="upgrade-desc" style="color: var(--accent-gold);" id="passive-cost-${u.id}">Ціна: ${formatNum(cost)} аури</div>
                     </div>
                     <button class="upgrade-btn" id="passive-btn-${u.id}" onclick="buyPassiveUpgrade(${u.id})">Купити</button>
@@ -1130,9 +1193,7 @@
                     });
                 }
 
-                // Сортування за спаданням доходу
                 players.sort((a, b) => b.cps - a.cps);
-
                 list.innerHTML = '';
 
                 if (players.length === 0) {
@@ -1261,13 +1322,47 @@
 
                 const lvlBadge = document.getElementById(`passive-lvl-badge-${u.id}`);
                 const desc = document.getElementById(`passive-desc-${u.id}`);
+                const reqEl = document.getElementById(`passive-req-${u.id}`);
                 const costEl = document.getElementById(`passive-cost-${u.id}`);
                 const btn = document.getElementById(`passive-btn-${u.id}`);
 
                 if (lvlBadge) lvlBadge.innerText = `Рівень ${count}`;
                 if (desc) desc.innerText = `Дохід: +${formatNum(count * u.baseCps)} аури/сек (+${formatNum(u.baseCps)})`;
                 if (costEl) costEl.innerText = `Ціна: ${formatNum(cost)} аури`;
-                if (btn) btn.disabled = state.aura < cost;
+
+                let reqMet = true;
+                if (u.req) {
+                    const reqLvl = state.passives[u.req.id] || 0;
+                    reqMet = reqLvl >= u.req.lvl;
+                    if (reqEl) {
+                        if (!reqMet) {
+                            reqEl.innerText = `Вимога: ${u.req.name} ${reqLvl}/${u.req.lvl} лвл`;
+                            reqEl.style.display = 'block';
+                        } else {
+                            reqEl.style.display = 'none';
+                        }
+                    }
+                } else if (reqEl) {
+                    reqEl.style.display = 'none';
+                }
+
+                let cooldownSec = 0;
+                if (u.cat === "Навчання хрюнделя" && state.cooldowns && state.cooldowns[u.id]) {
+                    const diff = state.cooldowns[u.id] - Date.now();
+                    if (diff > 0) {
+                        cooldownSec = Math.ceil(diff / 1000);
+                    }
+                }
+
+                if (btn) {
+                    if (cooldownSec > 0) {
+                        btn.innerText = `⏱️ ${formatTime(cooldownSec)}`;
+                        btn.disabled = true;
+                    } else {
+                        btn.innerText = "Купити";
+                        btn.disabled = !reqMet || state.aura < cost;
+                    }
+                }
             });
         }
 
