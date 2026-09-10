@@ -35,12 +35,12 @@ const STATUE_LEVELS = [
 
 let eventSubTab = 'statue'; // 'statue', 'cards', 'leaderboard'
 
-// Визначення часу завершення івенту (17 червня о 09:00)
+// Визначення часу завершення івенту (17 вересня о 09:00)
 function getEventEndTime() {
     const now = new Date(getCurrentTime());
-    let end = new Date(now.getFullYear(), 5, 17, 9, 0, 0); // 5 = Червень
+    let end = new Date(now.getFullYear(), 8, 17, 9, 0, 0); // 8 = Вересень
     if (now.getTime() > end.getTime() && (!state.event || !state.event.startTime)) {
-        end = new Date(now.getFullYear() + 1, 5, 17, 9, 0, 0);
+        end = new Date(now.getFullYear() + 1, 8, 17, 9, 0, 0);
     }
     return end.getTime();
 }
@@ -75,12 +75,26 @@ function isEventActive() {
     return getCurrentTime() < getEventEndTime();
 }
 
-// Старт івенту при першому виконанні умов
+// Старт та автоматичний перезапуск івенту
 function checkAndStartEvent() {
     initEventState();
-    if (isEventUnlocked() && !state.event.startTime && !state.event.ended) {
-        state.event.startTime = getCurrentTime();
-        saveGame();
+    const now = getCurrentTime();
+    const end = getEventEndTime();
+
+    if (isEventUnlocked() && now < end) {
+        // Якщо івент ще не стартанув або був завершений раніше - запускаємо наново
+        if (!state.event.startTime || state.event.ended) {
+            state.event = {
+                startTime: now,
+                stone: 0,
+                totalStone: 0,
+                statueLvl: 0,
+                cards: {},
+                cooldowns: {},
+                ended: false
+            };
+            saveGame();
+        }
     }
 }
 
@@ -380,7 +394,7 @@ function renderEventUI() {
     let html = `
         <div style="width: 100%; text-align: center; background: var(--card-bg); padding: 12px; border-radius: 12px; border: 2px solid var(--accent-gold); margin-bottom: 15px;">
             <div style="font-size: 1.1rem; font-weight: bold; color: var(--accent-gold);">🎯 Тимчасовий Івент: Статуя Хрюнделя</div>
-            <div style="font-size: 0.85rem; color: #aaa; margin-top: 4px;">Івент завершується 17 червня о 9 години ранку</div>
+            <div style="font-size: 0.85rem; color: #aaa; margin-top: 4px;">Івент завершується 17 вересня о 9 години ранку</div>
             <div style="font-size: 1.1rem; font-weight: bold; margin-top: 8px; color: #00d2d3;">
                 🪨 Наявний камінь: <span id="event-stone-count">${formatNum(state.event.stone)}</span> (+<span id="event-sps-count">${formatNum(getTotalStonePerSec())}</span>/сек)
             </div>
