@@ -2,9 +2,6 @@
 // КОНФІГУРАЦІЯ ТА ДАНІ ІВЕНТУ
 // ==========================================
 
-// Тривалість: 7 днів і 4 години = 172 години = 619,200 секунд
-const EVENT_DURATION_MS = (7 * 24 + 4) * 3600 * 1000; 
-
 // Вимога доступу: "Енергетик «Дикий Хряк»" (ID 21) >= 9 рівень
 const EVENT_REQ_PASSIVE_ID = 21;
 const EVENT_REQ_PASSIVE_LVL = 9;
@@ -33,6 +30,16 @@ const STATUE_LEVELS = [
 
 let eventSubTab = 'statue'; // 'statue', 'cards', 'leaderboard'
 
+// Визначення часу завершення івенту (17 червня о 09:00)
+function getEventEndTime() {
+    const now = new Date();
+    let end = new Date(now.getFullYear(), 5, 17, 9, 0, 0); // 5 = Червень (0-based)
+    if (now.getTime() > end.getTime() && (!state.event || !state.event.startTime)) {
+        end = new Date(now.getFullYear() + 1, 5, 17, 9, 0, 0);
+    }
+    return end.getTime();
+}
+
 // Ініціалізація стану івенту в об'єкті state
 function initEventState() {
     if (!state.event) {
@@ -60,8 +67,7 @@ function isEventUnlocked() {
 // Перевірка активності івенту
 function isEventActive() {
     if (!state.event || !state.event.startTime || state.event.ended) return false;
-    const elapsed = Date.now() - state.event.startTime;
-    return elapsed < EVENT_DURATION_MS;
+    return Date.now() < getEventEndTime();
 }
 
 // Старт івенту при першому виконанні умов
@@ -112,9 +118,7 @@ function updateEventLogic(dt) {
     initEventState();
 
     if (state.event.startTime && !state.event.ended) {
-        const elapsed = Date.now() - state.event.startTime;
-
-        if (elapsed >= EVENT_DURATION_MS) {
+        if (!isEventActive()) {
             finishEvent();
             return;
         }
@@ -125,7 +129,6 @@ function updateEventLogic(dt) {
             const stoneGained = sps * dt;
             state.event.stone += stoneGained;
             state.event.totalStone += stoneGained;
-            syncStoneLeaderboard();
         }
     }
 }
@@ -137,11 +140,9 @@ function calculateOfflineStone(lastSaveTime, now) {
 
     if (!state.event || !state.event.startTime || state.event.ended) return;
 
-    const eventStart = state.event.startTime;
-    const eventEnd = eventStart + EVENT_DURATION_MS;
+    const eventEnd = getEventEndTime();
 
-    // Визначаємо перетин між часом відсутності та часом активності івенту
-    const overlapStart = Math.max(lastSaveTime, eventStart);
+    const overlapStart = Math.max(lastSaveTime, state.event.startTime);
     const overlapEnd = Math.min(now, eventEnd);
 
     if (overlapEnd > overlapStart) {
@@ -161,7 +162,6 @@ function calculateOfflineStone(lastSaveTime, now) {
         }
     }
 
-    // Якщо івент закінчився поки гравець був офлайн
     if (now >= eventEnd && !state.event.ended) {
         finishEvent();
     }
@@ -204,6 +204,7 @@ function buyStoneCard(cardId) {
         state.event.cards[cardId] = (state.event.cards[cardId] || 0) + 1;
         state.event.cooldowns[cardId] = Date.now() + (card.cdSec * 1000);
         
+        syncStoneLeaderboard();
         saveGame();
         updateUI();
     }
@@ -219,6 +220,10 @@ function upgradeStatue() {
     if (state.event.stone >= req.stoneCost) {
         state.event.stone -= req.stoneCost;
         state.event.statueLvl = nextLvl;
+
+        // Видаляємо картку статуї, щоб при наступному кадрі вона перебудувалася
+        const statueCard = document.getElementById('statue-upgrade-card');
+        if (statueCard) statueCard.remove();
 
         saveGame();
         updateUI();
@@ -242,9 +247,11 @@ function switchEventSubTab(tab) {
     const btn = document.getElementById(`event-sub-btn-${tab}`);
     if (btn) btn.classList.add('active');
 
-    // Очищаємо каркас карт при зміні підвкладки
     const cardsList = document.getElementById('stone-cards-list');
     if (cardsList) cardsList.remove();
+
+    const statueCard = document.getElementById('statue-upgrade-card');
+    if (statueCard) statueCard.remove();
 
     renderEventUI();
 }
@@ -279,23 +286,27 @@ function renderEventUI() {
         return;
     }
 
-    const elapsed = Date.now() - state.event.startTime;
-    const timeLeftSec = Math.max(0, (EVENT_DURATION_MS - elapsed) / 1000);
     const currentDay = getEventDay();
 
-    // Якщо каркас карт вже побудовано у DOM, оновлюємо лише значення без перебудови зображень
+    // Швидке оновлення підвкладки "Карточки"
     if (eventSubTab === 'cards' && document.getElementById('stone-cards-list')) {
-        const timerEl = document.getElementById('event-timer');
-        if (timerEl) timerEl.innerText = formatTime(timeLeftSec);
-
         const stoneEl = document.getElementById('event-stone-count');
         if (stoneEl) stoneEl.innerText = formatNum(state.event.stone);
 
         const spsEl = document.getElementById('event-sps-count');
         if (spsEl) spsEl.innerText = formatNum(getTotalStonePerSec());
 
+        let needsRebuild = false;
+
         STONE_CARDS.forEach(card => {
             const isUnlocked = currentDay >= card.day;
+            const cardBadge = document.getElementById(`stone-card-lvl-${card.id}`);
+
+            if (isUnlocked && !cardBadge) {
+                needsRebuild = true;
+                return;
+            }
+
             if (!isUnlocked) return;
 
             const lvl = state.event.cards[card.id] || 0;
@@ -304,8 +315,7 @@ function renderEventUI() {
             const cdLeftSec = Math.max(0, Math.ceil((cd - Date.now()) / 1000));
             const canAfford = state.aura >= cost && cdLeftSec === 0;
 
-            const lvlBadge = document.getElementById(`stone-card-lvl-${card.id}`);
-            if (lvlBadge) lvlBadge.innerText = `Рвн ${lvl}`;
+            if (cardBadge) cardBadge.innerText = `Рвн ${lvl}`;
 
             const desc = document.getElementById(`stone-card-desc-${card.id}`);
             if (desc) desc.innerText = `Дохід: +${formatNum(lvl * card.sps)} каменю/сек (+${card.sps})`;
@@ -320,14 +330,53 @@ function renderEventUI() {
             }
         });
 
+        if (needsRebuild) {
+            const cardsList = document.getElementById('stone-cards-list');
+            if (cardsList) cardsList.remove();
+        } else {
+            return;
+        }
+    }
+
+    // Швидке оновлення підвкладки "Статуя"
+    if (eventSubTab === 'statue' && document.getElementById('statue-upgrade-card')) {
+        const curLvl = state.event.statueLvl;
+        const curIncome = getStatueAuraIncome();
+
+        const stoneEl = document.getElementById('event-stone-count');
+        if (stoneEl) stoneEl.innerText = formatNum(state.event.stone);
+
+        const spsEl = document.getElementById('event-sps-count');
+        if (spsEl) spsEl.innerText = formatNum(getTotalStonePerSec());
+
+        const lvlEl = document.getElementById('statue-cur-lvl');
+        if (lvlEl) lvlEl.innerText = `${curLvl} / 7`;
+
+        const incEl = document.getElementById('statue-cur-income');
+        if (incEl) incEl.innerText = `+${formatNum(curIncome)} аури/сек`;
+
+        if (curLvl < 7) {
+            const req = STATUE_LEVELS[curLvl];
+            const canAfford = state.event.stone >= req.stoneCost;
+
+            const reqStoneEl = document.getElementById('statue-req-stone');
+            if (reqStoneEl) reqStoneEl.innerText = formatNum(req.stoneCost);
+
+            const btn = document.getElementById('statue-upgrade-btn');
+            if (btn) {
+                btn.disabled = !canAfford;
+                btn.style.background = canAfford ? '' : '#555';
+                btn.style.cursor = canAfford ? 'pointer' : 'not-allowed';
+            }
+        }
         return;
     }
 
-    // Первинний рендеринг всієї підвкладки
+    // Повний первинний рендеринг підвкладки
     let html = `
         <div style="width: 100%; text-align: center; background: var(--card-bg); padding: 12px; border-radius: 12px; border: 2px solid var(--accent-gold); margin-bottom: 15px;">
             <div style="font-size: 1.1rem; font-weight: bold; color: var(--accent-gold);">🎯 Тимчасовий Івент: Статуя Хрюнделя</div>
-            <div style="font-size: 0.85rem; color: #aaa; margin-top: 4px;">До кінця: <b style="color: #fff;" id="event-timer">${formatTime(timeLeftSec)}</b> | День івенту: <b style="color: var(--accent-gold);">${currentDay} / 7</b></div>
+            <div style="font-size: 0.85rem; color: #aaa; margin-top: 4px;">Івент завершується 17 червня о 9 години ранку</div>
             <div style="font-size: 1.1rem; font-weight: bold; margin-top: 8px; color: #00d2d3;">
                 🪨 Наявний камінь: <span id="event-stone-count">${formatNum(state.event.stone)}</span> (+<span id="event-sps-count">${formatNum(getTotalStonePerSec())}</span>/сек)
             </div>
@@ -345,11 +394,11 @@ function renderEventUI() {
         const curIncome = getStatueAuraIncome();
 
         html += `
-            <div class="upgrade-card evo-card" style="flex-direction: column; text-align: center; padding: 20px;">
+            <div class="upgrade-card evo-card" id="statue-upgrade-card" style="flex-direction: column; text-align: center; padding: 20px;">
                 <div style="font-size: 3rem;">🗿</div>
                 <h3 style="color: var(--accent-gold); margin: 8px 0;">Монументальний Хрюндель</h3>
-                <p style="font-size: 0.9rem; color: #ccc;">Поточний рівень: <b>${curLvl} / 7</b></p>
-                <p style="font-size: 0.95rem; color: #2ecc71; margin-top: 5px;">Поточний дохід: <b>+${formatNum(curIncome)} аури/сек</b></p>
+                <p style="font-size: 0.9rem; color: #ccc;">Поточний рівень: <b id="statue-cur-lvl">${curLvl} / 7</b></p>
+                <p style="font-size: 0.95rem; color: #2ecc71; margin-top: 5px;">Поточний дохід: <b id="statue-cur-income">+${formatNum(curIncome)} аури/сек</b></p>
                 <hr style="width: 100%; border: 1px solid rgba(255,255,255,0.1); margin: 15px 0;">
         `;
 
@@ -360,10 +409,10 @@ function renderEventUI() {
             html += `
                 <div style="font-size: 0.9rem; margin-bottom: 10px;">
                     Наступний рівень (Рівень ${req.lvl}):<br>
-                    Потрібно: <b style="color: #00d2d3;">${formatNum(req.stoneCost)} каменю</b><br>
+                    Потрібно: <b style="color: #00d2d3;"><span id="statue-req-stone">${formatNum(req.stoneCost)}</span> каменю</b><br>
                     Новий дохід: <b style="color: #2ecc71;">+${formatNum(req.auraCps)} аури/сек</b>
                 </div>
-                <button class="modal-btn" ${canAfford ? '' : 'disabled style="background: #555; cursor: not-allowed;"'} onclick="upgradeStatue()">
+                <button id="statue-upgrade-btn" class="modal-btn" ${canAfford ? '' : 'disabled style="background: #555; cursor: not-allowed;"'} onclick="upgradeStatue()">
                     Покращити Статую
                 </button>
             `;
