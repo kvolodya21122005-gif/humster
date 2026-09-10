@@ -204,6 +204,11 @@ function switchEventSubTab(tab) {
     document.querySelectorAll('.event-sub-btn').forEach(b => b.classList.remove('active'));
     const btn = document.getElementById(`event-sub-btn-${tab}`);
     if (btn) btn.classList.add('active');
+
+    // Очищаємо каркас карт при зміні підвкладки
+    const cardsList = document.getElementById('stone-cards-list');
+    if (cardsList) cardsList.remove();
+
     renderEventUI();
 }
 
@@ -241,12 +246,53 @@ function renderEventUI() {
     const timeLeftSec = Math.max(0, (EVENT_DURATION_MS - elapsed) / 1000);
     const currentDay = getEventDay();
 
+    // Якщо каркас карт вже побудовано у DOM, оновлюємо лише значення без перебудови зображень
+    if (eventSubTab === 'cards' && document.getElementById('stone-cards-list')) {
+        const timerEl = document.getElementById('event-timer');
+        if (timerEl) timerEl.innerText = formatTime(timeLeftSec);
+
+        const stoneEl = document.getElementById('event-stone-count');
+        if (stoneEl) stoneEl.innerText = formatNum(state.event.stone);
+
+        const spsEl = document.getElementById('event-sps-count');
+        if (spsEl) spsEl.innerText = formatNum(getTotalStonePerSec());
+
+        STONE_CARDS.forEach(card => {
+            const isUnlocked = currentDay >= card.day;
+            if (!isUnlocked) return;
+
+            const lvl = state.event.cards[card.id] || 0;
+            const cost = getStoneCardCost(card);
+            const cd = state.event.cooldowns[card.id] || 0;
+            const cdLeftSec = Math.max(0, Math.ceil((cd - Date.now()) / 1000));
+            const canAfford = state.aura >= cost && cdLeftSec === 0;
+
+            const lvlBadge = document.getElementById(`stone-card-lvl-${card.id}`);
+            if (lvlBadge) lvlBadge.innerText = `Рвн ${lvl}`;
+
+            const desc = document.getElementById(`stone-card-desc-${card.id}`);
+            if (desc) desc.innerText = `Дохід: +${formatNum(lvl * card.sps)} каменю/сек (+${card.sps})`;
+
+            const costEl = document.getElementById(`stone-card-cost-${card.id}`);
+            if (costEl) costEl.innerText = `Ціна: ${formatNum(cost)} аури`;
+
+            const btn = document.getElementById(`stone-card-btn-${card.id}`);
+            if (btn) {
+                btn.disabled = !canAfford;
+                btn.innerText = cdLeftSec > 0 ? `⏱️ ${formatTime(cdLeftSec)}` : 'Купити';
+            }
+        });
+
+        return;
+    }
+
+    // Первинний рендеринг всієї підвкладки
     let html = `
         <div style="width: 100%; text-align: center; background: var(--card-bg); padding: 12px; border-radius: 12px; border: 2px solid var(--accent-gold); margin-bottom: 15px;">
             <div style="font-size: 1.1rem; font-weight: bold; color: var(--accent-gold);">🎯 Тимчасовий Івент: Статуя Хрюнделя</div>
-            <div style="font-size: 0.85rem; color: #aaa; margin-top: 4px;">До кінця: <b style="color: #fff;">${formatTime(timeLeftSec)}</b> | День івенту: <b style="color: var(--accent-gold);">${currentDay} / 7</b></div>
+            <div style="font-size: 0.85rem; color: #aaa; margin-top: 4px;">До кінця: <b style="color: #fff;" id="event-timer">${formatTime(timeLeftSec)}</b> | День івенту: <b style="color: var(--accent-gold);">${currentDay} / 7</b></div>
             <div style="font-size: 1.1rem; font-weight: bold; margin-top: 8px; color: #00d2d3;">
-                🪨 Наявний камінь: ${formatNum(state.event.stone)} (+${formatNum(getTotalStonePerSec())}/сек)
+                🪨 Наявний камінь: <span id="event-stone-count">${formatNum(state.event.stone)}</span> (+<span id="event-sps-count">${formatNum(getTotalStonePerSec())}</span>/сек)
             </div>
         </div>
 
@@ -259,7 +305,6 @@ function renderEventUI() {
 
     if (eventSubTab === 'statue') {
         const curLvl = state.event.statueLvl;
-        const nextLvl = curLvl + 1;
         const curIncome = getStatueAuraIncome();
 
         html += `
@@ -291,7 +336,7 @@ function renderEventUI() {
 
         html += `</div>`;
     } else if (eventSubTab === 'cards') {
-        html += `<div class="upgrades-list">`;
+        html += `<div class="upgrades-list" id="stone-cards-list">`;
 
         STONE_CARDS.forEach(card => {
             const isUnlocked = currentDay >= card.day;
@@ -318,12 +363,12 @@ function renderEventUI() {
                             <img src="${card.img}" alt="${card.name}" class="upgrade-img" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'65\\' height=\\'65\\'><rect width=\\'65\\' height=\\'65\\' fill=\\'%23110d1a\\'/><text x=\\'50%\\' y=\\'50%\\' dominant-baseline=\\'middle\\' text-anchor=\\'middle\\' fill=\\'%2300d2d3\\' font-size=\\'24\\'>🪨</text></svg>';">
                         </div>
                         <div class="upgrade-info">
-                            <div class="upgrade-title">${card.name} <span class="upgrade-level-badge">Рвн ${lvl}</span></div>
-                            <div class="upgrade-desc">Дохід: +${formatNum(lvl * card.sps)} каменю/сек (+${card.sps})</div>
-                            <div class="upgrade-desc" style="color: var(--accent-gold);">Ціна: ${formatNum(cost)} аури</div>
+                            <div class="upgrade-title">${card.name} <span class="upgrade-level-badge" id="stone-card-lvl-${card.id}">Рвн ${lvl}</span></div>
+                            <div class="upgrade-desc" id="stone-card-desc-${card.id}">Дохід: +${formatNum(lvl * card.sps)} каменю/сек (+${card.sps})</div>
+                            <div class="upgrade-desc" style="color: var(--accent-gold);" id="stone-card-cost-${card.id}">Ціна: ${formatNum(cost)} аури</div>
                             <div class="upgrade-desc" style="color: #00d2d3;">Затримка: ${formatTime(card.cdSec)}</div>
                         </div>
-                        <button class="upgrade-btn" ${canAfford ? '' : 'disabled'} onclick="buyStoneCard(${card.id})">
+                        <button class="upgrade-btn" id="stone-card-btn-${card.id}" ${canAfford ? '' : 'disabled'} onclick="buyStoneCard(${card.id})">
                             ${cdLeftSec > 0 ? '⏱️ ' + formatTime(cdLeftSec) : 'Купити'}
                         </button>
                     </div>`;
@@ -335,12 +380,12 @@ function renderEventUI() {
         const existingList = document.getElementById('stone-leaderboard-list');
         const hasItems = existingList && existingList.children.length > 0 && !existingList.innerHTML.includes('Завантаження');
         const listContent = hasItems ? existingList.innerHTML : '<div style="text-align: center; color: #888; padding: 20px;">Завантаження онлайнового топу...</div>';
-    
+
         html += `
             <div id="stone-leaderboard-list" class="leaderboard-list">
                 ${listContent}
             </div>`;
-    
+
         if (!hasItems) {
             setTimeout(renderStoneLeaderboard, 50);
         }
