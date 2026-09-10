@@ -130,6 +130,43 @@ function updateEventLogic(dt) {
     }
 }
 
+// Розрахунок офлайн-видобутку каменю
+function calculateOfflineStone(lastSaveTime, now) {
+    checkAndStartEvent();
+    initEventState();
+
+    if (!state.event || !state.event.startTime || state.event.ended) return;
+
+    const eventStart = state.event.startTime;
+    const eventEnd = eventStart + EVENT_DURATION_MS;
+
+    // Визначаємо перетин між часом відсутності та часом активності івенту
+    const overlapStart = Math.max(lastSaveTime, eventStart);
+    const overlapEnd = Math.min(now, eventEnd);
+
+    if (overlapEnd > overlapStart) {
+        const activeOfflineSeconds = (overlapEnd - overlapStart) / 1000;
+        
+        let sps = 0;
+        STONE_CARDS.forEach(c => {
+            const lvl = state.event.cards[c.id] || 0;
+            sps += lvl * c.sps;
+        });
+
+        if (sps > 0 && activeOfflineSeconds > 0) {
+            const stoneGained = sps * activeOfflineSeconds;
+            state.event.stone += stoneGained;
+            state.event.totalStone += stoneGained;
+            syncStoneLeaderboard();
+        }
+    }
+
+    // Якщо івент закінчився поки гравець був офлайн
+    if (now >= eventEnd && !state.event.ended) {
+        finishEvent();
+    }
+}
+
 // Завершення івенту
 function finishEvent() {
     if (state.event.ended) return;
