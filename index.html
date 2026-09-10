@@ -664,12 +664,21 @@
 
         let dbAvailable = false;
         let dbRef = null;
+        let serverTimeOffset = 0;
+
+        function getServerTime() {
+            return Date.now() + serverTimeOffset;
+        }
 
         try {
             if (firebaseConfig.apiKey !== "YOUR_API_KEY") {
                 firebase.initializeApp(firebaseConfig);
                 dbRef = firebase.database().ref('leaderboard');
                 dbAvailable = true;
+
+                firebase.database().ref('.info/serverTimeOffset').on('value', (snap) => {
+                    serverTimeOffset = snap.val() || 0;
+                });
             }
         } catch(e) {
             console.warn("Firebase не налаштовано:", e);
@@ -862,7 +871,7 @@
         }
 
         function saveGame() {
-            state.lastSaveTime = Date.now();
+            state.lastSaveTime = getServerTime();
             localStorage.setItem("hrundel_clicker_save_v9", JSON.stringify(state));
             syncToCloudLeaderboard();
             if (typeof syncStoneLeaderboard === 'function') {
@@ -908,9 +917,11 @@
         }
 
         function calculateOfflineProgress() {
-            const now = Date.now();
+            const now = getServerTime();
             if (state.lastSaveTime) {
-                const elapsedSeconds = (now - state.lastSaveTime) / 1000;
+                let elapsedSeconds = (now - state.lastSaveTime) / 1000;
+                if (elapsedSeconds < 0) elapsedSeconds = 0;
+
                 const cps = getTotalCps();
 
                 if (elapsedSeconds >= 3 && cps > 0) {
@@ -926,7 +937,6 @@
                     offlineReport = { time: elapsedSeconds, aura: offlineAura };
                 }
 
-                // Офлайн видобуток каменю в івенті
                 if (typeof calculateOfflineStone === 'function') {
                     calculateOfflineStone(state.lastSaveTime, now);
                 }
@@ -1047,7 +1057,8 @@
             }
 
             if (u.cat === "Навчання хрюнделя" && state.cooldowns && state.cooldowns[u.id]) {
-                if (Date.now() < state.cooldowns[u.id]) return;
+                const nowTime = typeof getServerTime === 'function' ? getServerTime() : Date.now();
+                if (nowTime < state.cooldowns[u.id]) return;
             }
 
             const cost = getPassiveCost(u);
@@ -1060,7 +1071,8 @@
                     const cdSec = getCooldownSeconds(newLvl);
                     if (cdSec > 0) {
                         if (!state.cooldowns) state.cooldowns = {};
-                        state.cooldowns[id] = Date.now() + (cdSec * 1000);
+                        const nowTime = typeof getServerTime === 'function' ? getServerTime() : Date.now();
+                        state.cooldowns[id] = nowTime + (cdSec * 1000);
                     }
                 }
 
@@ -1279,7 +1291,8 @@
 
                 let cooldownSec = 0;
                 if (u.cat === "Навчання хрюнделя" && state.cooldowns && state.cooldowns[u.id]) {
-                    const diff = state.cooldowns[u.id] - Date.now();
+                    const nowTime = getServerTime();
+                    const diff = state.cooldowns[u.id] - nowTime;
                     if (diff > 0) cooldownSec = Math.ceil(diff / 1000);
                 }
 
