@@ -480,12 +480,39 @@
         }
 
         /* Лідерборд */
+        .leaderboard-toggle {
+            display: flex;
+            gap: 10px;
+            margin: 12px 0 5px 0;
+            width: 100%;
+        }
+
+        .sub-tab-btn {
+            flex: 1;
+            padding: 8px 12px;
+            background: var(--card-bg);
+            border: 1px solid var(--accent-purple);
+            color: #ccc;
+            border-radius: 10px;
+            font-size: 0.85rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .sub-tab-btn.active {
+            background: var(--accent-purple);
+            color: #fff;
+            border-color: var(--accent-gold);
+            box-shadow: 0 0 8px rgba(155, 89, 182, 0.6);
+        }
+
         .leaderboard-list {
             width: 100%;
             display: flex;
             flex-direction: column;
             gap: 10px;
-            margin-top: 15px;
+            margin-top: 10px;
         }
 
         .leaderboard-item {
@@ -688,6 +715,12 @@
         <!-- Вкладка Лідерборд -->
         <div id="tab-leaderboard" class="tab-content">
             <div class="category-title" style="width: 100%; text-align: center;">🏆 Онлайн Топ Реал Гравців</div>
+            
+            <div class="leaderboard-toggle">
+                <button id="lb-sort-cps" class="sub-tab-btn active" onclick="setLeaderboardSort('cps')">⚡ Дохід / сек</button>
+                <button id="lb-sort-aura" class="sub-tab-btn" onclick="setLeaderboardSort('aura')">✨ Поточна аура</button>
+            </div>
+
             <div id="leaderboard-list" class="leaderboard-list"></div>
         </div>
     </div>
@@ -751,7 +784,6 @@
             { id: 26, cat: "Бойові Навички", name: "Сальний хук справа", baseCost: 2500000, baseCps: 650, img: "img/upg26.jpg" },
             { id: 27, cat: "Бойові Навички", name: "Броньоване черевце", baseCost: 4000000, baseCps: 850, img: "img/upg27.jpg" },
 
-            /* Нова сітка прокачок */
             { 
                 id: 28, 
                 cat: "Навчання хрюнделя", 
@@ -759,7 +791,7 @@
                 baseCost: 50000000, 
                 baseCps: 15000, 
                 img: "img/upg28.jpg",
-                req: { id: 26, lvl: 13, name: "Сальний хук справа" } 
+                req: { id: 26, lvl: 12, name: "Сальний хук справа" } 
             },
             { 
                 id: 29, 
@@ -788,6 +820,7 @@
         };
 
         let offlineReport = null;
+        let currentLeaderboardSort = 'cps'; // 'cps' або 'aura'
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
         function getCooldownSeconds(lvl) {
@@ -802,8 +835,10 @@
             return 0;
         }
 
+        // Оновлено форматування чисел з підтримкою B (1M -> 1B -> 1T)
         function formatNum(num) {
             if (num >= 1e12) return (num / 1e12).toFixed(2) + 'T';
+            if (num >= 1e9) return (num / 1e9).toFixed(2) + 'B';
             if (num >= 1e6) return (num / 1e6).toFixed(2) + 'M';
             if (num >= 1e3) return (num / 1e3).toFixed(1) + 'k';
             return (num % 1 !== 0 ? num.toFixed(1) : Math.floor(num)).toLocaleString('uk-UA');
@@ -1089,13 +1124,11 @@
             const u = PASSIVE_UPGRADES.find(item => item.id === id);
             if (!u) return;
 
-            // Перевірка вимоги
             if (u.req) {
                 const reqLvl = state.passives[u.req.id] || 0;
                 if (reqLvl < u.req.lvl) return;
             }
 
-            // Перевірка кулдауну
             if (u.cat === "Навчання хрюнделя" && state.cooldowns && state.cooldowns[u.id]) {
                 if (Date.now() < state.cooldowns[u.id]) return;
             }
@@ -1106,7 +1139,6 @@
                 const newLvl = (state.passives[id] || 0) + 1;
                 state.passives[id] = newLvl;
 
-                // Запуск кулдауну для сітки "Навчання хрюнделя"
                 if (u.cat === "Навчання хрюнделя") {
                     const cdSec = getCooldownSeconds(newLvl);
                     if (cdSec > 0) {
@@ -1159,9 +1191,18 @@
             });
         }
 
+        function setLeaderboardSort(mode) {
+            currentLeaderboardSort = mode;
+            document.getElementById('lb-sort-cps').classList.toggle('active', mode === 'cps');
+            document.getElementById('lb-sort-aura').classList.toggle('active', mode === 'aura');
+            renderLeaderboard();
+        }
+
         function renderLeaderboard() {
             const list = document.getElementById('leaderboard-list');
             if (!list) return;
+
+            const isCps = currentLeaderboardSort === 'cps';
 
             if (!dbAvailable) {
                 list.innerHTML = `
@@ -1172,13 +1213,13 @@
                         <div class="leaderboard-item is-player">
                             <div class="leaderboard-rank">🥇</div>
                             <div class="leaderboard-name">${state.nickname || "Ви"} (Локально)</div>
-                            <div class="leaderboard-cps">+${formatNum(getTotalCps())}/сек</div>
+                            <div class="leaderboard-cps">${isCps ? '+' + formatNum(getTotalCps()) + '/сек' : formatNum(state.aura) + ' ✨'}</div>
                         </div>
                     </div>`;
                 return;
             }
 
-            dbRef.orderByChild('cps').limitToLast(50).once('value', (snapshot) => {
+            dbRef.orderByChild(currentLeaderboardSort).limitToLast(50).once('value', (snapshot) => {
                 const data = snapshot.val();
                 const players = [];
 
@@ -1188,12 +1229,13 @@
                             id: id,
                             name: data[id].name || "Гравець",
                             cps: data[id].cps || 0,
+                            aura: data[id].aura || 0,
                             isPlayer: id === state.playerId
                         });
                     });
                 }
 
-                players.sort((a, b) => b.cps - a.cps);
+                players.sort((a, b) => b[currentLeaderboardSort] - a[currentLeaderboardSort]);
                 list.innerHTML = '';
 
                 if (players.length === 0) {
@@ -1208,12 +1250,14 @@
                     else if (rank === 2) rankIcon = '🥈';
                     else if (rank === 3) rankIcon = '🥉';
 
+                    const displayValue = isCps ? `+${formatNum(p.cps)}/сек` : `${formatNum(p.aura)} ✨`;
+
                     const item = document.createElement('div');
                     item.className = `leaderboard-item ${p.isPlayer ? 'is-player' : ''}`;
                     item.innerHTML = `
                         <div class="leaderboard-rank">${rankIcon}</div>
                         <div class="leaderboard-name">${p.name}${p.isPlayer ? ' (Ви)' : ''}</div>
-                        <div class="leaderboard-cps">+${formatNum(p.cps)}/сек</div>
+                        <div class="leaderboard-cps">${displayValue}</div>
                     `;
                     list.appendChild(item);
                 });
@@ -1222,7 +1266,7 @@
 
         function initLiveLeaderboard() {
             if (dbAvailable) {
-                dbRef.orderByChild('cps').limitToLast(50).on('value', () => {
+                dbRef.on('value', () => {
                     if (document.getElementById('tab-leaderboard').classList.contains('active')) {
                         renderLeaderboard();
                     }
