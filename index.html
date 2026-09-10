@@ -37,7 +37,6 @@
             overflow-x: hidden;
         }
 
-        /* Екран Завантаження */
         #loading-screen {
             position: fixed;
             top: 0;
@@ -101,7 +100,6 @@
             transition: width 0.1s linear;
         }
 
-        /* Модальні вікна */
         .modal-overlay {
             position: fixed;
             top: 0;
@@ -177,7 +175,6 @@
             transform: scale(0.96);
         }
 
-        /* Головний Екран Гри */
         #game-screen {
             display: none;
             flex-direction: column;
@@ -224,7 +221,8 @@
 
         .tab-nav {
             display: flex;
-            gap: 10px;
+            flex-wrap: wrap;
+            gap: 8px;
             margin: 15px 0 10px 0;
             width: 100%;
             max-width: 550px;
@@ -233,16 +231,17 @@
         }
 
         .tab-btn {
-            flex: 1;
-            padding: 12px;
+            flex: 1 1 18%;
+            padding: 10px 5px;
             background: var(--card-bg);
             border: 2px solid var(--accent-purple);
             color: #fff;
             border-radius: 12px;
-            font-size: 1rem;
+            font-size: 0.85rem;
             font-weight: bold;
             cursor: pointer;
             transition: all 0.2s;
+            text-align: center;
         }
 
         .tab-btn.active {
@@ -263,7 +262,6 @@
             display: flex;
         }
 
-        /* Центрування Клікера */
         #tab-clicker {
             flex: 1;
             display: none;
@@ -348,23 +346,12 @@
         }
 
         @keyframes floatAndFade {
-            0% {
-                opacity: 1;
-                transform: translate(-50%, -50%) scale(0.8) translateY(0);
-            }
-            50% {
-                transform: translate(-50%, -50%) scale(1.2) translateY(-40px);
-            }
-            100% {
-                opacity: 0;
-                transform: translate(-50%, -50%) scale(1) translateY(-80px);
-            }
+            0% { opacity: 1; transform: translate(-50%, -50%) scale(0.8) translateY(0); }
+            50% { transform: translate(-50%, -50%) scale(1.2) translateY(-40px); }
+            100% { opacity: 0; transform: translate(-50%, -50%) scale(1) translateY(-80px); }
         }
 
-        /* Прокачки */
-        #tab-upgrades {
-            padding-bottom: 30px;
-        }
+        #tab-upgrades { padding-bottom: 30px; }
 
         .upgrades-list {
             width: 100%;
@@ -445,16 +432,8 @@
             margin-left: 6px;
         }
 
-        .upgrade-desc {
-            font-size: 0.8rem;
-            color: #aaa;
-        }
-
-        .upgrade-req {
-            font-size: 0.8rem;
-            color: #e74c3c;
-            font-weight: bold;
-        }
+        .upgrade-desc { font-size: 0.8rem; color: #aaa; }
+        .upgrade-req { font-size: 0.8rem; color: #e74c3c; font-weight: bold; }
 
         .upgrade-btn {
             background: linear-gradient(180deg, #2ecc71, #27ae60);
@@ -469,17 +448,9 @@
             white-space: nowrap;
         }
 
-        .upgrade-btn:hover:not(:disabled) {
-            transform: scale(1.03);
-        }
+        .upgrade-btn:hover:not(:disabled) { transform: scale(1.03); }
+        .upgrade-btn:disabled { background: #555 !important; cursor: not-allowed; opacity: 0.6; }
 
-        .upgrade-btn:disabled {
-            background: #555 !important;
-            cursor: not-allowed;
-            opacity: 0.6;
-        }
-
-        /* Лідерборд */
         .leaderboard-toggle {
             display: flex;
             gap: 10px;
@@ -532,41 +503,14 @@
             box-shadow: 0 0 15px rgba(241, 196, 15, 0.3);
         }
 
-        .leaderboard-rank {
-            font-weight: 900;
-            font-size: 1.2rem;
-            width: 40px;
-            color: var(--accent-gold);
-        }
-
-        .leaderboard-name {
-            font-weight: bold;
-            font-size: 1rem;
-            flex-grow: 1;
-            margin: 0 10px;
-            color: #fff;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-
-        .leaderboard-cps {
-            color: #2ecc71;
-            font-weight: bold;
-            font-size: 0.95rem;
-        }
-
-        .empty-leaderboard {
-            text-align: center;
-            padding: 30px;
-            color: #888;
-            font-size: 0.95rem;
-        }
+        .leaderboard-rank { font-weight: 900; font-size: 1.2rem; width: 40px; color: var(--accent-gold); }
+        .leaderboard-name { font-weight: bold; font-size: 1rem; flex-grow: 1; margin: 0 10px; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .leaderboard-cps { color: #2ecc71; font-weight: bold; font-size: 0.95rem; }
+        .empty-leaderboard { text-align: center; padding: 30px; color: #888; font-size: 0.95rem; }
     </style>
 </head>
 <body>
 
-    <!-- Заставка завантаження -->
     <div id="loading-screen">
         <div class="loading-content">
             <video id="loading-video" src="хрюндель.mp4" autoplay muted playsinline></video>
@@ -577,7 +521,6 @@
         </div>
     </div>
 
-    <!-- Модальне Вікно Першого Входу (Ввід Нікнейму) -->
     <div id="nickname-modal" class="modal-overlay">
         <div class="modal-card">
             <div class="modal-title">🐷 Вітаємо в грі!</div>
@@ -587,7 +530,6 @@
         </div>
     </div>
 
-    <!-- Модальне Вікно Офлайн Доходу -->
     <div id="offline-modal" class="modal-overlay">
         <div class="modal-card">
             <div class="modal-title">🐷 З поверненням!</div>
@@ -597,7 +539,6 @@
         </div>
     </div>
 
-    <!-- Основна Гра -->
     <div id="game-screen">
         <header>
             <div class="stat-badge aura">
@@ -613,37 +554,31 @@
         <div class="tab-nav">
             <button class="tab-btn active" onclick="switchTab('clicker')">🐷 Клікер</button>
             <button class="tab-btn" onclick="switchTab('upgrades')">⚡ Прокачки</button>
-            <button class="tab-btn" onclick="switchTab('leaderboard')">🏆 Топ Онлайн</button>
+            <button class="tab-btn" onclick="switchTab('event')">🎯 Івент</button>
+            <button class="tab-btn" onclick="switchTab('statue')">🗿 Статуї</button>
+            <button class="tab-btn" onclick="switchTab('leaderboard')">🏆 Топ</button>
         </div>
 
-        <!-- Вкладка Клікер -->
         <div id="tab-clicker" class="tab-content active">
             <div class="clicker-container">
                 <div class="energy-bar-wrap">
                     <div id="energy-bar-fill" class="energy-bar-fill"></div>
                     <div class="energy-text"><span id="energy-bar-text">1000 / 1000</span></div>
                 </div>
-
                 <div class="pig-wrapper" id="pig-wrapper">
                     <img id="pig-img" src="хрюндель.jpg" alt="Хрюндель" class="pig-image">
                 </div>
             </div>
         </div>
 
-        <!-- Вкладка Прокачки -->
         <div id="tab-upgrades" class="tab-content">
             <div class="upgrades-list">
                 <div class="category-title">Базові Покращення</div>
 
                 <div class="upgrade-card" id="card-aura-old">
-                    <div class="upgrade-img-wrap">
-                        <img src="img/aura_click.jpg" alt="Аура" class="upgrade-img" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'65\' height=\'65\' viewBox=\'0 0 65 65\'><rect width=\'65\' height=\'65\' fill=\'%232a1f45\'/><text x=\'50%\' y=\'50%\' dominant-baseline=\'middle\' text-anchor=\'middle\' fill=\'%23f1c40f\' font-size=\'28\'>✨</text></svg>';">
-                    </div>
+                    <div class="upgrade-img-wrap"><img src="img/aura_click.jpg" alt="Аура" class="upgrade-img" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'65\' height=\'65\'><rect width=\'65\' height=\'65\' fill=\'%232a1f45\'/><text x=\'50%\' y=\'50%\' dominant-baseline=\'middle\' text-anchor=\'middle\' fill=\'%23f1c40f\' font-size=\'28\'>✨</text></svg>';"></div>
                     <div class="upgrade-info">
-                        <div class="upgrade-title">
-                            ✨ Прокачка "Аура"
-                            <span class="upgrade-level-badge" id="aura-lvl-badge">Рівень 0</span>
-                        </div>
+                        <div class="upgrade-title">✨ Прокачка "Аура" <span class="upgrade-level-badge" id="aura-lvl-badge">Рівень 0</span></div>
                         <div class="upgrade-desc" id="aura-upg-desc">Ефект: +1 аура/клік</div>
                         <div class="upgrade-desc" style="color: var(--accent-gold);" id="aura-upg-cost">Ціна: 100 аури</div>
                     </div>
@@ -651,14 +586,9 @@
                 </div>
 
                 <div class="upgrade-card" id="card-energy-old">
-                    <div class="upgrade-img-wrap">
-                        <img src="img/energy_max.jpg" alt="Енергія" class="upgrade-img" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'65\' height=\'65\' viewBox=\'0 0 65 65\'><rect width=\'65\' height=\'65\' fill=\'%231f2a45\'/><text x=\'50%\' y=\'50%\' dominant-baseline=\'middle\' text-anchor=\'middle\' fill=\'%233498db\' font-size=\'28\'>⚡</text></svg>';">
-                    </div>
+                    <div class="upgrade-img-wrap"><img src="img/energy_max.jpg" alt="Енергія" class="upgrade-img" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'65\' height=\'65\'><rect width=\'65\' height=\'65\' fill=\'%231f2a45\'/><text x=\'50%\' y=\'50%\' dominant-baseline=\'middle\' text-anchor=\'middle\' fill=\'%233498db\' font-size=\'28\'>⚡</text></svg>';"></div>
                     <div class="upgrade-info">
-                        <div class="upgrade-title">
-                            ⚡ Прокачка "Енергія"
-                            <span class="upgrade-level-badge" id="energy-lvl-badge">Рівень 0</span>
-                        </div>
+                        <div class="upgrade-title">⚡ Прокачка "Енергія" <span class="upgrade-level-badge" id="energy-lvl-badge">Рівень 0</span></div>
                         <div class="upgrade-desc" id="energy-upg-desc">Макс. Енергія: 1000</div>
                         <div class="upgrade-desc" style="color: var(--accent-gold);" id="energy-upg-cost">Ціна: 500 аури</div>
                     </div>
@@ -666,9 +596,7 @@
                 </div>
 
                 <div class="upgrade-card evo-card" id="card-evolution">
-                    <div class="upgrade-img-wrap">
-                        <img src="img/evo_aura.jpg" alt="Еволюція" class="upgrade-img" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'65\' height=\'65\' viewBox=\'0 0 65 65\'><rect width=\'65\' height=\'65\' fill=\'%233a1f45\'/><text x=\'50%\' y=\'50%\' dominant-baseline=\'middle\' text-anchor=\'middle\' fill=\'%23f1c40f\' font-size=\'28\'>🧬</text></svg>';">
-                    </div>
+                    <div class="upgrade-img-wrap"><img src="img/evo_aura.jpg" alt="Еволюція" class="upgrade-img" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'65\' height=\'65\'><rect width=\'65\' height=\'65\' fill=\'%233a1f45\'/><text x=\'50%\' y=\'50%\' dominant-baseline=\'middle\' text-anchor=\'middle\' fill=\'%23f1c40f\' font-size=\'28\'>🧬</text></svg>';"></div>
                     <div class="upgrade-info">
                         <div class="upgrade-title">🧬 Еволюція "Аура"</div>
                         <div class="upgrade-desc">Клік = 10% від фарма/сек, Енергія = 1000</div>
@@ -679,14 +607,9 @@
                 </div>
 
                 <div class="upgrade-card" id="card-aura-new" style="display: none;">
-                    <div class="upgrade-img-wrap">
-                        <img src="img/aura_click_evo.jpg" alt="Супер Аура" class="upgrade-img" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'65\' height=\'65\' viewBox=\'0 0 65 65\'><rect width=\'65\' height=\'65\' fill=\'%232a1f45\'/><text x=\'50%\' y=\'50%\' dominant-baseline=\'middle\' text-anchor=\'middle\' fill=\'%23f1c40f\' font-size=\'28\'>✨</text></svg>';">
-                    </div>
+                    <div class="upgrade-img-wrap"><img src="img/aura_click_evo.jpg" alt="Супер Аура" class="upgrade-img" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'65\' height=\'65\'><rect width=\'65\' height=\'65\' fill=\'%232a1f45\'/><text x=\'50%\' y=\'50%\' dominant-baseline=\'middle\' text-anchor=\'middle\' fill=\'%23f1c40f\' font-size=\'28\'>✨</text></svg>';"></div>
                     <div class="upgrade-info">
-                        <div class="upgrade-title">
-                            ✨ Прокачка "Супер Аура"
-                            <span class="upgrade-level-badge" id="aura-new-lvl-badge">Рівень 0</span>
-                        </div>
+                        <div class="upgrade-title">✨ Прокачка "Супер Аура" <span class="upgrade-level-badge" id="aura-new-lvl-badge">Рівень 0</span></div>
                         <div class="upgrade-desc" id="aura-new-upg-desc">Ефект: 10% від фарма/сек</div>
                         <div class="upgrade-desc" style="color: var(--accent-gold);" id="aura-new-upg-cost">Ціна: 15M аури</div>
                     </div>
@@ -694,14 +617,9 @@
                 </div>
 
                 <div class="upgrade-card" id="card-energy-new" style="display: none;">
-                    <div class="upgrade-img-wrap">
-                        <img src="img/energy_max_evo.jpg" alt="Супер Енергія" class="upgrade-img" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'65\' height=\'65\' viewBox=\'0 0 65 65\'><rect width=\'65\' height=\'65\' fill=\'%231f2a45\'/><text x=\'50%\' y=\'50%\' dominant-baseline=\'middle\' text-anchor=\'middle\' fill=\'%233498db\' font-size=\'28\'>⚡</text></svg>';">
-                    </div>
+                    <div class="upgrade-img-wrap"><img src="img/energy_max_evo.jpg" alt="Супер Енергія" class="upgrade-img" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'65\' height=\'65\'><rect width=\'65\' height=\'65\' fill=\'%231f2a45\'/><text x=\'50%\' y=\'50%\' dominant-baseline=\'middle\' text-anchor=\'middle\' fill=\'%233498db\' font-size=\'28\'>⚡</text></svg>';"></div>
                     <div class="upgrade-info">
-                        <div class="upgrade-title">
-                            ⚡ Прокачка "Супер Енергія"
-                            <span class="upgrade-level-badge" id="energy-new-lvl-badge">Рівень 0</span>
-                        </div>
+                        <div class="upgrade-title">⚡ Прокачка "Супер Енергія" <span class="upgrade-level-badge" id="energy-new-lvl-badge">Рівень 0</span></div>
                         <div class="upgrade-desc" id="energy-new-upg-desc">Макс. Енергія: 1000</div>
                         <div class="upgrade-desc" style="color: var(--accent-gold);" id="energy-new-upg-cost">Ціна: 25M аури</div>
                     </div>
@@ -712,21 +630,27 @@
             </div>
         </div>
 
-        <!-- Вкладка Лідерборд -->
+        <!-- Вкладка Івенту -->
+        <div id="tab-event" class="tab-content"></div>
+
+        <!-- Вкладка Статуй -->
+        <div id="tab-statue" class="tab-content"></div>
+
+        <!-- Вкладка Лідерборду -->
         <div id="tab-leaderboard" class="tab-content">
             <div class="category-title" style="width: 100%; text-align: center;">🏆 Онлайн Топ Реал Гравців</div>
-            
             <div class="leaderboard-toggle">
                 <button id="lb-sort-cps" class="sub-tab-btn active" onclick="setLeaderboardSort('cps')">⚡ Дохід / сек</button>
                 <button id="lb-sort-aura" class="sub-tab-btn" onclick="setLeaderboardSort('aura')">✨ Поточна аура</button>
             </div>
-
             <div id="leaderboard-list" class="leaderboard-list"></div>
         </div>
     </div>
 
+    <!-- Підключення івент-скрипту -->
+    <script src="events.js"></script>
+
     <script>
-        // ВСТАВТЕ СВОЇ ДАНІ З FIREBASE
         const firebaseConfig = {
             apiKey: "AIzaSyAcYTnQk5wUuc1j16aYKtGEZfxtNyUJddo",
             authDomain: "hrundel-322e4.firebaseapp.com",
@@ -748,7 +672,7 @@
                 dbAvailable = true;
             }
         } catch(e) {
-            console.warn("Firebase не налаштовано або виникла помилка:", e);
+            console.warn("Firebase не налаштовано:", e);
         }
 
         const BASE_PRICE_MULTIPLIER = 1.2;
@@ -789,7 +713,7 @@
                 cat: "Навчання хрюнделя", 
                 name: "Глобус трюфельних родовищ", 
                 baseCost: 50000000, 
-                baseCps: 15000, 
+                baseCps: 10000, 
                 img: "img/upg28.jpg",
                 req: { id: 26, lvl: 12, name: "Сальний хук справа" } 
             },
@@ -798,7 +722,7 @@
                 cat: "Навчання хрюнделя", 
                 name: "Контурні карти сусідніх калюж", 
                 baseCost: 250000000, 
-                baseCps: 55000, 
+                baseCps: 12500, 
                 img: "img/upg29.jpg",
                 req: { id: 28, lvl: 10, name: "Глобус трюфельних родовищ" } 
             }
@@ -820,7 +744,7 @@
         };
 
         let offlineReport = null;
-        let currentLeaderboardSort = 'cps'; // 'cps' або 'aura'
+        let currentLeaderboardSort = 'cps';
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
         function getCooldownSeconds(lvl) {
@@ -835,7 +759,6 @@
             return 0;
         }
 
-        // Оновлено форматування чисел з підтримкою B (1M -> 1B -> 1T)
         function formatNum(num) {
             if (num >= 1e12) return (num / 1e12).toFixed(2) + 'T';
             if (num >= 1e9) return (num / 1e9).toFixed(2) + 'B';
@@ -858,9 +781,7 @@
         }
 
         function playClickSound() {
-            if (audioCtx.state === 'suspended') {
-                audioCtx.resume();
-            }
+            if (audioCtx.state === 'suspended') audioCtx.resume();
             const now = audioCtx.currentTime;
             const osc = audioCtx.createOscillator();
             const gain = audioCtx.createGain();
@@ -893,9 +814,7 @@
         }
 
         function getMaxEnergy() {
-            if (state.hasEvolved) {
-                return 1000 + (state.postEvoEnergyLvl * 50);
-            }
+            if (state.hasEvolved) return 1000 + (state.postEvoEnergyLvl * 50);
             return 1000 + (state.energyLvl * 1000);
         }
 
@@ -926,12 +845,14 @@
                 const count = state.passives[u.id] || 0;
                 cps += count * u.baseCps;
             });
+            if (typeof getStatueAuraIncome === 'function') {
+                cps += getStatueAuraIncome();
+            }
             return cps;
         }
 
         function syncToCloudLeaderboard() {
             if (!dbAvailable || !state.playerId || !state.nickname) return;
-            
             firebase.database().ref('leaderboard/' + state.playerId).set({
                 name: state.nickname,
                 cps: getTotalCps(),
@@ -965,6 +886,8 @@
             if (state.postEvoEnergyLvl === undefined) state.postEvoEnergyLvl = 0;
             if (!state.nickname) state.nickname = "";
 
+            if (typeof initEventState === 'function') initEventState();
+
             if (state.energy > getMaxEnergy()) {
                 state.energy = getMaxEnergy();
             }
@@ -973,9 +896,7 @@
         function saveNickname() {
             const input = document.getElementById('nickname-input');
             let val = input.value.trim();
-            if (!val) {
-                val = "Хрюндель_" + Math.floor(Math.random() * 8999 + 1000);
-            }
+            if (!val) val = "Хрюндель_" + Math.floor(Math.random() * 8999 + 1000);
             state.nickname = val;
             saveGame();
             document.getElementById('nickname-modal').classList.remove('active');
@@ -991,18 +912,15 @@
 
                 if (elapsedSeconds >= 3 && cps > 0) {
                     const offlineAura = cps * elapsedSeconds;
-
                     const maxE = getMaxEnergy();
+
                     if (state.energy < maxE) {
                         const regenPerSec = maxE / 1800;
                         state.energy = Math.min(maxE, state.energy + regenPerSec * elapsedSeconds);
                     }
 
                     state.aura += offlineAura;
-                    offlineReport = {
-                        time: elapsedSeconds,
-                        aura: offlineAura
-                    };
+                    offlineReport = { time: elapsedSeconds, aura: offlineAura };
                 }
             }
             state.lastSaveTime = now;
@@ -1015,9 +933,7 @@
                 document.getElementById('offline-aura-amount').innerText = formatNum(offlineReport.aura);
                 
                 const modal = document.getElementById('offline-modal');
-                if (modal) {
-                    modal.classList.add('active');
-                }
+                if (modal) modal.classList.add('active');
                 offlineReport = null;
             }
         }
@@ -1039,9 +955,7 @@
 
             const pigImg = document.getElementById('pig-img');
             pigImg.style.transform = 'scale(0.92)';
-            setTimeout(() => {
-                pigImg.style.transform = 'scale(1)';
-            }, 60);
+            setTimeout(() => { pigImg.style.transform = 'scale(1)'; }, 60);
 
             updateUI();
         }
@@ -1054,14 +968,11 @@
             el.style.top = `${y}px`;
             document.body.appendChild(el);
 
-            setTimeout(() => {
-                el.remove();
-            }, 800);
+            setTimeout(() => { el.remove(); }, 800);
         }
 
         function setupMultiTouch() {
             const clickerTab = document.getElementById('tab-clicker');
-
             clickerTab.addEventListener('pointerdown', (e) => {
                 e.preventDefault();
                 processTap(e.clientX, e.clientY);
@@ -1092,9 +1003,7 @@
             if (!state.hasEvolved && state.auraLvl >= 50 && state.energyLvl >= 40 && state.aura >= EVO_COST) {
                 state.aura -= EVO_COST;
                 state.hasEvolved = true;
-                if (state.energy > getMaxEnergy()) {
-                    state.energy = getMaxEnergy();
-                }
+                if (state.energy > getMaxEnergy()) state.energy = getMaxEnergy();
                 updateUI();
                 saveGame();
             }
@@ -1155,7 +1064,6 @@
         function renderPassiveUpgrades() {
             const container = document.getElementById('passive-upgrades-container');
             container.innerHTML = '';
-
             let currentCategory = '';
 
             PASSIVE_UPGRADES.forEach(u => {
@@ -1174,13 +1082,10 @@
                 card.className = 'upgrade-card';
                 card.innerHTML = `
                     <div class="upgrade-img-wrap">
-                        <img src="${u.img}" alt="${u.name}" class="upgrade-img" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'65\\' height=\\'65\\' viewBox=\\'0 0 65 65\\'><rect width=\\'65\\' height=\\'65\\' fill=\\'%23251a3a\\'/><text x=\\'50%\\' y=\\'50%\\' dominant-baseline=\\'middle\\' text-anchor=\\'middle\\' fill=\\'%239b59b6\\' font-size=\\'20\\' font-weight=\\'bold\\'>✨</text></svg>';">
+                        <img src="${u.img}" alt="${u.name}" class="upgrade-img" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'65\\' height=\\'65\\'><rect width=\\'65\\' height=\\'65\\' fill=\\'%23251a3a\\'/><text x=\\'50%\\' y=\\'50%\\' dominant-baseline=\\'middle\\' text-anchor=\\'middle\\' fill=\\'%239b59b6\\' font-size=\\'20\\'>✨</text></svg>';">
                     </div>
                     <div class="upgrade-info">
-                        <div class="upgrade-title">
-                            ${u.name}
-                            <span class="upgrade-level-badge" id="passive-lvl-badge-${u.id}">Рівень ${count}</span>
-                        </div>
+                        <div class="upgrade-title">${u.name} <span class="upgrade-level-badge" id="passive-lvl-badge-${u.id}">Рівень ${count}</span></div>
                         <div class="upgrade-desc" id="passive-desc-${u.id}">Дохід: +${formatNum(count * u.baseCps)} аури/сек (+${formatNum(u.baseCps)})</div>
                         <div class="upgrade-req" id="passive-req-${u.id}" style="display: none;"></div>
                         <div class="upgrade-desc" style="color: var(--accent-gold);" id="passive-cost-${u.id}">Ціна: ${formatNum(cost)} аури</div>
@@ -1208,8 +1113,6 @@
                 list.innerHTML = `
                     <div class="empty-leaderboard">
                         <p style="color: var(--accent-gold); font-size: 1.1rem; margin-bottom: 10px;">⚠️ Firebase не підключено!</p>
-                        <p>Для активації загального онлайнового топу вставте ключі <code>firebaseConfig</code> у код гри.</p>
-                        <br>
                         <div class="leaderboard-item is-player">
                             <div class="leaderboard-rank">🥇</div>
                             <div class="leaderboard-name">${state.nickname || "Ви"} (Локально)</div>
@@ -1264,35 +1167,21 @@
             });
         }
 
-        function initLiveLeaderboard() {
-            if (dbAvailable) {
-                dbRef.on('value', () => {
-                    if (document.getElementById('tab-leaderboard').classList.contains('active')) {
-                        renderLeaderboard();
-                    }
-                });
-            }
-        }
-
         function switchTab(tabName) {
             document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
             document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
 
-            const tabMap = {
-                'clicker': 0,
-                'upgrades': 1,
-                'leaderboard': 2
-            };
-
+            const tabMap = { 'clicker': 0, 'upgrades': 1, 'event': 2, 'statue': 3, 'leaderboard': 4 };
             const index = tabMap[tabName];
+
             if (index !== undefined) {
                 document.querySelectorAll('.tab-btn')[index].classList.add('active');
                 document.getElementById(`tab-${tabName}`).classList.add('active');
             }
 
-            if (tabName === 'leaderboard') {
-                renderLeaderboard();
-            }
+            if (tabName === 'leaderboard') renderLeaderboard();
+            if (tabName === 'event' && typeof renderEventUI === 'function') renderEventUI();
+            if (tabName === 'statue' && typeof renderStatuesTabUI === 'function') renderStatuesTabUI();
         }
 
         function updateUI() {
@@ -1307,18 +1196,12 @@
             const pct = Math.max(0, Math.min(100, (state.energy / maxE) * 100));
             document.getElementById('energy-bar-fill').style.width = pct + '%';
 
-            const cardAuraOld = document.getElementById('card-aura-old');
-            const cardEnergyOld = document.getElementById('card-energy-old');
-            const cardEvo = document.getElementById('card-evolution');
-            const cardAuraNew = document.getElementById('card-aura-new');
-            const cardEnergyNew = document.getElementById('card-energy-new');
-
             if (!state.hasEvolved) {
-                cardAuraOld.style.display = 'flex';
-                cardEnergyOld.style.display = 'flex';
-                cardEvo.style.display = 'flex';
-                cardAuraNew.style.display = 'none';
-                cardEnergyNew.style.display = 'none';
+                document.getElementById('card-aura-old').style.display = 'flex';
+                document.getElementById('card-energy-old').style.display = 'flex';
+                document.getElementById('card-evolution').style.display = 'flex';
+                document.getElementById('card-aura-new').style.display = 'none';
+                document.getElementById('card-energy-new').style.display = 'none';
 
                 const auraCost = getAuraUpgradeCost();
                 document.getElementById('aura-lvl-badge').innerText = `Рівень ${state.auraLvl}`;
@@ -1340,11 +1223,11 @@
 
                 document.getElementById('evo-btn').disabled = !(reqAuraMet && reqEnergyMet && state.aura >= EVO_COST);
             } else {
-                cardAuraOld.style.display = 'none';
-                cardEnergyOld.style.display = 'none';
-                cardEvo.style.display = 'none';
-                cardAuraNew.style.display = 'flex';
-                cardEnergyNew.style.display = 'flex';
+                document.getElementById('card-aura-old').style.display = 'none';
+                document.getElementById('card-energy-old').style.display = 'none';
+                document.getElementById('card-evolution').style.display = 'none';
+                document.getElementById('card-aura-new').style.display = 'flex';
+                document.getElementById('card-energy-new').style.display = 'flex';
 
                 const auraNewCost = getPostEvoAuraCost();
                 const auraPercent = 10 + (state.postEvoAuraLvl * 1);
@@ -1382,20 +1265,14 @@
                         if (!reqMet) {
                             reqEl.innerText = `Вимога: ${u.req.name} ${reqLvl}/${u.req.lvl} лвл`;
                             reqEl.style.display = 'block';
-                        } else {
-                            reqEl.style.display = 'none';
-                        }
+                        } else reqEl.style.display = 'none';
                     }
-                } else if (reqEl) {
-                    reqEl.style.display = 'none';
-                }
+                } else if (reqEl) reqEl.style.display = 'none';
 
                 let cooldownSec = 0;
                 if (u.cat === "Навчання хрюнделя" && state.cooldowns && state.cooldowns[u.id]) {
                     const diff = state.cooldowns[u.id] - Date.now();
-                    if (diff > 0) {
-                        cooldownSec = Math.ceil(diff / 1000);
-                    }
+                    if (diff > 0) cooldownSec = Math.ceil(diff / 1000);
                 }
 
                 if (btn) {
@@ -1408,9 +1285,13 @@
                     }
                 }
             });
+
+            if (document.getElementById('tab-event').classList.contains('active') && typeof renderEventUI === 'function') {
+                renderEventUI();
+            }
         }
 
-        // Ігровий Цикл (0.1 сек)
+        // Ігровий цикл (100мс)
         setInterval(() => {
             const dt = 0.1;
             const maxE = getMaxEnergy();
@@ -1421,25 +1302,25 @@
             }
 
             const cps = getTotalCps();
-            if (cps > 0) {
-                state.aura += cps * dt;
+            if (cps > 0) state.aura += cps * dt;
+
+            if (typeof updateEventLogic === 'function') {
+                updateEventLogic(dt);
             }
 
             updateUI();
         }, 100);
 
         setInterval(saveGame, 5000);
-
         window.addEventListener('beforeunload', saveGame);
+
         document.addEventListener('visibilitychange', () => {
             if (document.visibilityState === 'hidden') {
                 saveGame();
             } else if (document.visibilityState === 'visible') {
                 calculateOfflineProgress();
                 updateUI();
-                if (state.nickname) {
-                    displayOfflineModalIfAvailable();
-                }
+                if (state.nickname) displayOfflineModalIfAvailable();
             }
         });
 
@@ -1449,7 +1330,6 @@
             renderPassiveUpgrades();
             setupMultiTouch();
             updateUI();
-            initLiveLeaderboard();
 
             const video = document.getElementById('loading-video');
             const bar = document.getElementById('loading-progress-bar');
@@ -1478,26 +1358,20 @@
                         loadingScreen.style.display = 'none';
                         showGameScreen();
                     }, 400);
-                } else {
-                    showGameScreen();
-                }
+                } else showGameScreen();
             }
 
             if (video) {
                 video.play().catch(e => console.log("Автовідтворення блоковано:", e));
-
                 video.addEventListener('timeupdate', () => {
                     if (video.duration && video.duration > 0) {
                         const pct = Math.min(100, (video.currentTime / video.duration) * 100);
                         bar.style.width = pct + '%';
                     }
                 });
-
                 video.addEventListener('ended', finishLoading);
                 setTimeout(finishLoading, 10000);
-            } else {
-                finishLoading();
-            }
+            } else finishLoading();
         };
     </script>
 </body>
