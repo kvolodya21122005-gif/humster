@@ -188,6 +188,7 @@
             padding: 15px 20px;
             display: flex;
             justify-content: space-around;
+            align-items: center;
             background: var(--card-bg);
             border-bottom: 3px solid var(--accent-purple);
             box-shadow: 0 4px 15px rgba(0,0,0,0.5);
@@ -207,7 +208,7 @@
             padding: 8px 16px;
             border-radius: 20px;
             border: 1px solid rgba(255,255,255,0.1);
-            min-width: 130px;
+            min-width: 120px;
         }
 
         .stat-badge.aura { color: var(--accent-gold); border-color: var(--accent-gold); }
@@ -217,6 +218,30 @@
             font-size: 0.75rem;
             color: #2ecc71;
             margin-top: 2px;
+        }
+
+        .promo-icon-btn {
+            background: rgba(0,0,0,0.4);
+            border: 2px solid var(--accent-gold);
+            font-size: 1.4rem;
+            border-radius: 50%;
+            width: 44px;
+            height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            color: #fff;
+        }
+
+        .promo-icon-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 0 10px var(--accent-gold);
+        }
+
+        .promo-icon-btn:active {
+            transform: scale(0.95);
         }
 
         .tab-nav {
@@ -453,22 +478,23 @@
 
         .leaderboard-toggle {
             display: flex;
-            gap: 10px;
+            gap: 6px;
             margin: 12px 0 5px 0;
             width: 100%;
         }
 
         .sub-tab-btn {
             flex: 1;
-            padding: 8px 12px;
+            padding: 8px 4px;
             background: var(--card-bg);
             border: 1px solid var(--accent-purple);
             color: #ccc;
             border-radius: 10px;
-            font-size: 0.85rem;
+            font-size: 0.78rem;
             font-weight: bold;
             cursor: pointer;
             transition: all 0.2s;
+            text-align: center;
         }
 
         .sub-tab-btn.active {
@@ -530,6 +556,7 @@
         </div>
     </div>
 
+    <!-- Модальне вікно тільки для аури -->
     <div id="offline-modal" class="modal-overlay">
         <div class="modal-card">
             <div class="modal-title">🐷 З поверненням!</div>
@@ -539,12 +566,25 @@
         </div>
     </div>
 
+    <!-- Модальне вікно для промокодів -->
+    <div id="promo-modal" class="modal-overlay">
+        <div class="modal-card">
+            <div class="modal-title">🎁 Одноразовий Промокод</div>
+            <div class="modal-text">Введіть секретний код для отримання бонусу:</div>
+            <input type="text" id="promo-input" placeholder="Введіть код..." style="width: 100%; padding: 12px; border-radius: 10px; border: 2px solid var(--accent-gold); background: #110d1a; color: #fff; font-size: 1rem; margin-bottom: 15px; text-align: center; outline: none;">
+            <div id="promo-msg" style="margin-bottom: 15px; font-weight: bold; font-size: 0.95rem; display: none;"></div>
+            <button class="modal-btn" onclick="applyPromoCode()" style="margin-bottom: 10px;">Активувати</button>
+            <button class="modal-btn" onclick="closePromoModal()" style="background: #7f8c8d;">Закрити</button>
+        </div>
+    </div>
+
     <div id="game-screen">
         <header>
             <div class="stat-badge aura">
                 <div>✨ <span id="aura-count">0</span></div>
                 <div class="stat-subtext">+<span id="cps-count">0</span>/сек</div>
             </div>
+            <button class="promo-icon-btn" onclick="openPromoModal()" title="Промокод">🎁</button>
             <div class="stat-badge energy">
                 <div>⚡ <span id="energy-count">1000</span></div>
                 <div class="stat-subtext" style="color: #3498db;">відновл. 30хв</div>
@@ -642,6 +682,7 @@
             <div class="leaderboard-toggle">
                 <button id="lb-sort-cps" class="sub-tab-btn active" onclick="setLeaderboardSort('cps')">⚡ Дохід / сек</button>
                 <button id="lb-sort-aura" class="sub-tab-btn" onclick="setLeaderboardSort('aura')">✨ Поточна аура</button>
+                <button id="lb-sort-totalAura" class="sub-tab-btn" onclick="setLeaderboardSort('totalAura')">👑 За весь час</button>
             </div>
             <div id="leaderboard-list" class="leaderboard-list"></div>
         </div>
@@ -667,9 +708,6 @@
         let serverTimeOffset = 0;
         let timeApiOffset = 0;
         let isTimeApiSynced = false;
-
-        // Часова мітка відкриття нових карточок (13.09 10:00 за київським часом UTC+3)
-        const TARGET_RELEASE_TIME = Date.parse("2026-09-10T10:00:00+03:00");
 
         // Синхронізація часу через WorldTimeAPI (із резервним джерелом)
         async function syncWorldTime() {
@@ -709,7 +747,7 @@
             }
         }
 
-        // Поточний точний час ( WorldTimeAPI -> Firebase -> Local Date.now() )
+        // Поточний точний час
         function getServerTime() {
             if (isTimeApiSynced) {
                 return Date.now() + timeApiOffset;
@@ -755,8 +793,8 @@
 
             { id: 13, cat: "Вуличний Авторитет", name: "Кришування сусіднього хліва", baseCost: 20000, baseCps: 45, img: "img/upg13.jpg" },
             { id: 14, cat: "Вуличний Авторитет", name: "Братва з диких кабанів", baseCost: 100000, baseCps: 90, img: "img/upg14.jpg" },
-            { id: 15, cat: "Вуличний Авторитет", name: "Переговори у багнюці", baseCost: 650000, baseCps: 450, img: "img/upg15.jpg", req: { id: 9, lvl: 6, name: "Автоматичний роздавач комбікорму" }, releaseTime: TARGET_RELEASE_TIME },
-            { id: 16, cat: "Вуличний Авторитет", name: "Контроль головного корита", baseCost: 7500000, baseCps: 2000, img: "img/upg16.jpg", req: { id: 11, lvl: 10, name: "Монополія на жолуді" }, releaseTime: TARGET_RELEASE_TIME },
+            { id: 15, cat: "Вуличний Авторитет", name: "Переговори у багнюці", baseCost: 650000, baseCps: 450, img: "img/upg15.jpg", req: { id: 9, lvl: 6, name: "Автоматичний роздавач комбікорму" }  },
+            { id: 16, cat: "Вуличний Авторитет", name: "Контроль головного корита", baseCost: 7500000, baseCps: 2000, img: "img/upg16.jpg", req: { id: 11, lvl: 10, name: "Монополія на жолуді" } },
 
             { id: 19, cat: "Раціон та Енергія", name: "Відро добірного пійла", baseCost: 4000, baseCps: 5, img: "img/upg19.jpg" },
             { id: 20, cat: "Раціон та Енергія", name: "Елітні трюфелі на сніданок", baseCost: 15000, baseCps: 12, img: "img/upg20.jpg" },
@@ -765,7 +803,7 @@
             { id: 25, cat: "Бойові Навички", name: "Удар п'ятачком «Залізний таран»", baseCost: 2000000, baseCps: 700, img: "img/upg25.jpg" },
             { id: 26, cat: "Бойові Навички", name: "Сальний хук справа", baseCost: 2500000, baseCps: 650, img: "img/upg26.jpg" },
             { id: 27, cat: "Бойові Навички", name: "Броньоване черевце", baseCost: 4000000, baseCps: 850, img: "img/upg27.jpg" },
-            { id: 41, cat: "Бойові Навички", name: "Загартування у багнюці", baseCost: 16000000, baseCps: 1700, img: "img/upg41.jpg", req: { id: 25, lvl: 11, name: "Удар п'ятачком «Залізний таран»" }, releaseTime: TARGET_RELEASE_TIME },
+            { id: 41, cat: "Бойові Навички", name: "Загартування у багнюці", baseCost: 16000000, baseCps: 1700, img: "img/upg41.jpg", req: { id: 25, lvl: 11, name: "Удар п'ятачком «Залізний таран»" } },
 
             { 
                 id: 28, 
@@ -791,6 +829,7 @@
             playerId: "",
             nickname: "",
             aura: 0,
+            totalAura: 0,
             energy: 1000,
             auraLvl: 0,
             energyLvl: 0,
@@ -799,6 +838,7 @@
             postEvoEnergyLvl: 0,
             passives: {},
             cooldowns: {},
+            usedCodes: {},
             lastSaveTime: Date.now()
         };
 
@@ -859,6 +899,57 @@
             osc.stop(now + 0.08);
         }
 
+        function openPromoModal() {
+            const modal = document.getElementById('promo-modal');
+            const input = document.getElementById('promo-input');
+            const msg = document.getElementById('promo-msg');
+            input.value = '';
+            msg.style.display = 'none';
+            msg.innerText = '';
+            modal.classList.add('active');
+        }
+
+        function closePromoModal() {
+            document.getElementById('promo-modal').classList.remove('active');
+        }
+
+        function applyPromoCode() {
+            const input = document.getElementById('promo-input');
+            const msg = document.getElementById('promo-msg');
+            const code = input.value.trim();
+
+            if (!code) {
+                msg.style.color = '#e74c3c';
+                msg.innerText = 'Будь ласка, введіть код!';
+                msg.style.display = 'block';
+                return;
+            }
+
+            const cleanCode = code.toLowerCase();
+
+            if (cleanCode === 'конч') {
+                if (state.usedCodes && state.usedCodes['конч']) {
+                    msg.style.color = '#e74c3c';
+                    msg.innerText = 'Цей код вже використано!';
+                    msg.style.display = 'block';
+                } else {
+                    if (!state.usedCodes) state.usedCodes = {};
+                    state.usedCodes['конч'] = true;
+                    state.aura += 15000000000;
+                    state.totalAura = (state.totalAura || 0) + 15000000000;
+                    updateUI();
+                    saveGame();
+                    msg.style.color = '#2ecc71';
+                    msg.innerText = 'Успішно! Отримано +15B ✨ аури!';
+                    msg.style.display = 'block';
+                }
+            } else {
+                msg.style.color = '#e74c3c';
+                msg.innerText = 'Невірний промокод!';
+                msg.style.display = 'block';
+            }
+        }
+
         function getAuraPerClick() {
             if (state.hasEvolved) {
                 const cps = getTotalCps();
@@ -916,6 +1007,7 @@
                 name: state.nickname,
                 cps: getTotalCps(),
                 aura: Math.floor(state.aura),
+                totalAura: Math.floor(state.totalAura || state.aura),
                 updatedAt: firebase.database.ServerValue.TIMESTAMP
             });
         }
@@ -943,6 +1035,8 @@
             }
             if (!state.passives) state.passives = {};
             if (!state.cooldowns) state.cooldowns = {};
+            if (!state.usedCodes) state.usedCodes = {};
+            if (state.totalAura === undefined) state.totalAura = state.aura || 0;
             if (state.hasEvolved === undefined) state.hasEvolved = false;
             if (state.postEvoAuraLvl === undefined) state.postEvoAuraLvl = 0;
             if (state.postEvoEnergyLvl === undefined) state.postEvoEnergyLvl = 0;
@@ -984,6 +1078,7 @@
                     }
 
                     state.aura += offlineAura;
+                    state.totalAura = (state.totalAura || 0) + offlineAura;
                     offlineReport = { time: elapsedSeconds, aura: offlineAura };
                 }
 
@@ -1017,6 +1112,7 @@
             state.energy -= 1;
             const gain = getAuraPerClick();
             state.aura += gain;
+            state.totalAura = (state.totalAura || 0) + gain;
 
             playClickSound();
             spawnFloatingText(x, y, `+${formatNum(gain)}`);
@@ -1101,9 +1197,6 @@
             const u = PASSIVE_UPGRADES.find(item => item.id === id);
             if (!u) return;
 
-            // Перевірка часу релізу за точним сервером WorldTime
-            if (u.releaseTime && getServerTime() < u.releaseTime) return;
-
             if (u.req) {
                 const reqLvl = state.passives[u.req.id] || 0;
                 if (reqLvl < u.req.lvl) return;
@@ -1173,6 +1266,7 @@
             currentLeaderboardSort = mode;
             document.getElementById('lb-sort-cps').classList.toggle('active', mode === 'cps');
             document.getElementById('lb-sort-aura').classList.toggle('active', mode === 'aura');
+            document.getElementById('lb-sort-totalAura').classList.toggle('active', mode === 'totalAura');
             renderLeaderboard();
         }
 
@@ -1180,16 +1274,19 @@
             const list = document.getElementById('leaderboard-list');
             if (!list) return;
 
-            const isCps = currentLeaderboardSort === 'cps';
-
             if (!dbAvailable) {
+                let localVal = '';
+                if (currentLeaderboardSort === 'cps') localVal = '+' + formatNum(getTotalCps()) + '/сек';
+                else if (currentLeaderboardSort === 'totalAura') localVal = formatNum(state.totalAura || state.aura) + ' 👑';
+                else localVal = formatNum(state.aura) + ' ✨';
+
                 list.innerHTML = `
                     <div class="empty-leaderboard">
                         <p style="color: var(--accent-gold); font-size: 1.1rem; margin-bottom: 10px;">⚠️ Firebase не підключено!</p>
                         <div class="leaderboard-item is-player">
                             <div class="leaderboard-rank">🥇</div>
                             <div class="leaderboard-name">${state.nickname || "Ви"} (Локально)</div>
-                            <div class="leaderboard-cps">${isCps ? '+' + formatNum(getTotalCps()) + '/сек' : formatNum(state.aura) + ' ✨'}</div>
+                            <div class="leaderboard-cps">${localVal}</div>
                         </div>
                     </div>`;
                 return;
@@ -1206,12 +1303,13 @@
                             name: data[id].name || "Гравець",
                             cps: data[id].cps || 0,
                             aura: data[id].aura || 0,
+                            totalAura: data[id].totalAura || data[id].aura || 0,
                             isPlayer: id === state.playerId
                         });
                     });
                 }
 
-                players.sort((a, b) => b[currentLeaderboardSort] - a[currentLeaderboardSort]);
+                players.sort((a, b) => (b[currentLeaderboardSort] || 0) - (a[currentLeaderboardSort] || 0));
                 list.innerHTML = '';
 
                 if (players.length === 0) {
@@ -1226,7 +1324,10 @@
                     else if (rank === 2) rankIcon = '🥈';
                     else if (rank === 3) rankIcon = '🥉';
 
-                    const displayValue = isCps ? `+${formatNum(p.cps)}/сек` : `${formatNum(p.aura)} ✨`;
+                    let displayValue = '';
+                    if (currentLeaderboardSort === 'cps') displayValue = `+${formatNum(p.cps)}/сек`;
+                    else if (currentLeaderboardSort === 'totalAura') displayValue = `${formatNum(p.totalAura)} 👑`;
+                    else displayValue = `${formatNum(p.aura)} ✨`;
 
                     const item = document.createElement('div');
                     item.className = `leaderboard-item ${p.isPlayer ? 'is-player' : ''}`;
@@ -1316,8 +1417,6 @@
                 document.getElementById('energy-new-upg-btn').disabled = state.aura < energyNewCost;
             }
 
-            const nowTime = getServerTime();
-
             PASSIVE_UPGRADES.forEach(u => {
                 const count = state.passives[u.id] || 0;
                 const cost = getPassiveCost(u);
@@ -1332,47 +1431,32 @@
                 if (desc) desc.innerText = `Дохід: +${formatNum(count * u.baseCps)} аури/сек (+${formatNum(u.baseCps)})`;
                 if (costEl) costEl.innerText = `Ціна: ${formatNum(cost)} аури`;
 
-                const isReleased = !u.releaseTime || nowTime >= u.releaseTime;
-
-                if (!isReleased) {
-                    const leftSec = Math.ceil((u.releaseTime - nowTime) / 1000);
+                let reqMet = true;
+                if (u.req) {
+                    const reqLvl = state.passives[u.req.id] || 0;
+                    reqMet = reqLvl >= u.req.lvl;
                     if (reqEl) {
-                        reqEl.innerText = `🔒 Відкриється 13.09 о 10:00 (через ${formatTime(leftSec)})`;
-                        reqEl.style.color = '#f39c12';
-                        reqEl.style.display = 'block';
+                        if (!reqMet) {
+                            reqEl.innerText = `Вимога: ${u.req.name} ${reqLvl}/${u.req.lvl} лвл`;
+                            reqEl.style.display = 'block';
+                        } else reqEl.style.display = 'none';
                     }
-                    if (btn) {
-                        btn.innerText = "🔒 13.09 10:00";
+                } else if (reqEl) reqEl.style.display = 'none';
+
+                let cooldownSec = 0;
+                if (u.cat === "Навчання хрюнделя" && state.cooldowns && state.cooldowns[u.id]) {
+                    const nowTime = getServerTime();
+                    const diff = state.cooldowns[u.id] - nowTime;
+                    if (diff > 0) cooldownSec = Math.ceil(diff / 1000);
+                }
+
+                if (btn) {
+                    if (cooldownSec > 0) {
+                        btn.innerText = `⏱️ ${formatTime(cooldownSec)}`;
                         btn.disabled = true;
-                    }
-                } else {
-                    let reqMet = true;
-                    if (u.req) {
-                        const reqLvl = state.passives[u.req.id] || 0;
-                        reqMet = reqLvl >= u.req.lvl;
-                        if (reqEl) {
-                            if (!reqMet) {
-                                reqEl.innerText = `Вимога: ${u.req.name} ${reqLvl}/${u.req.lvl} лвл`;
-                                reqEl.style.color = '#e74c3c';
-                                reqEl.style.display = 'block';
-                            } else reqEl.style.display = 'none';
-                        }
-                    } else if (reqEl) reqEl.style.display = 'none';
-
-                    let cooldownSec = 0;
-                    if (u.cat === "Навчання хрюнделя" && state.cooldowns && state.cooldowns[u.id]) {
-                        const diff = state.cooldowns[u.id] - nowTime;
-                        if (diff > 0) cooldownSec = Math.ceil(diff / 1000);
-                    }
-
-                    if (btn) {
-                        if (cooldownSec > 0) {
-                            btn.innerText = `⏱️ ${formatTime(cooldownSec)}`;
-                            btn.disabled = true;
-                        } else {
-                            btn.innerText = "Купити";
-                            btn.disabled = !reqMet || state.aura < cost;
-                        }
+                    } else {
+                        btn.innerText = "Купити";
+                        btn.disabled = !reqMet || state.aura < cost;
                     }
                 }
             });
@@ -1393,7 +1477,11 @@
             }
 
             const cps = getTotalCps();
-            if (cps > 0) state.aura += cps * dt;
+            if (cps > 0) {
+                const gained = cps * dt;
+                state.aura += gained;
+                state.totalAura = (state.totalAura || 0) + gained;
+            }
 
             if (typeof updateEventLogic === 'function') {
                 updateEventLogic(dt);
@@ -1403,7 +1491,7 @@
         }, 100);
 
         setInterval(saveGame, 5000);
-        setInterval(syncWorldTime, 60000); // Періодичне калібрування серверного часу
+        setInterval(syncWorldTime, 60000);
         window.addEventListener('beforeunload', saveGame);
 
         document.addEventListener('visibilitychange', async () => {
