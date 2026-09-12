@@ -25,12 +25,12 @@ const STONE_CARDS = [
 // Етапи покращення статуї
 const STATUE_LEVELS = [
     { lvl: 1, stoneCost: 200000, auraCps: 25000 },
-    { lvl: 2, stoneCost: 800000, auraCps: 50000 },
-    { lvl: 3, stoneCost: 2000000, auraCps: 100000 },
-    { lvl: 4, stoneCost: 5000000, auraCps: 150000 },
-    { lvl: 5, stoneCost: 10000000, auraCps: 200000 },
-    { lvl: 6, stoneCost: 20000000, auraCps: 275000 },
-    { lvl: 7, stoneCost: 40000000, auraCps: 350000 }
+    { lvl: 2, stoneCost: 600000, auraCps: 50000 },
+    { lvl: 3, stoneCost: 1500000, auraCps: 75000 },
+    { lvl: 4, stoneCost: 3000000, auraCps: 100000 },
+    { lvl: 5, stoneCost: 5000000, auraCps: 130000 },
+    { lvl: 6, stoneCost: 10000000, auraCps: 160000 },
+    { lvl: 7, stoneCost: 20000000, auraCps: 200000 }
 ];
 
 let eventSubTab = 'statue'; // 'statue', 'cards', 'leaderboard'
