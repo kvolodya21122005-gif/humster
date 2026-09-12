@@ -175,37 +175,6 @@
             transform: scale(0.96);
         }
 
-        /* Маленька кнопка для кодів збоку */
-        .side-promo-btn {
-            position: fixed;
-            right: 15px;
-            top: 50%;
-            transform: translateY(-50%);
-            background: var(--card-bg);
-            border: 2px solid var(--accent-gold);
-            color: #fff;
-            font-size: 1.5rem;
-            width: 48px;
-            height: 48px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            z-index: 999;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.6), 0 0 10px rgba(241, 196, 15, 0.4);
-            transition: transform 0.2s, box-shadow 0.2s;
-        }
-
-        .side-promo-btn:hover {
-            transform: translateY(-50%) scale(1.1);
-            box-shadow: 0 0 20px var(--accent-gold);
-        }
-
-        .side-promo-btn:active {
-            transform: translateY(-50%) scale(0.95);
-        }
-
         #game-screen {
             display: none;
             flex-direction: column;
@@ -585,9 +554,6 @@
         </div>
     </div>
 
-    <!-- Маленька кнопка для кодів збоку -->
-    <!-- <button class="side-promo-btn" onclick="openPromoModal()" title="Ввести промокод">🎁</button> -->
-
     <div id="game-screen">
         <header>
             <div class="stat-badge aura">
@@ -718,7 +684,6 @@
         let timeApiOffset = 0;
         let isTimeApiSynced = false;
 
-        // Синхронізація часу через WorldTimeAPI (із резервним джерелом)
         async function syncWorldTime() {
             try {
                 const controller = new AbortController();
@@ -756,7 +721,6 @@
             }
         }
 
-        // Поточний точний час
         function getServerTime() {
             if (isTimeApiSynced) {
                 return Date.now() + timeApiOffset;
@@ -810,6 +774,8 @@
             { id: 20, cat: "Раціон та Енергія", name: "Елітні трюфелі на сніданок", baseCost: 15000, baseCps: 12, img: "img/upg20.jpg" },
             { id: 21, cat: "Раціон та Енергія", name: "Енергетик «Дикий Хряк»", baseCost: 500000, baseCps: 150, img: "img/upg21.jpg" },
             { id: 31, cat: "Раціон та Енергія", name: "Фреш із королівських трюфелів", baseCost: 30000000, baseCps: 2400, img: "img/upg31.jpg" },
+            { id: 33, cat: "Раціон та Енергія", name: "Смузі з золотих жолудів", baseCost: 60000000, baseCps: 4000, img: "img/upg33.jpg", req: { id: 31, lvl: 9, name: "Фреш із королівських трюфелів" } },
+            { id: 34, cat: "Раціон та Енергія", name: "Анаболічне висівкове пійло", baseCost: 90000000, baseCps: 5000, img: "img/upg34.jpg", req: { id: 14, lvl: 19, name: "Братва з диких кабанів" } },
 
             { id: 25, cat: "Бойові Навички", name: "Удар п'ятачком «Залізний таран»", baseCost: 2000000, baseCps: 700, img: "img/upg25.jpg" },
             { id: 26, cat: "Бойові Навички", name: "Сальний хук справа", baseCost: 2500000, baseCps: 650, img: "img/upg26.jpg" },
@@ -842,6 +808,16 @@
                 baseCps: 16000, 
                 img: "img/upg32.jpg",
                 req: { id: 41, lvl: 15, name: "Загартування у багнюці" } 
+            },
+
+            { 
+                id: 35, 
+                cat: "Свинячий Люкс", 
+                name: "Пентхаус у золотій калюжі", 
+                baseCost: 100000000, 
+                baseCps: 6000, 
+                img: "img/upg35.jpg",
+                req: { id: 16, lvl: 13, name: "Контроль головного корита" } 
             }
         ];
 
@@ -866,7 +842,8 @@
         let currentLeaderboardSort = 'cps';
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
-        function getCooldownSeconds(lvl) {
+        function getCooldownSeconds(lvl, cat) {
+            if (cat === "Свинячий Люкс") return 2700; // Фіксовано 45 хвилин для кожного рівня
             if (lvl === 1) return 15;
             if (lvl === 2) return 30;
             if (lvl === 3) return 60;
@@ -947,7 +924,6 @@
 
             const cleanCode = code.toLowerCase();
 
-            // Код Конч60
             if (cleanCode === 'конч60') {
                 if (state.usedCodes && state.usedCodes['конч60']) {
                     msg.style.color = '#e74c3c';
@@ -957,12 +933,10 @@
                     if (!state.usedCodes) state.usedCodes = {};
                     state.usedCodes['конч60'] = true;
 
-                    // +60B Аури
                     const auraReward = 60000000000;
                     state.aura += auraReward;
                     state.totalAura = (state.totalAura || 0) + auraReward;
 
-                    // +1.6M Каменю
                     if (typeof initEventState === 'function') {
                         initEventState();
                     } else if (!state.event) {
@@ -984,9 +958,7 @@
                     msg.innerText = 'Успішно! Отримано +60B ✨ аури та +1.6M 🪨 каменю!';
                     msg.style.display = 'block';
                 }
-            } 
-            // Попередній код конч
-            else if (cleanCode === 'конч') {
+            } else if (cleanCode === 'конч') {
                 if (state.usedCodes && state.usedCodes['конч']) {
                     msg.style.color = '#e74c3c';
                     msg.innerText = 'Цей код вже використано!';
@@ -1261,7 +1233,7 @@
                 if (reqLvl < u.req.lvl) return;
             }
 
-            if (u.cat === "Навчання хрюнделя" && state.cooldowns && state.cooldowns[u.id]) {
+            if ((u.cat === "Навчання хрюнделя" || u.cat === "Свинячий Люкс") && state.cooldowns && state.cooldowns[u.id]) {
                 const nowTime = getServerTime();
                 if (nowTime < state.cooldowns[u.id]) return;
             }
@@ -1272,8 +1244,8 @@
                 const newLvl = (state.passives[id] || 0) + 1;
                 state.passives[id] = newLvl;
 
-                if (u.cat === "Навчання хрюнделя") {
-                    const cdSec = getCooldownSeconds(newLvl);
+                if (u.cat === "Навчання хрюнделя" || u.cat === "Свинячий Люкс") {
+                    const cdSec = getCooldownSeconds(newLvl, u.cat);
                     if (cdSec > 0) {
                         if (!state.cooldowns) state.cooldowns = {};
                         const nowTime = getServerTime();
@@ -1503,7 +1475,7 @@
                 } else if (reqEl) reqEl.style.display = 'none';
 
                 let cooldownSec = 0;
-                if (u.cat === "Навчання хрюнделя" && state.cooldowns && state.cooldowns[u.id]) {
+                if ((u.cat === "Навчання хрюнделя" || u.cat === "Свинячий Люкс") && state.cooldowns && state.cooldowns[u.id]) {
                     const nowTime = getServerTime();
                     const diff = state.cooldowns[u.id] - nowTime;
                     if (diff > 0) cooldownSec = Math.ceil(diff / 1000);
@@ -1525,7 +1497,6 @@
             }
         }
 
-        // Ігровий цикл (100мс)
         setInterval(() => {
             const dt = 0.1;
             const maxE = getMaxEnergy();
