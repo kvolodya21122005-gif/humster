@@ -175,6 +175,37 @@
             transform: scale(0.96);
         }
 
+        /* Маленька кнопка для кодів збоку */
+        .side-promo-btn {
+            position: fixed;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: var(--card-bg);
+            border: 2px solid var(--accent-gold);
+            color: #fff;
+            font-size: 1.5rem;
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 999;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.6), 0 0 10px rgba(241, 196, 15, 0.4);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .side-promo-btn:hover {
+            transform: translateY(-50%) scale(1.1);
+            box-shadow: 0 0 20px var(--accent-gold);
+        }
+
+        .side-promo-btn:active {
+            transform: translateY(-50%) scale(0.95);
+        }
+
         #game-screen {
             display: none;
             flex-direction: column;
@@ -218,30 +249,6 @@
             font-size: 0.75rem;
             color: #2ecc71;
             margin-top: 2px;
-        }
-
-        .promo-icon-btn {
-            background: rgba(0,0,0,0.4);
-            border: 2px solid var(--accent-gold);
-            font-size: 1.4rem;
-            border-radius: 50%;
-            width: 44px;
-            height: 44px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            transition: transform 0.2s, box-shadow 0.2s;
-            color: #fff;
-        }
-
-        .promo-icon-btn:hover {
-            transform: scale(1.1);
-            box-shadow: 0 0 10px var(--accent-gold);
-        }
-
-        .promo-icon-btn:active {
-            transform: scale(0.95);
         }
 
         .tab-nav {
@@ -578,13 +585,15 @@
         </div>
     </div>
 
+    <!-- Маленька кнопка для кодів збоку -->
+    <button class="side-promo-btn" onclick="openPromoModal()" title="Ввести промокод">🎁</button>
+
     <div id="game-screen">
         <header>
             <div class="stat-badge aura">
                 <div>✨ <span id="aura-count">0</span></div>
                 <div class="stat-subtext">+<span id="cps-count">0</span>/сек</div>
             </div>
-            <!--<button class="promo-icon-btn" onclick="openPromoModal()" title="Промокод">🎁</button>-->
             <div class="stat-badge energy">
                 <div>⚡ <span id="energy-count">1000</span></div>
                 <div class="stat-subtext" style="color: #3498db;">відновл. 30хв</div>
@@ -938,7 +947,46 @@
 
             const cleanCode = code.toLowerCase();
 
-            if (cleanCode === 'конч') {
+            // Код Конч60
+            if (cleanCode === 'конч60') {
+                if (state.usedCodes && state.usedCodes['конч60']) {
+                    msg.style.color = '#e74c3c';
+                    msg.innerText = 'Цей код вже використано!';
+                    msg.style.display = 'block';
+                } else {
+                    if (!state.usedCodes) state.usedCodes = {};
+                    state.usedCodes['конч60'] = true;
+
+                    // +60B Аури
+                    const auraReward = 60000000000;
+                    state.aura += auraReward;
+                    state.totalAura = (state.totalAura || 0) + auraReward;
+
+                    // +1.6M Каменю
+                    if (typeof initEventState === 'function') {
+                        initEventState();
+                    } else if (!state.event) {
+                        state.event = { stone: 0, totalStone: 0, statueLvl: 0, cards: {}, cooldowns: {}, ended: false };
+                    }
+
+                    const stoneReward = 1600000;
+                    state.event.stone = (state.event.stone || 0) + stoneReward;
+                    state.event.totalStone = (state.event.totalStone || 0) + stoneReward;
+
+                    if (typeof syncStoneLeaderboard === 'function') {
+                        syncStoneLeaderboard();
+                    }
+
+                    updateUI();
+                    saveGame();
+
+                    msg.style.color = '#2ecc71';
+                    msg.innerText = 'Успішно! Отримано +60B ✨ аури та +1.6M 🪨 каменю!';
+                    msg.style.display = 'block';
+                }
+            } 
+            // Попередній код конч
+            else if (cleanCode === 'конч') {
                 if (state.usedCodes && state.usedCodes['конч']) {
                     msg.style.color = '#e74c3c';
                     msg.innerText = 'Цей код вже використано!';
