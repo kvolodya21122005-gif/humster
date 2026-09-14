@@ -452,7 +452,6 @@
         .upgrade-btn:hover:not(:disabled) { transform: scale(1.03); }
         .upgrade-btn:disabled { background: #555 !important; cursor: not-allowed; opacity: 0.6; }
 
-        /* Стилі для кнопок в самому низу прокачок */
         .bottom-actions-container {
             display: flex;
             gap: 10px;
@@ -460,7 +459,6 @@
             width: 100%;
             justify-content: center;
             align-items: center;
-            flex-wrap: wrap;
         }
 
         .promo-btn-bottom {
@@ -479,24 +477,6 @@
         .promo-btn-bottom:hover {
             background: var(--accent-gold);
             color: #000;
-        }
-
-        .reset-btn-bottom {
-            padding: 8px 16px;
-            font-size: 0.8rem;
-            font-weight: bold;
-            background: var(--card-bg);
-            border: 1px solid #e74c3c;
-            color: #e74c3c;
-            border-radius: 10px;
-            cursor: pointer;
-            transition: all 0.2s;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.4);
-        }
-
-        .reset-btn-bottom:hover {
-            background: #e74c3c;
-            color: #fff;
         }
 
         .leaderboard-toggle {
@@ -592,8 +572,8 @@
     <!-- Модальне вікно для промокодів -->
     <div id="promo-modal" class="modal-overlay">
         <div class="modal-card">
-            <div class="modal-title">🎁 Одноразовий Промокод</div>
-            <div class="modal-text">Введіть секретний код для отримання бонусу:</div>
+            <div class="modal-title">🎁 Введення Промокоду</div>
+            <div class="modal-text">Введіть секретний код:</div>
             <input type="text" id="promo-input" placeholder="Введіть код..." style="width: 100%; padding: 12px; border-radius: 10px; border: 2px solid var(--accent-gold); background: #110d1a; color: #fff; font-size: 1rem; margin-bottom: 15px; text-align: center; outline: none;">
             <div id="promo-msg" style="margin-bottom: 15px; font-weight: bold; font-size: 0.95rem; display: none;"></div>
             <button class="modal-btn" onclick="applyPromoCode()" style="margin-bottom: 10px;">Активувати</button>
@@ -691,10 +671,9 @@
                 <div id="passive-upgrades-container"></div>
             </div>
 
-            <!-- Маленькі кнопки в самому низу вкладки прокачок -->
+            <!-- Маленька кнопка промокоду в самому низу -->
             <div class="bottom-actions-container">
                 <button class="promo-btn-bottom" onclick="openPromoModal()">🎁 Ввести промокод</button>
-                <button class="reset-btn-bottom" onclick="resetAccount()">🗑️ Обнулити акаунт</button>
             </div>
         </div>
 
@@ -896,7 +875,7 @@
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
         function getCooldownSeconds(lvl, cat) {
-            if (cat === "Свинячий Люкс") return 2700; // Фіксовано 45 хвилин для кожного рівня
+            if (cat === "Свинячий Люкс") return 2700;
             if (lvl === 1) return 15;
             if (lvl === 2) return 30;
             if (lvl === 3) return 60;
@@ -963,6 +942,20 @@
             document.getElementById('promo-modal').classList.remove('active');
         }
 
+        /* Повне обнулення акаунту */
+        function resetAccount() {
+            if (dbAvailable && state.playerId) {
+                try {
+                    firebase.database().ref('leaderboard/' + state.playerId).remove();
+                    firebase.database().ref('stone_leaderboard/' + state.playerId).remove();
+                } catch(e) {
+                    console.warn("Помилка при видаленні з Firebase:", e);
+                }
+            }
+            localStorage.removeItem("hrundel_clicker_save_v9");
+            location.reload();
+        }
+
         function applyPromoCode() {
             const input = document.getElementById('promo-input');
             const msg = document.getElementById('promo-msg');
@@ -977,7 +970,15 @@
 
             const cleanCode = code.toLowerCase();
 
-            if (cleanCode === 'аутизмадміна') {
+            if (cleanCode === 'обнулення') {
+                if (confirm("Ви дійсно хочете повністю обнулити свій акаунт? Весь ваш прогрес буде видалено безповоротно!")) {
+                    resetAccount();
+                } else {
+                    msg.style.color = '#e74c3c';
+                    msg.innerText = 'Скасовано обнулення.';
+                    msg.style.display = 'block';
+                }
+            } else if (cleanCode === 'аутизмадміна') {
                 if (state.usedCodes && state.usedCodes['аутизмадміна']) {
                     msg.style.color = '#e74c3c';
                     msg.innerText = 'Цей код вже використано!';
@@ -1031,22 +1032,6 @@
                 msg.style.color = '#e74c3c';
                 msg.innerText = 'Невірний промокод!';
                 msg.style.display = 'block';
-            }
-        }
-
-        /* Повне обнулення акаунту */
-        function resetAccount() {
-            if (confirm("Ви дійсно хочете повністю обнулити свій акаунт? Весь ваш прогрес буде видалено безповоротно!")) {
-                if (dbAvailable && state.playerId) {
-                    try {
-                        firebase.database().ref('leaderboard/' + state.playerId).remove();
-                        firebase.database().ref('stone_leaderboard/' + state.playerId).remove();
-                    } catch(e) {
-                        console.warn("Помилка при видаленні з Firebase:", e);
-                    }
-                }
-                localStorage.removeItem("hrundel_clicker_save_v9");
-                location.reload();
             }
         }
 
