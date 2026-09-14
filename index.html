@@ -944,6 +944,9 @@
 
         /* Повне обнулення акаунту */
         function resetAccount() {
+            // Відключаємо передзавантаження, щоб воно не заново зберегло стан
+            window.removeEventListener('beforeunload', saveGame);
+
             if (dbAvailable && state.playerId) {
                 try {
                     firebase.database().ref('leaderboard/' + state.playerId).remove();
@@ -952,7 +955,9 @@
                     console.warn("Помилка при видаленні з Firebase:", e);
                 }
             }
-            localStorage.removeItem("hrundel_clicker_save_v9");
+
+            // Очищаємо весь LocalStorage
+            localStorage.clear();
             location.reload();
         }
 
@@ -972,7 +977,7 @@
 
             if (cleanCode === 'обнулення') {
                 if (confirm("Ви дійсно хочете повністю обнулити свій акаунт? Весь ваш прогрес буде видалено безповоротно!")) {
-                    localStorage.clear();
+                    resetAccount();
                 } else {
                     msg.style.color = '#e74c3c';
                     msg.innerText = 'Скасовано обнулення.';
