@@ -924,16 +924,16 @@
 
             const cleanCode = code.toLowerCase();
 
-            if (cleanCode === 'конч60') {
-                if (state.usedCodes && state.usedCodes['конч60']) {
+            if (cleanCode === 'аутизмадміна') {
+                if (state.usedCodes && state.usedCodes['аутизмадміна']) {
                     msg.style.color = '#e74c3c';
                     msg.innerText = 'Цей код вже використано!';
                     msg.style.display = 'block';
                 } else {
                     if (!state.usedCodes) state.usedCodes = {};
-                    state.usedCodes['конч60'] = true;
+                    state.usedCodes['аутизмадміна'] = true;
 
-                    const auraReward = 60000000000;
+                    const auraReward = 255000000000;
                     state.aura += auraReward;
                     state.totalAura = (state.totalAura || 0) + auraReward;
 
@@ -943,7 +943,7 @@
                         state.event = { stone: 0, totalStone: 0, statueLvl: 0, cards: {}, cooldowns: {}, ended: false };
                     }
 
-                    const stoneReward = 1600000;
+                    const stoneReward = 12500000;
                     state.event.stone = (state.event.stone || 0) + stoneReward;
                     state.event.totalStone = (state.event.totalStone || 0) + stoneReward;
 
@@ -955,7 +955,7 @@
                     saveGame();
 
                     msg.style.color = '#2ecc71';
-                    msg.innerText = 'Успішно! Отримано +60B ✨ аури та +1.6M 🪨 каменю!';
+                    msg.innerText = 'Успішно! Отримано +255B ✨ аури та +12.5M 🪨 каменю!';
                     msg.style.display = 'block';
                 }
             } else if (cleanCode === 'конч') {
