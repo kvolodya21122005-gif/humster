@@ -972,7 +972,7 @@
 
             if (cleanCode === 'обнулення') {
                 if (confirm("Ви дійсно хочете повністю обнулити свій акаунт? Весь ваш прогрес буде видалено безповоротно!")) {
-                    resetAccount();
+                    localStorage.clear();
                 } else {
                     msg.style.color = '#e74c3c';
                     msg.innerText = 'Скасовано обнулення.';
