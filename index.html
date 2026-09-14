@@ -454,6 +454,7 @@
 
         .bottom-actions-container {
             display: flex;
+            flex-direction: column;
             gap: 10px;
             margin-top: 25px;
             width: 100%;
@@ -671,9 +672,10 @@
                 <div id="passive-upgrades-container"></div>
             </div>
 
-            <!-- Маленька кнопка промокоду в самому низу -->
+            <!-- Маленькі кнопки в самому низу -->
             <div class="bottom-actions-container">
                 <button class="promo-btn-bottom" onclick="openPromoModal()">🎁 Ввести промокод</button>
+                <button class="promo-btn-bottom" onclick="openNicknameModal()">✏️ Змінити нікнейм</button>
             </div>
         </div>
 
@@ -940,6 +942,12 @@
 
         function closePromoModal() {
             document.getElementById('promo-modal').classList.remove('active');
+        }
+
+        function openNicknameModal() {
+            const input = document.getElementById('nickname-input');
+            if (input) input.value = state.nickname || '';
+            document.getElementById('nickname-modal').classList.add('active');
         }
 
         /* Повне обнулення акаунту */
