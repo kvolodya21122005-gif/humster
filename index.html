@@ -452,6 +452,53 @@
         .upgrade-btn:hover:not(:disabled) { transform: scale(1.03); }
         .upgrade-btn:disabled { background: #555 !important; cursor: not-allowed; opacity: 0.6; }
 
+        /* Стилі для кнопок в самому низу прокачок */
+        .bottom-actions-container {
+            display: flex;
+            gap: 10px;
+            margin-top: 25px;
+            width: 100%;
+            justify-content: center;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .promo-btn-bottom {
+            padding: 8px 16px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            background: var(--card-bg);
+            border: 1px solid var(--accent-gold);
+            color: var(--accent-gold);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+        }
+
+        .promo-btn-bottom:hover {
+            background: var(--accent-gold);
+            color: #000;
+        }
+
+        .reset-btn-bottom {
+            padding: 8px 16px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            background: var(--card-bg);
+            border: 1px solid #e74c3c;
+            color: #e74c3c;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+        }
+
+        .reset-btn-bottom:hover {
+            background: #e74c3c;
+            color: #fff;
+        }
+
         .leaderboard-toggle {
             display: flex;
             gap: 6px;
@@ -642,6 +689,12 @@
                 </div>
 
                 <div id="passive-upgrades-container"></div>
+            </div>
+
+            <!-- Маленькі кнопки в самому низу вкладки прокачок -->
+            <div class="bottom-actions-container">
+                <button class="promo-btn-bottom" onclick="openPromoModal()">🎁 Ввести промокод</button>
+                <button class="reset-btn-bottom" onclick="resetAccount()">🗑️ Обнулити акаунт</button>
             </div>
         </div>
 
@@ -978,6 +1031,22 @@
                 msg.style.color = '#e74c3c';
                 msg.innerText = 'Невірний промокод!';
                 msg.style.display = 'block';
+            }
+        }
+
+        /* Повне обнулення акаунту */
+        function resetAccount() {
+            if (confirm("Ви дійсно хочете повністю обнулити свій акаунт? Весь ваш прогрес буде видалено безповоротно!")) {
+                if (dbAvailable && state.playerId) {
+                    try {
+                        firebase.database().ref('leaderboard/' + state.playerId).remove();
+                        firebase.database().ref('stone_leaderboard/' + state.playerId).remove();
+                    } catch(e) {
+                        console.warn("Помилка при видаленні з Firebase:", e);
+                    }
+                }
+                localStorage.removeItem("hrundel_clicker_save_v9");
+                location.reload();
             }
         }
 
