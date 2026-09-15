@@ -549,6 +549,7 @@
                 <div id="loading-progress-bar" class="progress-bar-fill"></div>
             </div>
         </div>
+        <img id="beton-img" src="beton.jpg" alt="Beton" style="display: none; max-width: 380px; width: 90%; max-height: 50vh; border-radius: 16px; border: 3px solid var(--accent-gold); object-fit: contain;">
     </div>
 
     <div id="nickname-modal" class="modal-overlay">
@@ -1655,26 +1656,35 @@
                 if (finished) return;
                 finished = true;
 
-                const showGameScreen = () => {
-                    document.getElementById('game-screen').style.display = 'flex';
-                    updateUI();
+                // Ховаємо відео/прогрес-бар та показуємо beton.jpg
+                const loadingContent = document.querySelector('.loading-content');
+                const betonImg = document.getElementById('beton-img');
+                if (loadingContent) loadingContent.style.display = 'none';
+                if (betonImg) betonImg.style.display = 'block';
 
-                    if (!state.nickname || state.nickname.trim() === "") {
-                        document.getElementById('nickname-modal').classList.add('active');
-                    } else {
-                        displayOfflineModalIfAvailable();
-                    }
-                };
+                // Затримка 1.5 сек (1500 мс) перед переходом у гру
+                setTimeout(() => {
+                    const showGameScreen = () => {
+                        document.getElementById('game-screen').style.display = 'flex';
+                        updateUI();
 
-                const loadingScreen = document.getElementById('loading-screen');
-                if (loadingScreen) {
-                    loadingScreen.style.opacity = '0';
-                    loadingScreen.style.transition = 'opacity 0.4s ease';
-                    setTimeout(() => {
-                        loadingScreen.style.display = 'none';
-                        showGameScreen();
-                    }, 400);
-                } else showGameScreen();
+                        if (!state.nickname || state.nickname.trim() === "") {
+                            document.getElementById('nickname-modal').classList.add('active');
+                        } else {
+                            displayOfflineModalIfAvailable();
+                        }
+                    };
+
+                    const loadingScreen = document.getElementById('loading-screen');
+                    if (loadingScreen) {
+                        loadingScreen.style.opacity = '0';
+                        loadingScreen.style.transition = 'opacity 0.4s ease';
+                        setTimeout(() => {
+                            loadingScreen.style.display = 'none';
+                            showGameScreen();
+                        }, 400);
+                    } else showGameScreen();
+                }, 1500);
             }
 
             if (video) {
