@@ -82,10 +82,10 @@ function checkAndStartEvent() {
     const end = getEventEndTime();
 
     if (isEventUnlocked() && now < end) {
-        // Якщо івент ще не стартанув або був завершений раніше - запускаємо наново (день 2)
+        // Встановлюємо старт на 5 днів назад, щоб розпочався 6-й день івенту
         if (!state.event.startTime || state.event.ended) {
             state.event = {
-                startTime: now - (24 * 3600 * 1000), // Встановлюємо старт на 24 год назад (День 2)
+                startTime: now - (5 * 24 * 3600 * 1000),
                 stone: 0,
                 totalStone: 0,
                 statueLvl: 0,
@@ -94,9 +94,8 @@ function checkAndStartEvent() {
                 ended: false
             };
             saveGame();
-        } else if (now - state.event.startTime < 24 * 3600 * 1000) {
-            // Встановлюємо 2-й день івенту для вже активного збереження
-            state.event.startTime = now - (24 * 3600 * 1000);
+        } else if (now - state.event.startTime < 5 * 24 * 3600 * 1000) {
+            state.event.startTime = now - (5 * 24 * 3600 * 1000);
             saveGame();
         }
     }
