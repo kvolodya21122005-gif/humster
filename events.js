@@ -3,6 +3,7 @@
 // ==========================================
 
 const CURRENT_EVENT_ID = 'concrete_paving_v1';
+let lastLeaderboardSync = 0; // Для запобігання спаму запитами
 
 function getCurrentTime() {
     return (typeof getServerTime === 'function') ? getServerTime() : Date.now();
@@ -126,7 +127,6 @@ function getStatueAuraIncome() {
     return getPavingAuraIncome();
 }
 
-// Оновлення лічильників без перебудови DOM
 function updateEventCountersUI() {
     if (!state.event) return;
     const waterEl = document.getElementById('event-water-val');
@@ -170,8 +170,11 @@ function calculateOfflineStone(lastSaveTime, now) {
     }
 }
 
-function clickMixer() {
+// Легкий клік без блокування потоку
+function clickMixer(e) {
+    if (e && e.preventDefault) e.preventDefault(); // Запобігає подвійному кліку на мобільних
     initEventState();
+
     const mixerLvl = state.event.mixerLvl || 1;
     const mixer = MIXER_LEVELS[mixerLvl - 1] || MIXER_LEVELS[0];
 
@@ -183,10 +186,27 @@ function clickMixer() {
     state.event.totalConcrete += mixer.concreteGain;
 
     if (typeof playClickSound === 'function') playClickSound();
-    
-    // Оновлюємо значення швидко без перемальовування всієї сторінки
+
     updateEventCountersUI();
-    syncConcreteLeaderboard();
+    syncConcreteLeaderboardThrottled();
+}
+
+// Синхронізація топ-бали з Firebase не частіше 1 разу на 3 секунди
+function syncConcreteLeaderboardThrottled() {
+    const now = Date.now();
+    if (now - lastLeaderboardSync > 3000) {
+        lastLeaderboardSync = now;
+        syncConcreteLeaderboard();
+    }
+}
+
+function syncConcreteLeaderboard() {
+    if (!dbAvailable || !state.playerId || !state.nickname) return;
+    firebase.database().ref('leaderboard_concrete/' + state.playerId).set({
+        name: state.nickname,
+        totalConcrete: Math.floor(state.event.totalConcrete || 0),
+        updatedAt: firebase.database.ServerValue.TIMESTAMP
+    });
 }
 
 function buyCementCard(cardId) {
@@ -247,15 +267,6 @@ function upgradePaving() {
     }
 }
 
-function syncConcreteLeaderboard() {
-    if (!dbAvailable || !state.playerId || !state.nickname) return;
-    firebase.database().ref('leaderboard_concrete/' + state.playerId).set({
-        name: state.nickname,
-        totalConcrete: Math.floor(state.event.totalConcrete || 0),
-        updatedAt: firebase.database.ServerValue.TIMESTAMP
-    });
-}
-
 function switchEventSubTab(tab) {
     eventSubTab = tab;
     renderEventUI();
@@ -301,11 +312,10 @@ function renderEventUI() {
     `;
 
     if (eventSubTab === 'mixer') {
-        const canClick = state.event.water >= currentMixer.waterReq && state.event.cement >= currentMixer.cementReq;
         html += `
             <div class="upgrade-card evo-card" 
-                 style="flex-direction: column; text-align: center; padding: 25px; width: 100%; cursor: pointer; user-select: none; -webkit-tap-highlight-color: transparent;" 
-                 onclick="clickMixer()">
+                 style="flex-direction: column; text-align: center; padding: 25px; width: 100%; cursor: pointer; user-select: none; -webkit-user-select: none; touch-action: manipulation;" 
+                 onpointerdown="clickMixer(event)">
                 <div style="font-size: 3.5rem;">🚜</div>
                 <h2 style="color: var(--accent-gold); margin: 8px 0;">Бетономішалка ${currentMixer.lvl} Рівня</h2>
                 <p style="font-size: 0.95rem; color: #ccc;">Витрачає: <b style="color: #3498db;">${currentMixer.waterReq} воду</b> + <b style="color: #e67e22;">${formatNum(currentMixer.cementReq)} цементу</b></p>
