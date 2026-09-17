@@ -6,6 +6,15 @@ function getCurrentTime() {
     return (typeof getServerTime === 'function') ? getServerTime() : Date.now();
 }
 
+function formatEventCountdown(ms) {
+    if (ms <= 0) return '00:00:00';
+    const totalSec = Math.floor(ms / 1000);
+    const hours = Math.floor(totalSec / 3600);
+    const mins = Math.floor((totalSec % 3600) / 60);
+    const secs = totalSec % 60;
+    return `${hours}г ${mins < 10 ? '0' : ''}${mins}хв ${secs < 10 ? '0' : ''}${secs}с`;
+}
+
 // Вимога доступу: "Енергетик «Дикий Хряк»" (ID 21) >= 9 рівень
 const EVENT_REQ_PASSIVE_ID = 21;
 const EVENT_REQ_PASSIVE_LVL = 9;
@@ -55,7 +64,8 @@ function initEventState() {
             mixerLvl: 1,
             cards: {},
             cooldowns: {},
-            pavingLvl: 0
+            pavingLvl: 0,
+            startTime: getCurrentTime()
         };
     }
     if (state.event.water === undefined) state.event.water = 1000;
@@ -66,6 +76,7 @@ function initEventState() {
     if (!state.event.cards) state.event.cards = {};
     if (!state.event.cooldowns) state.event.cooldowns = {};
     if (state.event.pavingLvl === undefined) state.event.pavingLvl = 0;
+    if (!state.event.startTime) state.event.startTime = getCurrentTime();
     if (state.savedStatueLvl === undefined) state.savedStatueLvl = 0;
 }
 
@@ -81,9 +92,16 @@ function getCementCardCost(card) {
 
 function getTotalCementPerSec() {
     let cps = 0;
-    CEMENT_CARDS.forEach(c => {
-        const lvl = (state.event && state.event.cards && state.event.cards[c.id]) || 0;
-        cps += lvl * c.cps;
+    const now = getCurrentTime();
+    const startTime = (state.event ? state.event.startTime : now);
+
+    CEMENT_CARDS.forEach((c, idx) => {
+        // Рахуємо дохід лише з тих карточок, чий час розблокування вже настав
+        const unlockTime = startTime + (idx * 24 * 60 * 60 * 1000);
+        if (now >= unlockTime) {
+            const lvl = (state.event && state.event.cards && state.event.cards[c.id]) || 0;
+            cps += lvl * c.cps;
+        }
     });
     return cps;
 }
@@ -164,6 +182,10 @@ function buyCementCard(cardId) {
     initEventState();
     const card = CEMENT_CARDS.find(c => c.id === cardId);
     if (!card) return;
+
+    const idx = card.id - 1;
+    const unlockTime = (state.event.startTime || getCurrentTime()) + (idx * 24 * 60 * 60 * 1000);
+    if (getCurrentTime() < unlockTime) return; // Заблоковано за розкладом 24г
 
     const cd = state.event.cooldowns[cardId] || 0;
     if (getCurrentTime() < cd) return;
@@ -270,44 +292,69 @@ function renderEventUI() {
     if (eventSubTab === 'mixer') {
         const canClick = state.event.water >= currentMixer.waterReq && state.event.cement >= currentMixer.cementReq;
         html += `
-            <div class="upgrade-card evo-card" style="flex-direction: column; text-align: center; padding: 25px; width: 100%;">
+            <div class="upgrade-card evo-card" 
+                 style="flex-direction: column; text-align: center; padding: 25px; width: 100%; cursor: ${canClick ? 'pointer' : 'not-allowed'}; user-select: none;" 
+                 onclick="${canClick ? 'clickMixer()' : ''}">
                 <div style="font-size: 3.5rem;">🚜</div>
                 <h2 style="color: var(--accent-gold); margin: 8px 0;">Бетономішалка ${currentMixer.lvl} Рівня</h2>
                 <p style="font-size: 0.95rem; color: #ccc;">Витрачає: <b style="color: #3498db;">${currentMixer.waterReq} воду</b> + <b style="color: #e67e22;">${formatNum(currentMixer.cementReq)} цементу</b></p>
                 <p style="font-size: 1.1rem; color: #2ecc71; font-weight: bold; margin-top: 4px;">Створює: +${formatNum(currentMixer.concreteGain)} бетону / клік</p>
                 <hr style="width: 100%; border: 1px solid rgba(255,255,255,0.1); margin: 15px 0;">
-                <button class="modal-btn" ${canClick ? '' : 'disabled style="background: #555; cursor: not-allowed;"'} onclick="clickMixer()">
+                <button class="modal-btn" ${canClick ? '' : 'disabled style="background: #555; cursor: not-allowed;"'} style="pointer-events: none;">
                     Замішати бетон
                 </button>
             </div>
         `;
     } else if (eventSubTab === 'cement') {
         html += `<div class="upgrades-list">`;
-        CEMENT_CARDS.forEach(card => {
-            const lvl = state.event.cards[card.id] || 0;
-            const cost = getCementCardCost(card);
-            const cd = state.event.cooldowns[card.id] || 0;
-            const cdLeftSec = Math.max(0, Math.ceil((cd - getCurrentTime()) / 1000));
-            const canAfford = state.aura >= cost && cdLeftSec === 0;
+        const now = getCurrentTime();
+        const startTime = state.event.startTime || now;
 
-            html += `
-                <div class="upgrade-card">
-                    <div class="upgrade-img-wrap"><span style="font-size: 2rem;">🧱</span></div>
-                    <div class="upgrade-info">
-                        <div class="upgrade-title">${card.name} <span class="upgrade-level-badge">Рвн ${lvl}</span></div>
-                        <div class="upgrade-desc">Дохід: +${formatNum(lvl * card.cps)} цементу/сек (+${card.cps})</div>
-                        <div class="upgrade-desc" style="color: var(--accent-gold);">Ціна: ${formatNum(cost)} аури</div>
-                        <div class="upgrade-desc" style="color: #00d2d3;">Затримка: ${card.cdSec}сек</div>
-                    </div>
-                    <button class="upgrade-btn" ${canAfford ? '' : 'disabled'} onclick="buyCementCard(${card.id})">
-                        ${cdLeftSec > 0 ? '⏱️ ' + formatTime(cdLeftSec) : 'Купити'}
-                    </button>
-                </div>`;
+        CEMENT_CARDS.forEach((card, idx) => {
+            const unlockTime = startTime + (idx * 24 * 60 * 60 * 1000);
+            const timeUntilUnlockMs = unlockTime - now;
+
+            if (timeUntilUnlockMs > 0) {
+                // Карточка заблокована за розкладом 24г
+                html += `
+                    <div class="upgrade-card" style="opacity: 0.65;">
+                        <div class="upgrade-img-wrap"><span style="font-size: 2rem;">🔒</span></div>
+                        <div class="upgrade-info">
+                            <div class="upgrade-title">${card.name} <span class="upgrade-level-badge" style="background: #555;">Заблоковано</span></div>
+                            <div class="upgrade-desc" style="color: #e74c3c; font-weight: bold;">Розблокується через: ${formatEventCountdown(timeUntilUnlockMs)}</div>
+                            <div class="upgrade-desc">Базовий дохід: +${card.cps} цементу/сек</div>
+                        </div>
+                        <button class="upgrade-btn" disabled style="background: #444; cursor: not-allowed;">
+                            🔒 Скоро
+                        </button>
+                    </div>`;
+            } else {
+                // Карточка вже розблокована
+                const lvl = state.event.cards[card.id] || 0;
+                const cost = getCementCardCost(card);
+                const cd = state.event.cooldowns[card.id] || 0;
+                const cdLeftSec = Math.max(0, Math.ceil((cd - now) / 1000));
+                const canAfford = state.aura >= cost && cdLeftSec === 0;
+
+                html += `
+                    <div class="upgrade-card">
+                        <div class="upgrade-img-wrap"><span style="font-size: 2rem;">🧱</span></div>
+                        <div class="upgrade-info">
+                            <div class="upgrade-title">${card.name} <span class="upgrade-level-badge">Рвн ${lvl}</span></div>
+                            <div class="upgrade-desc">Дохід: +${formatNum(lvl * card.cps)} цементу/сек (+${card.cps})</div>
+                            <div class="upgrade-desc" style="color: var(--accent-gold);">Ціна: ${formatNum(cost)} аури</div>
+                            <div class="upgrade-desc" style="color: #00d2d3;">Затримка: ${card.cdSec}сек</div>
+                        </div>
+                        <button class="upgrade-btn" ${canAfford ? '' : 'disabled'} onclick="buyCementCard(${card.id})">
+                            ${cdLeftSec > 0 ? '⏱️ ' + formatTime(cdLeftSec) : 'Купити'}
+                        </button>
+                    </div>`;
+            }
         });
         html += `</div>`;
     } else if (eventSubTab === 'mixers') {
         html += `<div class="upgrades-list">`;
-        MIXER_LEVELS.forEach((m, idx) => {
+        MIXER_LEVELS.forEach((m) => {
             if (m.lvl === 1) return;
             const isOwned = state.event.mixerLvl >= m.lvl;
             const canBuy = state.event.mixerLvl === m.lvl - 1 && state.event.concrete >= m.concreteCost && state.aura >= m.auraCost;
