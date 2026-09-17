@@ -889,8 +889,6 @@
                 img: "img/upg36.jpg",
                 req: { id: 34, lvl: 16, name: "Анаболічне висівкове пійло" } 
             }
-            
-            
         ];
 
         let state = {
@@ -990,19 +988,17 @@
 
         /* Повне обнулення акаунту */
         function resetAccount() {
-            // Відключаємо передзавантаження, щоб воно не заново зберегло стан
             window.removeEventListener('beforeunload', saveGame);
 
             if (dbAvailable && state.playerId) {
                 try {
                     firebase.database().ref('leaderboard/' + state.playerId).remove();
-                    firebase.database().ref('stone_leaderboard/' + state.playerId).remove();
+                    firebase.database().ref('leaderboard_concrete/' + state.playerId).remove();
                 } catch(e) {
                     console.warn("Помилка при видаленні з Firebase:", e);
                 }
             }
 
-            // Очищаємо весь LocalStorage
             localStorage.clear();
             location.reload();
         }
@@ -1045,22 +1041,22 @@
                     if (typeof initEventState === 'function') {
                         initEventState();
                     } else if (!state.event) {
-                        state.event = { stone: 0, totalStone: 0, statueLvl: 0, cards: {}, cooldowns: {}, ended: false };
+                        state.event = { concrete: 0, totalConcrete: 0, statueLvl: 0, cards: {}, cooldowns: {} };
                     }
 
-                    const stoneReward = 12500000;
-                    state.event.stone = (state.event.stone || 0) + stoneReward;
-                    state.event.totalStone = (state.event.totalStone || 0) + stoneReward;
+                    const concreteReward = 12500000;
+                    state.event.concrete = (state.event.concrete || 0) + concreteReward;
+                    state.event.totalConcrete = (state.event.totalConcrete || 0) + concreteReward;
 
-                    if (typeof syncStoneLeaderboard === 'function') {
-                        syncStoneLeaderboard();
+                    if (typeof syncConcreteLeaderboard === 'function') {
+                        syncConcreteLeaderboard();
                     }
 
                     updateUI();
                     saveGame();
 
                     msg.style.color = '#2ecc71';
-                    msg.innerText = 'Успішно! Отримано +255B ✨ аури та +12.5M 🪨 каменю!';
+                    msg.innerText = 'Успішно! Отримано +255B ✨ аури та +12.5M 🏗️ бетону!';
                     msg.style.display = 'block';
                 }
             } else if (cleanCode === 'конч') {
@@ -1152,8 +1148,8 @@
             state.lastSaveTime = getServerTime();
             localStorage.setItem("hrundel_clicker_save_v9", JSON.stringify(state));
             syncToCloudLeaderboard();
-            if (typeof syncStoneLeaderboard === 'function') {
-                syncStoneLeaderboard();
+            if (typeof syncConcreteLeaderboard === 'function') {
+                syncConcreteLeaderboard();
             }
         }
 
@@ -1194,6 +1190,7 @@
             document.getElementById('nickname-modal').classList.remove('active');
             displayOfflineModalIfAvailable();
             renderLeaderboard();
+            if (typeof renderConcreteLeaderboard === 'function') renderConcreteLeaderboard();
         }
 
         function calculateOfflineProgress() {
@@ -1656,13 +1653,11 @@
                 if (finished) return;
                 finished = true;
 
-                // Ховаємо відео/прогрес-бар та показуємо beton.jpg
                 const loadingContent = document.querySelector('.loading-content');
                 const betonImg = document.getElementById('beton-img');
                 if (loadingContent) loadingContent.style.display = 'none';
                 if (betonImg) betonImg.style.display = 'block';
 
-                // Затримка 1.5 сек (1500 мс) перед переходом у гру
                 setTimeout(() => {
                     const showGameScreen = () => {
                         document.getElementById('game-screen').style.display = 'flex';
