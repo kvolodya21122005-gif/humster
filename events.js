@@ -17,11 +17,9 @@ function formatEventCountdown(ms) {
     return `${hours}г ${mins < 10 ? '0' : ''}${mins}хв ${secs < 10 ? '0' : ''}${secs}с`;
 }
 
-// Вимога доступу: "Енергетик «Дикий Хряк»" (ID 21) >= 9 рівень
 const EVENT_REQ_PASSIVE_ID = 21;
 const EVENT_REQ_PASSIVE_LVL = 9;
 
-// Рівні Бетономішалки (Вкладки 1 та 3)
 const MIXER_LEVELS = [
     { lvl: 1, waterReq: 1, cementReq: 1, concreteGain: 1, concreteCost: 0, auraCost: 0 },
     { lvl: 2, waterReq: 1, cementReq: 10, concreteGain: 10, concreteCost: 25, auraCost: 100000000 },
@@ -32,7 +30,6 @@ const MIXER_LEVELS = [
     { lvl: 7, waterReq: 1, cementReq: 300000, concreteGain: 300000, concreteCost: 75000000, auraCost: 200000000000 }
 ];
 
-// Карточки видобутку цементу (Вкладка 2)
 const CEMENT_CARDS = [
     { id: 1, name: "Цементна яма", baseCost: 50000000, cps: 1, cdSec: 20, img: "img/cement_card1.jpg" },
     { id: 2, name: "Дробарка клінкеру", baseCost: 150000000, cps: 2, cdSec: 30, img: "img/cement_card2.jpg" },
@@ -43,7 +40,6 @@ const CEMENT_CARDS = [
     { id: 7, name: "Глобальна корпорація", baseCost: 8000000000, cps: 35, cdSec: 90, img: "img/cement_card7.jpg" }
 ];
 
-// Етапи заливання бетону для бруківки (Вкладка 4)
 const PAVING_LEVELS = [
     { lvl: 1, concreteCost: 120000, auraCps: 40000 },
     { lvl: 2, concreteCost: 350000, auraCps: 80000 },
@@ -54,10 +50,9 @@ const PAVING_LEVELS = [
     { lvl: 7, concreteCost: 8000000, auraCps: 300000 }
 ];
 
-let eventSubTab = 'mixer'; // 'mixer', 'cement', 'mixers', 'paving', 'leaderboard'
+let eventSubTab = 'mixer';
 
 function initEventState() {
-    // Перевіряємо чи існує івент і чи це саме новий івент бетону
     if (!state.event || state.event.eventId !== CURRENT_EVENT_ID || state.event.stone !== undefined) {
         state.event = {
             eventId: CURRENT_EVENT_ID,
@@ -131,6 +126,18 @@ function getStatueAuraIncome() {
     return getPavingAuraIncome();
 }
 
+// Оновлення лічильників без перебудови DOM
+function updateEventCountersUI() {
+    if (!state.event) return;
+    const waterEl = document.getElementById('event-water-val');
+    const cementEl = document.getElementById('event-cement-val');
+    const concreteEl = document.getElementById('event-concrete-val');
+
+    if (waterEl) waterEl.textContent = `💧 Вода: ${Math.floor(state.event.water)}/1000`;
+    if (cementEl) cementEl.textContent = `🧱 Цемент: ${formatNum(state.event.cement)} (+${formatNum(getTotalCementPerSec())}/с)`;
+    if (concreteEl) concreteEl.textContent = `🏗️ Бетон: ${formatNum(state.event.concrete)}`;
+}
+
 function updateEventLogic(dt) {
     initEventState();
 
@@ -144,6 +151,8 @@ function updateEventLogic(dt) {
     if (cps > 0) {
         state.event.cement += cps * dt;
     }
+
+    updateEventCountersUI();
 }
 
 function calculateOfflineStone(lastSaveTime, now) {
@@ -174,9 +183,10 @@ function clickMixer() {
     state.event.totalConcrete += mixer.concreteGain;
 
     if (typeof playClickSound === 'function') playClickSound();
+    
+    // Оновлюємо значення швидко без перемальовування всієї сторінки
+    updateEventCountersUI();
     syncConcreteLeaderboard();
-    saveGame();
-    updateUI();
 }
 
 function buyCementCard(cardId) {
@@ -198,7 +208,7 @@ function buyCementCard(cardId) {
         state.event.cooldowns[cardId] = getCurrentTime() + (card.cdSec * 1000);
 
         saveGame();
-        updateUI();
+        renderEventUI();
     }
 }
 
@@ -216,7 +226,7 @@ function buyMixer(targetLvl) {
         state.event.mixerLvl = targetLvl;
 
         saveGame();
-        updateUI();
+        renderEventUI();
     }
 }
 
@@ -233,7 +243,7 @@ function upgradePaving() {
         state.event.pavingLvl = nextLvl;
 
         saveGame();
-        updateUI();
+        renderEventUI();
     }
 }
 
@@ -275,9 +285,9 @@ function renderEventUI() {
         <div style="width: 100%; text-align: center; background: var(--card-bg); padding: 12px; border-radius: 12px; border: 2px solid var(--accent-gold); margin-bottom: 12px;">
             <div style="font-size: 1.1rem; font-weight: bold; color: var(--accent-gold);">🏗️ Івент: Заливання бетону для бруківки</div>
             <div style="display: flex; justify-content: space-around; margin-top: 8px; font-weight: bold; font-size: 0.95rem;">
-                <span style="color: #3498db;">💧 Вода: ${Math.floor(state.event.water)}/1000</span>
-                <span style="color: #e67e22;">🧱 Цемент: ${formatNum(state.event.cement)} (+${formatNum(getTotalCementPerSec())}/с)</span>
-                <span style="color: #2ecc71;">🏗️ Бетон: ${formatNum(state.event.concrete)}</span>
+                <span id="event-water-val" style="color: #3498db;">💧 Вода: ${Math.floor(state.event.water)}/1000</span>
+                <span id="event-cement-val" style="color: #e67e22;">🧱 Цемент: ${formatNum(state.event.cement)} (+${formatNum(getTotalCementPerSec())}/с)</span>
+                <span id="event-concrete-val" style="color: #2ecc71;">🏗️ Бетон: ${formatNum(state.event.concrete)}</span>
             </div>
         </div>
 
@@ -294,14 +304,14 @@ function renderEventUI() {
         const canClick = state.event.water >= currentMixer.waterReq && state.event.cement >= currentMixer.cementReq;
         html += `
             <div class="upgrade-card evo-card" 
-                 style="flex-direction: column; text-align: center; padding: 25px; width: 100%; cursor: ${canClick ? 'pointer' : 'not-allowed'}; user-select: none;" 
-                 onclick="${canClick ? 'clickMixer()' : ''}">
+                 style="flex-direction: column; text-align: center; padding: 25px; width: 100%; cursor: pointer; user-select: none; -webkit-tap-highlight-color: transparent;" 
+                 onclick="clickMixer()">
                 <div style="font-size: 3.5rem;">🚜</div>
                 <h2 style="color: var(--accent-gold); margin: 8px 0;">Бетономішалка ${currentMixer.lvl} Рівня</h2>
                 <p style="font-size: 0.95rem; color: #ccc;">Витрачає: <b style="color: #3498db;">${currentMixer.waterReq} воду</b> + <b style="color: #e67e22;">${formatNum(currentMixer.cementReq)} цементу</b></p>
                 <p style="font-size: 1.1rem; color: #2ecc71; font-weight: bold; margin-top: 4px;">Створює: +${formatNum(currentMixer.concreteGain)} бетону / клік</p>
                 <hr style="width: 100%; border: 1px solid rgba(255,255,255,0.1); margin: 15px 0;">
-                <button class="modal-btn" ${canClick ? '' : 'disabled style="background: #555; cursor: not-allowed;"'} style="pointer-events: none;">
+                <button class="modal-btn" style="pointer-events: none;">
                     Замішати бетон
                 </button>
             </div>
