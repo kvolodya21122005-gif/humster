@@ -54,7 +54,7 @@ const PAVING_LEVELS = [
 let eventSubTab = 'mixer';
 
 function initEventState() {
-    if (!state.event || state.event.eventId !== CURRENT_EVENT_ID || state.event.stone !== undefined) {
+    if (!state.event || state.event.eventId !== CURRENT_EVENT_ID) {
         state.event = {
             eventId: CURRENT_EVENT_ID,
             water: 1000,
@@ -170,9 +170,8 @@ function calculateOfflineStone(lastSaveTime, now) {
     }
 }
 
-// Легкий клік без блокування потоку
 function clickMixer(e) {
-    if (e && e.preventDefault) e.preventDefault(); // Запобігає подвійному кліку на мобільних
+    if (e && e.preventDefault) e.preventDefault();
     initEventState();
 
     const mixerLvl = state.event.mixerLvl || 1;
@@ -191,7 +190,6 @@ function clickMixer(e) {
     syncConcreteLeaderboardThrottled();
 }
 
-// Синхронізація топ-бали з Firebase не частіше 1 разу на 3 секунди
 function syncConcreteLeaderboardThrottled() {
     const now = Date.now();
     if (now - lastLeaderboardSync > 3000) {
@@ -202,11 +200,12 @@ function syncConcreteLeaderboardThrottled() {
 
 function syncConcreteLeaderboard() {
     if (!dbAvailable || !state.playerId || !state.nickname) return;
+    if (!state.event) initEventState();
     firebase.database().ref('leaderboard_concrete/' + state.playerId).set({
         name: state.nickname,
         totalConcrete: Math.floor(state.event.totalConcrete || 0),
         updatedAt: firebase.database.ServerValue.TIMESTAMP
-    });
+    }).catch(err => console.warn("Firebase concrete sync error:", err));
 }
 
 function buyCementCard(cardId) {
@@ -442,11 +441,14 @@ function renderConcreteLeaderboard() {
                 <div class="leaderboard-item is-player">
                     <div class="leaderboard-rank">🥇</div>
                     <div class="leaderboard-name">${state.nickname || "Ви"} (Локально)</div>
-                    <div class="leaderboard-cps">${formatNum(state.event.totalConcrete || 0)} 🏗️</div>
+                    <div class="leaderboard-cps">${formatNum(state.event ? (state.event.totalConcrete || 0) : 0)} 🏗️</div>
                 </div>
             </div>`;
         return;
     }
+
+    // Синхронізуємо власні актуальні дані перед відображенням
+    syncConcreteLeaderboard();
 
     firebase.database().ref('leaderboard_concrete').orderByChild('totalConcrete').limitToLast(50).once('value', (snapshot) => {
         const data = snapshot.val();
@@ -487,6 +489,9 @@ function renderConcreteLeaderboard() {
             `;
             list.appendChild(item);
         });
+    }).catch(err => {
+        console.error("Помилка завантаження топу бетону:", err);
+        list.innerHTML = `<div class="empty-leaderboard" style="color: #e74c3c;">Помилка завантаження даних з сервера.</div>`;
     });
 }
 
