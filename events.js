@@ -2,6 +2,8 @@
 // КОНФІГУРАЦІЯ ТА ДАНІ ІВЕНТУ: ЗАЛИВАННЯ БЕТОНУ
 // ==========================================
 
+const CURRENT_EVENT_ID = 'concrete_paving_v1';
+
 function getCurrentTime() {
     return (typeof getServerTime === 'function') ? getServerTime() : Date.now();
 }
@@ -30,15 +32,15 @@ const MIXER_LEVELS = [
     { lvl: 7, waterReq: 1, cementReq: 300000, concreteGain: 300000, concreteCost: 75000000, auraCost: 200000000000 }
 ];
 
-// Унікальні карточки виробництва цементу (Вкладка 2)
+// Карточки видобутку цементу (Вкладка 2)
 const CEMENT_CARDS = [
-    { id: 1, name: "Фасування вапна", icon: "📦", baseCost: 50000000, cps: 1, cdSec: 15, img: "img/cement_card1.jpg" },
-    { id: 2, name: "Млин для клінкеру", icon: "⚙️", baseCost: 150000000, cps: 3, cdSec: 25, img: "img/cement_card2.jpg" },
-    { id: 3, name: "Обертова піч випалу", icon: "🔥", baseCost: 400000000, cps: 7, cdSec: 35, img: "img/cement_card3.jpg" },
-    { id: 4, name: "Пневмоподача сировини", icon: "💨", baseCost: 1000000000, cps: 15, cdSec: 45, img: "img/cement_card4.jpg" },
-    { id: 5, name: "Автоматичний силос", icon: "🏬", baseCost: 2500000000, cps: 30, cdSec: 60, img: "img/cement_card5.jpg" },
-    { id: 6, name: "Термінал цементовозів", icon: "🚛", baseCost: 5000000000, cps: 60, cdSec: 75, img: "img/cement_card6.jpg" },
-    { id: 7, name: "Цементний промгігант", icon: "🏭", baseCost: 8000000000, cps: 120, cdSec: 90, img: "img/cement_card7.jpg" }
+    { id: 1, name: "Цементна яма", baseCost: 50000000, cps: 1, cdSec: 20, img: "img/cement_card1.jpg" },
+    { id: 2, name: "Дробарка клінкеру", baseCost: 150000000, cps: 2, cdSec: 30, img: "img/cement_card2.jpg" },
+    { id: 3, name: "Міні-завод цементу", baseCost: 400000000, cps: 4, cdSec: 40, img: "img/cement_card3.jpg" },
+    { id: 4, name: "Силосний склад", baseCost: 1000000000, cps: 8, cdSec: 50, img: "img/cement_card4.jpg" },
+    { id: 5, name: "Цементний кар'єр", baseCost: 2500000000, cps: 15, cdSec: 60, img: "img/cement_card5.jpg" },
+    { id: 6, name: "Цементний холдинг", baseCost: 5000000000, cps: 25, cdSec: 75, img: "img/cement_card6.jpg" },
+    { id: 7, name: "Глобальна корпорація", baseCost: 8000000000, cps: 35, cdSec: 90, img: "img/cement_card7.jpg" }
 ];
 
 // Етапи заливання бетону для бруківки (Вкладка 4)
@@ -55,8 +57,10 @@ const PAVING_LEVELS = [
 let eventSubTab = 'mixer'; // 'mixer', 'cement', 'mixers', 'paving', 'leaderboard'
 
 function initEventState() {
-    if (!state.event) {
+    // Перевіряємо чи існує івент і чи це саме новий івент бетону
+    if (!state.event || state.event.eventId !== CURRENT_EVENT_ID || state.event.stone !== undefined) {
         state.event = {
+            eventId: CURRENT_EVENT_ID,
             water: 1000,
             cement: 0,
             concrete: 0,
@@ -333,7 +337,7 @@ function renderEventUI() {
 
                 html += `
                     <div class="upgrade-card">
-                        <div class="upgrade-img-wrap"><span style="font-size: 2rem;">${card.icon}</span></div>
+                        <div class="upgrade-img-wrap"><span style="font-size: 2rem;">🧱</span></div>
                         <div class="upgrade-info">
                             <div class="upgrade-title">${card.name} <span class="upgrade-level-badge">Рвн ${lvl}</span></div>
                             <div class="upgrade-desc">Дохід: +${formatNum(lvl * card.cps)} цементу/сек (+${card.cps})</div>
