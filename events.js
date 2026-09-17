@@ -1,8 +1,7 @@
 // ==========================================
-// КОНФІГУРАЦІЯ ТА ДАНІ ІВЕНТУ
+// КОНФІГУРАЦІЯ ТА ДАНІ ІВЕНТУ: ЗАЛИВАННЯ БЕТОНУ
 // ==========================================
 
-// Отримання поточного серверного або локального часу
 function getCurrentTime() {
     return (typeof getServerTime === 'function') ? getServerTime() : Date.now();
 }
@@ -11,273 +10,224 @@ function getCurrentTime() {
 const EVENT_REQ_PASSIVE_ID = 21;
 const EVENT_REQ_PASSIVE_LVL = 9;
 
-// Карточки для фарму каменю
-const STONE_CARDS = [
-    { id: 1, day: 1, name: "Каменярня Хрюші", baseCost: 25000000, cdSec: 60, sps: 1, img: "img/stone_card1.jpg" },
-    { id: 2, day: 2, name: "Свинячий Гранітний Кар'єр", baseCost: 100000000, cdSec: 120, sps: 2, img: "img/stone_card2.jpg" },
-    { id: 3, day: 3, name: "Трюфельна Базальтова Шахта", baseCost: 300000000, cdSec: 180, sps: 4, img: "img/stone_card3.jpg" },
-    { id: 4, day: 4, name: "Кабаняча Кварцева Жила", baseCost: 750000000, cdSec: 300, sps: 8, img: "img/stone_card4.jpg" },
-    { id: 5, day: 5, name: "Мармуровий П'ятачок", baseCost: 1500000000, cdSec: 420, sps: 12, img: "img/stone_card5.jpg" },
-    { id: 6, day: 6, name: "Алмазний Свинарник", baseCost: 2750000000, cdSec: 600, sps: 20, img: "img/stone_card6.jpg" },
-    { id: 7, day: 7, name: "Космічний Метеорит Хряка", baseCost: 5000000000, cdSec: 900, sps: 30, img: "img/stone_card7.jpg" }
+// Рівні Бетономішалки (Вкладки 1 та 3)
+const MIXER_LEVELS = [
+    { lvl: 1, waterReq: 1, cementReq: 1, concreteGain: 1, concreteCost: 0, auraCost: 0 },
+    { lvl: 2, waterReq: 1, cementReq: 10, concreteGain: 10, concreteCost: 25, auraCost: 100000000 },
+    { lvl: 3, waterReq: 1, cementReq: 100, concreteGain: 100, concreteCost: 500, auraCost: 500000000 },
+    { lvl: 4, waterReq: 1, cementReq: 1000, concreteGain: 1000, concreteCost: 10000, auraCost: 2000000000 },
+    { lvl: 5, waterReq: 1, cementReq: 10000, concreteGain: 10000, concreteCost: 250000, auraCost: 10000000000 },
+    { lvl: 6, waterReq: 1, cementReq: 100000, concreteGain: 100000, concreteCost: 5000000, auraCost: 75000000000 },
+    { lvl: 7, waterReq: 1, cementReq: 300000, concreteGain: 300000, concreteCost: 75000000, auraCost: 200000000000 }
 ];
 
-// Етапи покращення статуї
-const STATUE_LEVELS = [
-    { lvl: 1, stoneCost: 200000, auraCps: 25000 },
-    { lvl: 2, stoneCost: 600000, auraCps: 50000 },
-    { lvl: 3, stoneCost: 1500000, auraCps: 75000 },
-    { lvl: 4, stoneCost: 3000000, auraCps: 100000 },
-    { lvl: 5, stoneCost: 5000000, auraCps: 130000 },
-    { lvl: 6, stoneCost: 10000000, auraCps: 160000 },
-    { lvl: 7, stoneCost: 20000000, auraCps: 200000 }
+// Карточки видобутку цементу (Вкладка 2)
+const CEMENT_CARDS = [
+    { id: 1, name: "Цементна яма", baseCost: 50000000, cps: 1, cdSec: 20, img: "img/cement_card1.jpg" },
+    { id: 2, name: "Дробарка клінкеру", baseCost: 150000000, cps: 2, cdSec: 30, img: "img/cement_card2.jpg" },
+    { id: 3, name: "Міні-завод цементу", baseCost: 400000000, cps: 4, cdSec: 40, img: "img/cement_card3.jpg" },
+    { id: 4, name: "Силосний склад", baseCost: 1000000000, cps: 8, cdSec: 50, img: "img/cement_card4.jpg" },
+    { id: 5, name: "Цементний кар'єр", baseCost: 2500000000, cps: 15, cdSec: 60, img: "img/cement_card5.jpg" },
+    { id: 6, name: "Цементний холдинг", baseCost: 5000000000, cps: 25, cdSec: 75, img: "img/cement_card6.jpg" },
+    { id: 7, name: "Глобальна корпорація", baseCost: 8000000000, cps: 35, cdSec: 90, img: "img/cement_card7.jpg" }
 ];
 
-let eventSubTab = 'statue'; // 'statue', 'cards', 'leaderboard'
+// Етапи заливання бетону для бруківки (Вкладка 4)
+const PAVING_LEVELS = [
+    { lvl: 1, concreteCost: 120000, auraCps: 40000 },
+    { lvl: 2, concreteCost: 350000, auraCps: 80000 },
+    { lvl: 3, concreteCost: 700000, auraCps: 120000 },
+    { lvl: 4, concreteCost: 1400000, auraCps: 160000 },
+    { lvl: 5, concreteCost: 2600000, auraCps: 200000 },
+    { lvl: 6, concreteCost: 5000000, auraCps: 250000 },
+    { lvl: 7, concreteCost: 8000000, auraCps: 300000 }
+];
 
-// Визначення часу завершення івенту (17 вересня о 09:00)
-function getEventEndTime() {
-    const now = new Date(getCurrentTime());
-    let end = new Date(now.getFullYear(), 8, 17, 9, 0, 0); // 8 = Вересень
-    if (now.getTime() > end.getTime() && (!state.event || !state.event.startTime)) {
-        end = new Date(now.getFullYear() + 1, 8, 17, 9, 0, 0);
-    }
-    return end.getTime();
-}
+let eventSubTab = 'mixer'; // 'mixer', 'cement', 'mixers', 'paving', 'leaderboard'
 
-// Ініціалізація стану івенту в об'єкті state
 function initEventState() {
     if (!state.event) {
         state.event = {
-            startTime: null,
-            stone: 0,
-            totalStone: 0,
-            statueLvl: 0,
+            water: 1000,
+            cement: 0,
+            concrete: 0,
+            totalConcrete: 0,
+            mixerLvl: 1,
             cards: {},
             cooldowns: {},
-            ended: false
+            pavingLvl: 0
         };
     }
-    if (state.savedStatueLvl === undefined) {
-        state.savedStatueLvl = 0;
-    }
+    if (state.event.water === undefined) state.event.water = 1000;
+    if (state.event.cement === undefined) state.event.cement = 0;
+    if (state.event.concrete === undefined) state.event.concrete = 0;
+    if (state.event.totalConcrete === undefined) state.event.totalConcrete = 0;
+    if (state.event.mixerLvl === undefined) state.event.mixerLvl = 1;
+    if (!state.event.cards) state.event.cards = {};
+    if (!state.event.cooldowns) state.event.cooldowns = {};
+    if (state.event.pavingLvl === undefined) state.event.pavingLvl = 0;
+    if (state.savedStatueLvl === undefined) state.savedStatueLvl = 0;
 }
 
-// Перевірка доступу до івенту
 function isEventUnlocked() {
     const lvl = state.passives ? (state.passives[EVENT_REQ_PASSIVE_ID] || 0) : 0;
     return lvl >= EVENT_REQ_PASSIVE_LVL;
 }
 
-// Перевірка активності івенту
-function isEventActive() {
-    if (!state.event || !state.event.startTime || state.event.ended) return false;
-    return getCurrentTime() < getEventEndTime();
-}
-
-// Старт та автоматичний перезапуск івенту
-function checkAndStartEvent() {
-    initEventState();
-    const now = getCurrentTime();
-    const end = getEventEndTime();
-
-    if (isEventUnlocked() && now < end) {
-        // Встановлюємо старт на 5 днів назад, щоб розпочався 6-й день івенту
-        if (!state.event.startTime || state.event.ended) {
-            state.event = {
-                startTime: now - (5 * 24 * 3600 * 1000),
-                stone: 0,
-                totalStone: 0,
-                statueLvl: 0,
-                cards: {},
-                cooldowns: {},
-                ended: false
-            };
-            saveGame();
-        } else if (now - state.event.startTime < 5 * 24 * 3600 * 1000) {
-            state.event.startTime = now - (5 * 24 * 3600 * 1000);
-            saveGame();
-        }
-    }
-}
-
-// Розрахунок поточного дня івенту (1..7)
-function getEventDay() {
-    if (!state.event || !state.event.startTime) return 1;
-    const elapsed = getCurrentTime() - state.event.startTime;
-    const day = Math.floor(elapsed / (24 * 3600 * 1000)) + 1;
-    return Math.min(Math.max(day, 1), 7);
-}
-
-// Отримання ціни карточки з коефіцієнтом х1.2
-function getStoneCardCost(card) {
-    const lvl = state.event.cards[card.id] || 0;
+function getCementCardCost(card) {
+    const lvl = (state.event.cards && state.event.cards[card.id]) || 0;
     return Math.floor(card.baseCost * Math.pow(1.2, lvl));
 }
 
-// Виробіток каменю за секунду (SPS)
-function getTotalStonePerSec() {
-    if (!isEventActive()) return 0;
-    let sps = 0;
-    STONE_CARDS.forEach(c => {
-        const lvl = state.event.cards[c.id] || 0;
-        sps += lvl * c.sps;
+function getTotalCementPerSec() {
+    let cps = 0;
+    CEMENT_CARDS.forEach(c => {
+        const lvl = (state.event && state.event.cards && state.event.cards[c.id]) || 0;
+        cps += lvl * c.cps;
     });
-    return sps;
+    return cps;
 }
 
-// Дохід аури від статуї
+function getPavingAuraIncome() {
+    let income = 0;
+    if (state.savedStatueLvl && state.savedStatueLvl > 0) {
+        const STATUE_LEVELS = [
+            { auraCps: 25000 }, { auraCps: 50000 }, { auraCps: 75000 },
+            { auraCps: 100000 }, { auraCps: 130000 }, { auraCps: 160000 }, { auraCps: 200000 }
+        ];
+        if (STATUE_LEVELS[state.savedStatueLvl - 1]) {
+            income += STATUE_LEVELS[state.savedStatueLvl - 1].auraCps;
+        }
+    }
+    if (state.event && state.event.pavingLvl && state.event.pavingLvl > 0) {
+        const paving = PAVING_LEVELS[state.event.pavingLvl - 1];
+        if (paving) income += paving.auraCps;
+    }
+    return income;
+}
+
 function getStatueAuraIncome() {
-    const activeLvl = isEventActive() ? state.event.statueLvl : state.savedStatueLvl;
-    if (activeLvl <= 0) return 0;
-    const levelData = STATUE_LEVELS[activeLvl - 1];
-    return levelData ? levelData.auraCps : 0;
+    return getPavingAuraIncome();
 }
 
-// Крок оновлення івенту (0.1 сек)
 function updateEventLogic(dt) {
-    checkAndStartEvent();
     initEventState();
 
-    if (state.event.startTime && !state.event.ended) {
-        if (!isEventActive()) {
-            finishEvent();
-            return;
-        }
+    // Відновлення води: 1000 води за 16 годин (57600 сек) -> ~0.01736 води/сек
+    const WATER_MAX = 1000;
+    const WATER_REGEN_PER_SEC = 1000 / 57600;
+    if (state.event.water < WATER_MAX) {
+        state.event.water = Math.min(WATER_MAX, state.event.water + WATER_REGEN_PER_SEC * dt);
+    }
 
-        // Фарм каменю
-        const sps = getTotalStonePerSec();
-        if (sps > 0) {
-            const stoneGained = sps * dt;
-            state.event.stone += stoneGained;
-            state.event.totalStone += stoneGained;
-        }
+    // Автоматичний видобуток цементу
+    const cps = getTotalCementPerSec();
+    if (cps > 0) {
+        state.event.cement += cps * dt;
     }
 }
 
-// Розрахунок офлайн-видобутку каменю
 function calculateOfflineStone(lastSaveTime, now) {
-    checkAndStartEvent();
     initEventState();
+    const elapsedSeconds = (now - lastSaveTime) / 1000;
+    if (elapsedSeconds <= 0) return;
 
-    if (!state.event || !state.event.startTime || state.event.ended) return;
+    const WATER_MAX = 1000;
+    const WATER_REGEN_PER_SEC = 1000 / 57600;
+    state.event.water = Math.min(WATER_MAX, state.event.water + WATER_REGEN_PER_SEC * elapsedSeconds);
 
-    const eventEnd = getEventEndTime();
-
-    const overlapStart = Math.max(lastSaveTime, state.event.startTime);
-    const overlapEnd = Math.min(now, eventEnd);
-
-    if (overlapEnd > overlapStart) {
-        const activeOfflineSeconds = (overlapEnd - overlapStart) / 1000;
-        
-        let sps = 0;
-        STONE_CARDS.forEach(c => {
-            const lvl = state.event.cards[c.id] || 0;
-            sps += lvl * c.sps;
-        });
-
-        if (sps > 0 && activeOfflineSeconds > 0) {
-            const stoneGained = sps * activeOfflineSeconds;
-            state.event.stone += stoneGained;
-            state.event.totalStone += stoneGained;
-            syncStoneLeaderboard();
-        }
-    }
-
-    if (now >= eventEnd && !state.event.ended) {
-        finishEvent();
+    const cps = getTotalCementPerSec();
+    if (cps > 0) {
+        state.event.cement += cps * elapsedSeconds;
     }
 }
 
-// Завершення івенту
-function finishEvent() {
-    if (state.event.ended) return;
+function clickMixer() {
+    initEventState();
+    const mixerLvl = state.event.mixerLvl || 1;
+    const mixer = MIXER_LEVELS[mixerLvl - 1] || MIXER_LEVELS[0];
 
-    state.event.ended = true;
+    if (state.event.water < mixer.waterReq || state.event.cement < mixer.cementReq) return;
 
-    // Конвертація невикористаного каменю в ауру (1 камінь = 2000 аури)
-    if (state.event.stone > 0) {
-        const convertedAura = Math.floor(state.event.stone * 2000);
-        state.aura += convertedAura;
-        state.event.stone = 0;
-    }
+    state.event.water -= mixer.waterReq;
+    state.event.cement -= mixer.cementReq;
+    state.event.concrete += mixer.concreteGain;
+    state.event.totalConcrete += mixer.concreteGain;
 
-    // Перенесення рівня статуї у постійний
-    state.savedStatueLvl = state.event.statueLvl;
-
+    if (typeof playClickSound === 'function') playClickSound();
+    syncConcreteLeaderboard();
     saveGame();
-    if (typeof updateUI === 'function') updateUI();
+    updateUI();
 }
 
-// Купівля карточки каменю
-function buyStoneCard(cardId) {
-    if (!isEventActive()) return;
-    const card = STONE_CARDS.find(c => c.id === cardId);
+function buyCementCard(cardId) {
+    initEventState();
+    const card = CEMENT_CARDS.find(c => c.id === cardId);
     if (!card) return;
-
-    if (card.day > getEventDay()) return;
 
     const cd = state.event.cooldowns[cardId] || 0;
     if (getCurrentTime() < cd) return;
 
-    const cost = getStoneCardCost(card);
+    const cost = getCementCardCost(card);
     if (state.aura >= cost) {
         state.aura -= cost;
         state.event.cards[cardId] = (state.event.cards[cardId] || 0) + 1;
         state.event.cooldowns[cardId] = getCurrentTime() + (card.cdSec * 1000);
-        
-        syncStoneLeaderboard();
-        saveGame();
-        updateUI();
-    }
-}
-
-// Прокачка статуї
-function upgradeStatue() {
-    if (!isEventActive()) return;
-    const nextLvl = state.event.statueLvl + 1;
-    if (nextLvl > 7) return;
-
-    const req = STATUE_LEVELS[nextLvl - 1];
-    if (state.event.stone >= req.stoneCost) {
-        state.event.stone -= req.stoneCost;
-        state.event.statueLvl = nextLvl;
-
-        const statueCard = document.getElementById('statue-upgrade-card');
-        if (statueCard) statueCard.remove();
 
         saveGame();
         updateUI();
     }
 }
 
-// Синхронізація топу каменю з Firebase
-function syncStoneLeaderboard() {
+function buyMixer(targetLvl) {
+    initEventState();
+    const currentLvl = state.event.mixerLvl || 1;
+    if (targetLvl !== currentLvl + 1) return;
+
+    const targetMixer = MIXER_LEVELS[targetLvl - 1];
+    if (!targetMixer) return;
+
+    if (state.event.concrete >= targetMixer.concreteCost && state.aura >= targetMixer.auraCost) {
+        state.event.concrete -= targetMixer.concreteCost;
+        state.aura -= targetMixer.auraCost;
+        state.event.mixerLvl = targetLvl;
+
+        saveGame();
+        updateUI();
+    }
+}
+
+function upgradePaving() {
+    initEventState();
+    const currentLvl = state.event.pavingLvl || 0;
+    if (currentLvl >= 7) return;
+
+    const nextLvl = currentLvl + 1;
+    const req = PAVING_LEVELS[nextLvl - 1];
+
+    if (state.event.concrete >= req.concreteCost) {
+        state.event.concrete -= req.concreteCost;
+        state.event.pavingLvl = nextLvl;
+
+        saveGame();
+        updateUI();
+    }
+}
+
+function syncConcreteLeaderboard() {
     if (!dbAvailable || !state.playerId || !state.nickname) return;
-    firebase.database().ref('leaderboard_stone/' + state.playerId).set({
+    firebase.database().ref('leaderboard_concrete/' + state.playerId).set({
         name: state.nickname,
-        totalStone: Math.floor(state.event.totalStone || 0),
+        totalConcrete: Math.floor(state.event.totalConcrete || 0),
         updatedAt: firebase.database.ServerValue.TIMESTAMP
     });
 }
 
-// Перемикання підвкладок івенту
 function switchEventSubTab(tab) {
     eventSubTab = tab;
-    document.querySelectorAll('.event-sub-btn').forEach(b => b.classList.remove('active'));
-    const btn = document.getElementById(`event-sub-btn-${tab}`);
-    if (btn) btn.classList.add('active');
-
-    const cardsList = document.getElementById('stone-cards-list');
-    if (cardsList) cardsList.remove();
-
-    const statueCard = document.getElementById('statue-upgrade-card');
-    if (statueCard) statueCard.remove();
-
     renderEventUI();
 }
 
-// Рендеринг інтерфейсу івенту
 function renderEventUI() {
     const container = document.getElementById('tab-event');
     if (!container) return;
@@ -295,215 +245,128 @@ function renderEventUI() {
         return;
     }
 
-    if (state.event.ended || (!isEventActive() && state.event.startTime)) {
-        container.innerHTML = `
-            <div style="text-align: center; padding: 40px 15px; background: var(--card-bg); border-radius: 16px; margin-top: 20px; border: 2px solid var(--accent-gold);">
-                <h2 style="color: var(--accent-gold);">🏁 Івент завершено!</h2>
-                <br>
-                <p style="color: #ecf0f1;">Усі карточки каменю вилучено, а невикористаний камінь обміняно на ауру за курсом <b>1 камінь = 2000 аури</b>.</p>
-                <br>
-                <p>Ваша статуя перенесена у вкладку <b>«🗿 Статуї»</b> та продовжує приносити дохід!</p>
-            </div>`;
-        return;
-    }
+    initEventState();
+    const currentMixer = MIXER_LEVELS[(state.event.mixerLvl || 1) - 1];
 
-    const currentDay = getEventDay();
-
-    // Швидке оновлення підвкладки "Карточки"
-    if (eventSubTab === 'cards' && document.getElementById('stone-cards-list')) {
-        const stoneEl = document.getElementById('event-stone-count');
-        if (stoneEl) stoneEl.innerText = formatNum(state.event.stone);
-
-        const spsEl = document.getElementById('event-sps-count');
-        if (spsEl) spsEl.innerText = formatNum(getTotalStonePerSec());
-
-        let needsRebuild = false;
-
-        STONE_CARDS.forEach(card => {
-            const isUnlocked = currentDay >= card.day;
-            const cardBadge = document.getElementById(`stone-card-lvl-${card.id}`);
-
-            if (isUnlocked && !cardBadge) {
-                needsRebuild = true;
-                return;
-            }
-
-            if (!isUnlocked) return;
-
-            const lvl = state.event.cards[card.id] || 0;
-            const cost = getStoneCardCost(card);
-            const cd = state.event.cooldowns[card.id] || 0;
-            const cdLeftSec = Math.max(0, Math.ceil((cd - getCurrentTime()) / 1000));
-            const canAfford = state.aura >= cost && cdLeftSec === 0;
-
-            if (cardBadge) cardBadge.innerText = `Рвн ${lvl}`;
-
-            const desc = document.getElementById(`stone-card-desc-${card.id}`);
-            if (desc) desc.innerText = `Дохід: +${formatNum(lvl * card.sps)} каменю/сек (+${card.sps})`;
-
-            const costEl = document.getElementById(`stone-card-cost-${card.id}`);
-            if (costEl) costEl.innerText = `Ціна: ${formatNum(cost)} аури`;
-
-            const btn = document.getElementById(`stone-card-btn-${card.id}`);
-            if (btn) {
-                btn.disabled = !canAfford;
-                btn.innerText = cdLeftSec > 0 ? `⏱️ ${formatTime(cdLeftSec)}` : 'Купити';
-            }
-        });
-
-        if (needsRebuild) {
-            const cardsList = document.getElementById('stone-cards-list');
-            if (cardsList) cardsList.remove();
-        } else {
-            return;
-        }
-    }
-
-    // Швидке оновлення підвкладки "Статуя"
-    if (eventSubTab === 'statue' && document.getElementById('statue-upgrade-card')) {
-        const curLvl = state.event.statueLvl;
-        const curIncome = getStatueAuraIncome();
-
-        const stoneEl = document.getElementById('event-stone-count');
-        if (stoneEl) stoneEl.innerText = formatNum(state.event.stone);
-
-        const spsEl = document.getElementById('event-sps-count');
-        if (spsEl) spsEl.innerText = formatNum(getTotalStonePerSec());
-
-        const lvlEl = document.getElementById('statue-cur-lvl');
-        if (lvlEl) lvlEl.innerText = `${curLvl} / 7`;
-
-        const incEl = document.getElementById('statue-cur-income');
-        if (incEl) incEl.innerText = `+${formatNum(curIncome)} аури/сек`;
-
-        if (curLvl < 7) {
-            const req = STATUE_LEVELS[curLvl];
-            const canAfford = state.event.stone >= req.stoneCost;
-
-            const reqStoneEl = document.getElementById('statue-req-stone');
-            if (reqStoneEl) reqStoneEl.innerText = formatNum(req.stoneCost);
-
-            const btn = document.getElementById('statue-upgrade-btn');
-            if (btn) {
-                btn.disabled = !canAfford;
-                btn.style.background = canAfford ? '' : '#555';
-                btn.style.cursor = canAfford ? 'pointer' : 'not-allowed';
-            }
-        }
-        return;
-    }
-
-    // Повний первинний рендеринг підвкладки
     let html = `
-        <div style="width: 100%; text-align: center; background: var(--card-bg); padding: 12px; border-radius: 12px; border: 2px solid var(--accent-gold); margin-bottom: 15px;">
-            <div style="font-size: 1.1rem; font-weight: bold; color: var(--accent-gold);">🎯 Тимчасовий Івент: Статуя Хрюнделя</div>
-            <div style="font-size: 0.85rem; color: #aaa; margin-top: 4px;">Івент завершується 17 вересня о 9 години ранку</div>
-            <div style="font-size: 1.1rem; font-weight: bold; margin-top: 8px; color: #00d2d3;">
-                🪨 Наявний камінь: <span id="event-stone-count">${formatNum(state.event.stone)}</span> (+<span id="event-sps-count">${formatNum(getTotalStonePerSec())}</span>/сек)
+        <div style="width: 100%; text-align: center; background: var(--card-bg); padding: 12px; border-radius: 12px; border: 2px solid var(--accent-gold); margin-bottom: 12px;">
+            <div style="font-size: 1.1rem; font-weight: bold; color: var(--accent-gold);">🏗️ Івент: Заливання бетону для бруківки</div>
+            <div style="display: flex; justify-content: space-around; margin-top: 8px; font-weight: bold; font-size: 0.95rem;">
+                <span style="color: #3498db;">💧 Вода: ${Math.floor(state.event.water)}/1000</span>
+                <span style="color: #e67e22;">🧱 Цемент: ${formatNum(state.event.cement)} (+${formatNum(getTotalCementPerSec())}/с)</span>
+                <span style="color: #2ecc71;">🏗️ Бетон: ${formatNum(state.event.concrete)}</span>
             </div>
         </div>
 
         <div class="leaderboard-toggle" style="margin-bottom: 15px;">
-            <button id="event-sub-btn-statue" class="sub-tab-btn ${eventSubTab === 'statue' ? 'active' : ''}" onclick="switchEventSubTab('statue')">🗿 Статуя</button>
-            <button id="event-sub-btn-cards" class="sub-tab-btn ${eventSubTab === 'cards' ? 'active' : ''}" onclick="switchEventSubTab('cards')">⛏️ Карточки</button>
-            <button id="event-sub-btn-leaderboard" class="sub-tab-btn ${eventSubTab === 'leaderboard' ? 'active' : ''}" onclick="switchEventSubTab('leaderboard')">🏆 Топ Каменю</button>
+            <button class="sub-tab-btn ${eventSubTab === 'mixer' ? 'active' : ''}" onclick="switchEventSubTab('mixer')">⚙️ Бетономішалка</button>
+            <button class="sub-tab-btn ${eventSubTab === 'cement' ? 'active' : ''}" onclick="switchEventSubTab('cement')">🧱 Цемент</button>
+            <button class="sub-tab-btn ${eventSubTab === 'mixers' ? 'active' : ''}" onclick="switchEventSubTab('mixers')">🚜 Мішалки</button>
+            <button class="sub-tab-btn ${eventSubTab === 'paving' ? 'active' : ''}" onclick="switchEventSubTab('paving')">🧱 Бруківка</button>
+            <button class="sub-tab-btn ${eventSubTab === 'leaderboard' ? 'active' : ''}" onclick="switchEventSubTab('leaderboard')">🏆 Топ</button>
         </div>
     `;
 
-    if (eventSubTab === 'statue') {
-        const curLvl = state.event.statueLvl;
-        const curIncome = getStatueAuraIncome();
+    if (eventSubTab === 'mixer') {
+        const canClick = state.event.water >= currentMixer.waterReq && state.event.cement >= currentMixer.cementReq;
+        html += `
+            <div class="upgrade-card evo-card" style="flex-direction: column; text-align: center; padding: 25px; width: 100%;">
+                <div style="font-size: 3.5rem;">🚜</div>
+                <h2 style="color: var(--accent-gold); margin: 8px 0;">Бетономішалка ${currentMixer.lvl} Рівня</h2>
+                <p style="font-size: 0.95rem; color: #ccc;">Витрачає: <b style="color: #3498db;">${currentMixer.waterReq} воду</b> + <b style="color: #e67e22;">${formatNum(currentMixer.cementReq)} цементу</b></p>
+                <p style="font-size: 1.1rem; color: #2ecc71; font-weight: bold; margin-top: 4px;">Створює: +${formatNum(currentMixer.concreteGain)} бетону / клік</p>
+                <hr style="width: 100%; border: 1px solid rgba(255,255,255,0.1); margin: 15px 0;">
+                <button class="modal-btn" ${canClick ? '' : 'disabled style="background: #555; cursor: not-allowed;"'} onclick="clickMixer()">
+                    Замішати бетон
+                </button>
+            </div>
+        `;
+    } else if (eventSubTab === 'cement') {
+        html += `<div class="upgrades-list">`;
+        CEMENT_CARDS.forEach(card => {
+            const lvl = state.event.cards[card.id] || 0;
+            const cost = getCementCardCost(card);
+            const cd = state.event.cooldowns[card.id] || 0;
+            const cdLeftSec = Math.max(0, Math.ceil((cd - getCurrentTime()) / 1000));
+            const canAfford = state.aura >= cost && cdLeftSec === 0;
+
+            html += `
+                <div class="upgrade-card">
+                    <div class="upgrade-img-wrap"><span style="font-size: 2rem;">🧱</span></div>
+                    <div class="upgrade-info">
+                        <div class="upgrade-title">${card.name} <span class="upgrade-level-badge">Рвн ${lvl}</span></div>
+                        <div class="upgrade-desc">Дохід: +${formatNum(lvl * card.cps)} цементу/сек (+${card.cps})</div>
+                        <div class="upgrade-desc" style="color: var(--accent-gold);">Ціна: ${formatNum(cost)} аури</div>
+                        <div class="upgrade-desc" style="color: #00d2d3;">Затримка: ${card.cdSec}сек</div>
+                    </div>
+                    <button class="upgrade-btn" ${canAfford ? '' : 'disabled'} onclick="buyCementCard(${card.id})">
+                        ${cdLeftSec > 0 ? '⏱️ ' + formatTime(cdLeftSec) : 'Купити'}
+                    </button>
+                </div>`;
+        });
+        html += `</div>`;
+    } else if (eventSubTab === 'mixers') {
+        html += `<div class="upgrades-list">`;
+        MIXER_LEVELS.forEach((m, idx) => {
+            if (m.lvl === 1) return;
+            const isOwned = state.event.mixerLvl >= m.lvl;
+            const canBuy = state.event.mixerLvl === m.lvl - 1 && state.event.concrete >= m.concreteCost && state.aura >= m.auraCost;
+
+            html += `
+                <div class="upgrade-card ${isOwned ? 'evo-card' : ''}">
+                    <div class="upgrade-img-wrap"><span style="font-size: 2rem;">🚜</span></div>
+                    <div class="upgrade-info">
+                        <div class="upgrade-title">${m.lvl} Рівень Бетономішалки ${isOwned ? '✅' : ''}</div>
+                        <div class="upgrade-desc">1 вода + ${formatNum(m.cementReq)} цементу ➔ ${formatNum(m.concreteGain)} бетону</div>
+                        <div class="upgrade-desc" style="color: var(--accent-gold);">Ціна: ${formatNum(m.concreteCost)} бетону + ${formatNum(m.auraCost)} аури</div>
+                    </div>
+                    <button class="upgrade-btn" ${canBuy ? '' : 'disabled'} onclick="buyMixer(${m.lvl})">
+                        ${isOwned ? 'Куплено' : 'Купити'}
+                    </button>
+                </div>`;
+        });
+        html += `</div>`;
+    } else if (eventSubTab === 'paving') {
+        const curLvl = state.event.pavingLvl || 0;
+        const curIncome = curLvl > 0 ? PAVING_LEVELS[curLvl - 1].auraCps : 0;
 
         html += `
-            <div class="upgrade-card evo-card" id="statue-upgrade-card" style="flex-direction: column; text-align: center; padding: 20px;">
-                <div style="font-size: 3rem;">🗿</div>
-                <h3 style="color: var(--accent-gold); margin: 8px 0;">Монументальний Хрюндель</h3>
-                <p style="font-size: 0.9rem; color: #ccc;">Поточний рівень: <b id="statue-cur-lvl">${curLvl} / 7</b></p>
-                <p style="font-size: 0.95rem; color: #2ecc71; margin-top: 5px;">Поточний дохід: <b id="statue-cur-income">+${formatNum(curIncome)} аури/сек</b></p>
+            <div class="upgrade-card evo-card" style="flex-direction: column; text-align: center; padding: 20px; width: 100%;">
+                <div style="font-size: 3.5rem;">🛣️</div>
+                <h3 style="color: var(--accent-gold); margin: 8px 0;">Заливання Бетону для Бруківки</h3>
+                <p style="font-size: 0.95rem; color: #ccc;">Поточний рівень: <b>${curLvl} / 7</b></p>
+                <p style="font-size: 1.1rem; color: #2ecc71; font-weight: bold; margin-top: 4px;">Поточний дохід: +${formatNum(curIncome)} аури/сек</p>
                 <hr style="width: 100%; border: 1px solid rgba(255,255,255,0.1); margin: 15px 0;">
         `;
 
         if (curLvl < 7) {
-            const req = STATUE_LEVELS[curLvl];
-            const canAfford = state.event.stone >= req.stoneCost;
-
+            const req = PAVING_LEVELS[curLvl];
+            const canAfford = state.event.concrete >= req.concreteCost;
             html += `
-                <div style="font-size: 0.9rem; margin-bottom: 10px;">
+                <div style="font-size: 0.9rem; margin-bottom: 12px;">
                     Наступний рівень (Рівень ${req.lvl}):<br>
-                    Потрібно: <b style="color: #00d2d3;"><span id="statue-req-stone">${formatNum(req.stoneCost)}</span> каменю</b><br>
-                    Новий дохід: <b style="color: #2ecc71;">+${formatNum(req.auraCps)} аури/сек</b>
+                    Ціна: <b style="color: #2ecc71;">${formatNum(req.concreteCost)} бетону</b><br>
+                    Новий дохід: <b style="color: var(--accent-gold);">+${formatNum(req.auraCps)} аури/сек</b>
                 </div>
-                <button id="statue-upgrade-btn" class="modal-btn" ${canAfford ? '' : 'disabled style="background: #555; cursor: not-allowed;"'} onclick="upgradeStatue()">
-                    Покращити Статую
-                </button>
-            `;
+                <button class="modal-btn" ${canAfford ? '' : 'disabled style="background: #555; cursor: not-allowed;"'} onclick="upgradePaving()">
+                    Прокачати залиш бетону
+                </button>`;
         } else {
-            html += `<div style="color: var(--accent-gold); font-weight: bold; font-size: 1.1rem;">🎉 Статуя досягла максимального рівня!</div>`;
+            html += `<div style="color: var(--accent-gold); font-weight: bold; font-size: 1.1rem;">🎉 Бруківка повністю заліта! Максимальний рівень!</div>`;
         }
-
-        html += `</div>`;
-    } else if (eventSubTab === 'cards') {
-        html += `<div class="upgrades-list" id="stone-cards-list">`;
-
-        STONE_CARDS.forEach(card => {
-            const isUnlocked = currentDay >= card.day;
-            const lvl = state.event.cards[card.id] || 0;
-            const cost = getStoneCardCost(card);
-            const cd = state.event.cooldowns[card.id] || 0;
-            const cdLeftSec = Math.max(0, Math.ceil((cd - getCurrentTime()) / 1000));
-
-            if (!isUnlocked) {
-                html += `
-                    <div class="upgrade-card" style="opacity: 0.5;">
-                        <div class="upgrade-img-wrap"><span style="font-size: 2rem;">🔒</span></div>
-                        <div class="upgrade-info">
-                            <div class="upgrade-title">${card.name}</div>
-                            <div class="upgrade-req">Відкриється на ${card.day} день івенту</div>
-                        </div>
-                    </div>`;
-            } else {
-                const canAfford = state.aura >= cost && cdLeftSec === 0;
-
-                html += `
-                    <div class="upgrade-card">
-                        <div class="upgrade-img-wrap">
-                            <img src="${card.img}" alt="${card.name}" class="upgrade-img" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'65\\' height=\\'65\\'><rect width=\\'65\\' height=\\'65\\' fill=\\'%23110d1a\\'/><text x=\\'50%\\' y=\\'50%\\' dominant-baseline=\\'middle\\' text-anchor=\\'middle\\' fill=\\'%2300d2d3\\' font-size=\\'24\\'>🪨</text></svg>';">
-                        </div>
-                        <div class="upgrade-info">
-                            <div class="upgrade-title">${card.name} <span class="upgrade-level-badge" id="stone-card-lvl-${card.id}">Рвн ${lvl}</span></div>
-                            <div class="upgrade-desc" id="stone-card-desc-${card.id}">Дохід: +${formatNum(lvl * card.sps)} каменю/сек (+${card.sps})</div>
-                            <div class="upgrade-desc" style="color: var(--accent-gold);" id="stone-card-cost-${card.id}">Ціна: ${formatNum(cost)} аури</div>
-                            <div class="upgrade-desc" style="color: #00d2d3;">Затримка: ${formatTime(card.cdSec)}</div>
-                        </div>
-                        <button class="upgrade-btn" id="stone-card-btn-${card.id}" ${canAfford ? '' : 'disabled'} onclick="buyStoneCard(${card.id})">
-                            ${cdLeftSec > 0 ? '⏱️ ' + formatTime(cdLeftSec) : 'Купити'}
-                        </button>
-                    </div>`;
-            }
-        });
-
         html += `</div>`;
     } else if (eventSubTab === 'leaderboard') {
-        const existingList = document.getElementById('stone-leaderboard-list');
-        const hasItems = existingList && existingList.children.length > 0 && !existingList.innerHTML.includes('Завантаження');
-        const listContent = hasItems ? existingList.innerHTML : '<div style="text-align: center; color: #888; padding: 20px;">Завантаження онлайнового топу...</div>';
-
-        html += `
-            <div id="stone-leaderboard-list" class="leaderboard-list">
-                ${listContent}
-            </div>`;
-
-        if (!hasItems) {
-            setTimeout(renderStoneLeaderboard, 50);
-        }
+        html += `<div id="concrete-leaderboard-list" class="leaderboard-list">
+            <div style="text-align: center; color: #888; padding: 20px;">Завантаження онлайнового топу...</div>
+        </div>`;
+        setTimeout(renderConcreteLeaderboard, 50);
     }
 
     container.innerHTML = html;
 }
 
-// Рендеринг топу каменю з Firebase
-function renderStoneLeaderboard() {
-    const list = document.getElementById('stone-leaderboard-list');
+function renderConcreteLeaderboard() {
+    const list = document.getElementById('concrete-leaderboard-list');
     if (!list) return;
 
     if (!dbAvailable) {
@@ -514,13 +377,13 @@ function renderStoneLeaderboard() {
                 <div class="leaderboard-item is-player">
                     <div class="leaderboard-rank">🥇</div>
                     <div class="leaderboard-name">${state.nickname || "Ви"} (Локально)</div>
-                    <div class="leaderboard-cps">${formatNum(state.event ? state.event.totalStone : 0)} 🪨</div>
+                    <div class="leaderboard-cps">${formatNum(state.event ? state.event.totalConcrete : 0)} 🏗️</div>
                 </div>
             </div>`;
         return;
     }
 
-    firebase.database().ref('leaderboard_stone').orderByChild('totalStone').limitToLast(50).once('value', (snapshot) => {
+    firebase.database().ref('leaderboard_concrete').orderByChild('totalConcrete').limitToLast(50).once('value', (snapshot) => {
         const data = snapshot.val();
         const players = [];
 
@@ -529,17 +392,17 @@ function renderStoneLeaderboard() {
                 players.push({
                     id: id,
                     name: data[id].name || "Гравець",
-                    totalStone: data[id].totalStone || 0,
+                    totalConcrete: data[id].totalConcrete || 0,
                     isPlayer: id === state.playerId
                 });
             });
         }
 
-        players.sort((a, b) => b.totalStone - a.totalStone);
+        players.sort((a, b) => b.totalConcrete - a.totalConcrete);
         list.innerHTML = '';
 
         if (players.length === 0) {
-            list.innerHTML = `<div class="empty-leaderboard">Поки немає результатів. Станьте першим!</div>`;
+            list.innerHTML = `<div class="empty-leaderboard">Поки немає результатів. Будьте першим!</div>`;
             return;
         }
 
@@ -555,20 +418,23 @@ function renderStoneLeaderboard() {
             item.innerHTML = `
                 <div class="leaderboard-rank">${rankIcon}</div>
                 <div class="leaderboard-name">${p.name}${p.isPlayer ? ' (Ви)' : ''}</div>
-                <div class="leaderboard-cps">${formatNum(p.totalStone)} 🪨</div>
+                <div class="leaderboard-cps">${formatNum(p.totalConcrete)} 🏗️ бетону</div>
             `;
             list.appendChild(item);
         });
     });
 }
 
-// Рендеринг постійної вкладки «🗿 Статуї»
 function renderStatuesTabUI() {
     const container = document.getElementById('tab-statue');
     if (!container) return;
 
-    const statueLvl = state.savedStatueLvl || (state.event ? state.event.statueLvl : 0);
-    const auraCps = getStatueAuraIncome();
+    const statueLvl = state.savedStatueLvl || 0;
+    const STATUE_LEVELS = [
+        { auraCps: 25000 }, { auraCps: 50000 }, { auraCps: 75000 },
+        { auraCps: 100000 }, { auraCps: 130000 }, { auraCps: 160000 }, { auraCps: 200000 }
+    ];
+    const auraCps = statueLvl > 0 ? STATUE_LEVELS[statueLvl - 1].auraCps : 0;
 
     if (statueLvl === 0) {
         container.innerHTML = `
@@ -576,12 +442,12 @@ function renderStatuesTabUI() {
                 <div style="font-size: 3rem;">🗿</div>
                 <h3 style="color: var(--accent-gold); margin-top: 10px;">Ваша галерея статуй порожня</h3>
                 <p style="color: #aaa; font-size: 0.9rem; margin-top: 8px;">
-                    Беріть участь у тимчасових івентах, щоб будувати й прокачувати великі монументи Хрюнделя!
+                    Івент зі статуєю завершено. Усі здобутки збережено у вашому профілі!
                 </p>
             </div>`;
     } else {
         container.innerHTML = `
-            <div class="category-title" style="width: 100%; text-align: center;">🗿 Колекція Великих Монументів</div>
+            <div class="category-title" style="width: 100%; text-align: center;">🗿 Пам'ятник Завершеного Івенту</div>
             <div class="upgrade-card evo-card" style="flex-direction: column; text-align: center; padding: 25px; margin-top: 15px; width: 100%;">
                 <div style="font-size: 4rem;">🗿</div>
                 <h2 style="color: var(--accent-gold); margin-top: 10px;">Монументальний Хрюндель</h2>
