@@ -30,15 +30,15 @@ const MIXER_LEVELS = [
     { lvl: 7, waterReq: 1, cementReq: 300000, concreteGain: 300000, concreteCost: 75000000, auraCost: 200000000000 }
 ];
 
-// Карточки видобутку цементу (Вкладка 2)
+// Унікальні карточки виробництва цементу (Вкладка 2)
 const CEMENT_CARDS = [
-    { id: 1, name: "Цементна яма", baseCost: 50000000, cps: 1, cdSec: 20, img: "img/cement_card1.jpg" },
-    { id: 2, name: "Дробарка клінкеру", baseCost: 150000000, cps: 2, cdSec: 30, img: "img/cement_card2.jpg" },
-    { id: 3, name: "Міні-завод цементу", baseCost: 400000000, cps: 4, cdSec: 40, img: "img/cement_card3.jpg" },
-    { id: 4, name: "Силосний склад", baseCost: 1000000000, cps: 8, cdSec: 50, img: "img/cement_card4.jpg" },
-    { id: 5, name: "Цементний кар'єр", baseCost: 2500000000, cps: 15, cdSec: 60, img: "img/cement_card5.jpg" },
-    { id: 6, name: "Цементний холдинг", baseCost: 5000000000, cps: 25, cdSec: 75, img: "img/cement_card6.jpg" },
-    { id: 7, name: "Глобальна корпорація", baseCost: 8000000000, cps: 35, cdSec: 90, img: "img/cement_card7.jpg" }
+    { id: 1, name: "Фасування вапна", icon: "📦", baseCost: 50000000, cps: 1, cdSec: 15, img: "img/cement_card1.jpg" },
+    { id: 2, name: "Млин для клінкеру", icon: "⚙️", baseCost: 150000000, cps: 3, cdSec: 25, img: "img/cement_card2.jpg" },
+    { id: 3, name: "Обертова піч випалу", icon: "🔥", baseCost: 400000000, cps: 7, cdSec: 35, img: "img/cement_card3.jpg" },
+    { id: 4, name: "Пневмоподача сировини", icon: "💨", baseCost: 1000000000, cps: 15, cdSec: 45, img: "img/cement_card4.jpg" },
+    { id: 5, name: "Автоматичний силос", icon: "🏬", baseCost: 2500000000, cps: 30, cdSec: 60, img: "img/cement_card5.jpg" },
+    { id: 6, name: "Термінал цементовозів", icon: "🚛", baseCost: 5000000000, cps: 60, cdSec: 75, img: "img/cement_card6.jpg" },
+    { id: 7, name: "Цементний промгігант", icon: "🏭", baseCost: 8000000000, cps: 120, cdSec: 90, img: "img/cement_card7.jpg" }
 ];
 
 // Етапи заливання бетону для бруківки (Вкладка 4)
@@ -96,7 +96,6 @@ function getTotalCementPerSec() {
     const startTime = (state.event ? state.event.startTime : now);
 
     CEMENT_CARDS.forEach((c, idx) => {
-        // Рахуємо дохід лише з тих карточок, чий час розблокування вже настав
         const unlockTime = startTime + (idx * 24 * 60 * 60 * 1000);
         if (now >= unlockTime) {
             const lvl = (state.event && state.event.cards && state.event.cards[c.id]) || 0;
@@ -131,14 +130,12 @@ function getStatueAuraIncome() {
 function updateEventLogic(dt) {
     initEventState();
 
-    // Відновлення води: 1000 води за 16 годин (57600 сек) -> ~0.01736 води/сек
     const WATER_MAX = 1000;
     const WATER_REGEN_PER_SEC = 1000 / 57600;
     if (state.event.water < WATER_MAX) {
         state.event.water = Math.min(WATER_MAX, state.event.water + WATER_REGEN_PER_SEC * dt);
     }
 
-    // Автоматичний видобуток цементу
     const cps = getTotalCementPerSec();
     if (cps > 0) {
         state.event.cement += cps * dt;
@@ -185,7 +182,7 @@ function buyCementCard(cardId) {
 
     const idx = card.id - 1;
     const unlockTime = (state.event.startTime || getCurrentTime()) + (idx * 24 * 60 * 60 * 1000);
-    if (getCurrentTime() < unlockTime) return; // Заблоковано за розкладом 24г
+    if (getCurrentTime() < unlockTime) return;
 
     const cd = state.event.cooldowns[cardId] || 0;
     if (getCurrentTime() < cd) return;
@@ -315,7 +312,6 @@ function renderEventUI() {
             const timeUntilUnlockMs = unlockTime - now;
 
             if (timeUntilUnlockMs > 0) {
-                // Карточка заблокована за розкладом 24г
                 html += `
                     <div class="upgrade-card" style="opacity: 0.65;">
                         <div class="upgrade-img-wrap"><span style="font-size: 2rem;">🔒</span></div>
@@ -329,7 +325,6 @@ function renderEventUI() {
                         </button>
                     </div>`;
             } else {
-                // Карточка вже розблокована
                 const lvl = state.event.cards[card.id] || 0;
                 const cost = getCementCardCost(card);
                 const cd = state.event.cooldowns[card.id] || 0;
@@ -338,7 +333,7 @@ function renderEventUI() {
 
                 html += `
                     <div class="upgrade-card">
-                        <div class="upgrade-img-wrap"><span style="font-size: 2rem;">🧱</span></div>
+                        <div class="upgrade-img-wrap"><span style="font-size: 2rem;">${card.icon}</span></div>
                         <div class="upgrade-info">
                             <div class="upgrade-title">${card.name} <span class="upgrade-level-badge">Рвн ${lvl}</span></div>
                             <div class="upgrade-desc">Дохід: +${formatNum(lvl * card.cps)} цементу/сек (+${card.cps})</div>
