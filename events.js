@@ -25,10 +25,10 @@ const MIXER_LEVELS = [
     { lvl: 1, waterReq: 1, cementReq: 1, concreteGain: 1, concreteCost: 0, auraCost: 0 },
     { lvl: 2, waterReq: 1, cementReq: 10, concreteGain: 10, concreteCost: 25, auraCost: 100000000 },
     { lvl: 3, waterReq: 1, cementReq: 100, concreteGain: 100, concreteCost: 500, auraCost: 500000000 },
-    { lvl: 4, waterReq: 1, cementReq: 1000, concreteGain: 1000, concreteCost: 10000, auraCost: 2000000000 },
-    { lvl: 5, waterReq: 1, cementReq: 10000, concreteGain: 10000, concreteCost: 250000, auraCost: 10000000000 },
-    { lvl: 6, waterReq: 1, cementReq: 100000, concreteGain: 100000, concreteCost: 5000000, auraCost: 75000000000 },
-    { lvl: 7, waterReq: 1, cementReq: 300000, concreteGain: 300000, concreteCost: 75000000, auraCost: 200000000000 }
+    { lvl: 4, waterReq: 1, cementReq: 500, concreteGain: 500, concreteCost: 10000, auraCost: 2000000000 },
+    { lvl: 5, waterReq: 1, cementReq: 2000, concreteGain: 2000, concreteCost: 50000, auraCost: 10000000000 },
+    { lvl: 6, waterReq: 1, cementReq: 6000, concreteGain: 6000, concreteCost: 250000, auraCost: 75000000000 },
+    { lvl: 7, waterReq: 1, cementReq: 10000, concreteGain: 10000, concreteCost: 1500000, auraCost: 200000000000 }
 ];
 
 const CEMENT_CARDS = [
