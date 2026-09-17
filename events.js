@@ -136,6 +136,27 @@ function updateEventCountersUI() {
     if (waterEl) waterEl.textContent = `💧 Вода: ${Math.floor(state.event.water)}/1000`;
     if (cementEl) cementEl.textContent = `🧱 Цемент: ${formatNum(state.event.cement)} (+${formatNum(getTotalCementPerSec())}/с)`;
     if (concreteEl) concreteEl.textContent = `🏗️ Бетон: ${formatNum(state.event.concrete)}`;
+
+    // Оновлюємо таймери затримок карточок цементу в реальному часі без перезавантаження всієї вкладки
+    if (eventSubTab === 'cement') {
+        const now = getCurrentTime();
+        CEMENT_CARDS.forEach(card => {
+            const btn = document.getElementById(`cement-card-btn-${card.id}`);
+            if (btn) {
+                const cost = getCementCardCost(card);
+                const cd = (state.event.cooldowns && state.event.cooldowns[card.id]) || 0;
+                const cdLeftSec = Math.max(0, Math.ceil((cd - now) / 1000));
+                const canAfford = state.aura >= cost && cdLeftSec === 0;
+
+                btn.disabled = !canAfford;
+                if (cdLeftSec > 0) {
+                    btn.innerText = `⏱️ ${formatTime(cdLeftSec)}`;
+                } else {
+                    btn.innerText = `Купити`;
+                }
+            }
+        });
+    }
 }
 
 function updateEventLogic(dt) {
@@ -363,7 +384,7 @@ function renderEventUI() {
                             <div class="upgrade-desc" style="color: var(--accent-gold);">Ціна: ${formatNum(cost)} аури</div>
                             <div class="upgrade-desc" style="color: #00d2d3;">Затримка: ${card.cdSec}сек</div>
                         </div>
-                        <button class="upgrade-btn" ${canAfford ? '' : 'disabled'} onclick="buyCementCard(${card.id})">
+                        <button class="upgrade-btn" id="cement-card-btn-${card.id}" ${canAfford ? '' : 'disabled'} onclick="buyCementCard(${card.id})">
                             ${cdLeftSec > 0 ? '⏱️ ' + formatTime(cdLeftSec) : 'Купити'}
                         </button>
                     </div>`;
