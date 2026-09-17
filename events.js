@@ -438,12 +438,11 @@ function renderConcreteLeaderboard() {
     if (!dbAvailable) {
         list.innerHTML = `
             <div class="empty-leaderboard">
-                <p>⚠️ Firebase не підключено.</p>
-                <br>
+                <p style="color: var(--accent-gold); font-size: 1.1rem; margin-bottom: 10px;">⚠️ Firebase не підключено!</p>
                 <div class="leaderboard-item is-player">
                     <div class="leaderboard-rank">🥇</div>
                     <div class="leaderboard-name">${state.nickname || "Ви"} (Локально)</div>
-                    <div class="leaderboard-cps">${formatNum(state.event ? state.event.totalConcrete : 0)} 🏗️</div>
+                    <div class="leaderboard-cps">${formatNum(state.event.totalConcrete || 0)} 🏗️</div>
                 </div>
             </div>`;
         return;
@@ -464,11 +463,11 @@ function renderConcreteLeaderboard() {
             });
         }
 
-        players.sort((a, b) => b.totalConcrete - a.totalConcrete);
+        players.sort((a, b) => (b.totalConcrete || 0) - (a.totalConcrete || 0));
         list.innerHTML = '';
 
         if (players.length === 0) {
-            list.innerHTML = `<div class="empty-leaderboard">Поки немає результатів. Будьте першим!</div>`;
+            list.innerHTML = `<div class="empty-leaderboard">Поки немає жодного гравця у топі. Будьте першим!</div>`;
             return;
         }
 
@@ -484,7 +483,7 @@ function renderConcreteLeaderboard() {
             item.innerHTML = `
                 <div class="leaderboard-rank">${rankIcon}</div>
                 <div class="leaderboard-name">${p.name}${p.isPlayer ? ' (Ви)' : ''}</div>
-                <div class="leaderboard-cps">${formatNum(p.totalConcrete)} 🏗️ бетону</div>
+                <div class="leaderboard-cps">${formatNum(p.totalConcrete)} 🏗️</div>
             `;
             list.appendChild(item);
         });
