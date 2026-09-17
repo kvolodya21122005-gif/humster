@@ -22,13 +22,13 @@ const EVENT_REQ_PASSIVE_ID = 21;
 const EVENT_REQ_PASSIVE_LVL = 9;
 
 const MIXER_LEVELS = [
-    { lvl: 1, waterReq: 1, cementReq: 1, concreteGain: 1, concreteCost: 0, auraCost: 0 },
-    { lvl: 2, waterReq: 1, cementReq: 10, concreteGain: 10, concreteCost: 25, auraCost: 100000000 },
-    { lvl: 3, waterReq: 1, cementReq: 100, concreteGain: 100, concreteCost: 500, auraCost: 500000000 },
-    { lvl: 4, waterReq: 1, cementReq: 500, concreteGain: 500, concreteCost: 10000, auraCost: 2000000000 },
-    { lvl: 5, waterReq: 1, cementReq: 2000, concreteGain: 2000, concreteCost: 50000, auraCost: 10000000000 },
-    { lvl: 6, waterReq: 1, cementReq: 6000, concreteGain: 6000, concreteCost: 250000, auraCost: 75000000000 },
-    { lvl: 7, waterReq: 1, cementReq: 10000, concreteGain: 10000, concreteCost: 1500000, auraCost: 200000000000 }
+    { lvl: 1, dayReq: 1, waterReq: 1, cementReq: 1, concreteGain: 1, concreteCost: 0, auraCost: 0 },
+    { lvl: 2, dayReq: 1, waterReq: 1, cementReq: 10, concreteGain: 10, concreteCost: 25, auraCost: 100000000 },
+    { lvl: 3, dayReq: 2, waterReq: 1, cementReq: 100, concreteGain: 100, concreteCost: 500, auraCost: 500000000 },
+    { lvl: 4, dayReq: 3, waterReq: 1, cementReq: 500, concreteGain: 500, concreteCost: 10000, auraCost: 2000000000 },
+    { lvl: 5, dayReq: 4, waterReq: 1, cementReq: 2000, concreteGain: 2000, concreteCost: 50000, auraCost: 10000000000 },
+    { lvl: 6, dayReq: 5, waterReq: 1, cementReq: 6000, concreteGain: 6000, concreteCost: 250000, auraCost: 75000000000 },
+    { lvl: 7, dayReq: 6, waterReq: 1, cementReq: 10000, concreteGain: 10000, concreteCost: 1500000, auraCost: 200000000000 }
 ];
 
 const CEMENT_CARDS = [
@@ -260,6 +260,10 @@ function buyMixer(targetLvl) {
     const targetMixer = MIXER_LEVELS[targetLvl - 1];
     if (!targetMixer) return;
 
+    const startTime = state.event.startTime || getCurrentTime();
+    const unlockTime = startTime + ((targetMixer.dayReq - 1) * 24 * 60 * 60 * 1000);
+    if (getCurrentTime() < unlockTime) return;
+
     if (state.event.concrete >= targetMixer.concreteCost && state.aura >= targetMixer.auraCost) {
         state.event.concrete -= targetMixer.concreteCost;
         state.aura -= targetMixer.auraCost;
@@ -393,23 +397,45 @@ function renderEventUI() {
         html += `</div>`;
     } else if (eventSubTab === 'mixers') {
         html += `<div class="upgrades-list">`;
+        const now = getCurrentTime();
+        const startTime = state.event.startTime || now;
+
         MIXER_LEVELS.forEach((m) => {
             if (m.lvl === 1) return;
             const isOwned = state.event.mixerLvl >= m.lvl;
-            const canBuy = state.event.mixerLvl === m.lvl - 1 && state.event.concrete >= m.concreteCost && state.aura >= m.auraCost;
+            const unlockTime = startTime + ((m.dayReq - 1) * 24 * 60 * 60 * 1000);
+            const timeUntilUnlockMs = unlockTime - now;
 
-            html += `
-                <div class="upgrade-card ${isOwned ? 'evo-card' : ''}">
-                    <div class="upgrade-img-wrap"><span style="font-size: 2rem;">🚜</span></div>
-                    <div class="upgrade-info">
-                        <div class="upgrade-title">${m.lvl} Рівень Бетономішалки ${isOwned ? '✅' : ''}</div>
-                        <div class="upgrade-desc">1 вода + ${formatNum(m.cementReq)} цементу ➔ ${formatNum(m.concreteGain)} бетону</div>
-                        <div class="upgrade-desc" style="color: var(--accent-gold);">Ціна: ${formatNum(m.concreteCost)} бетону + ${formatNum(m.auraCost)} аури</div>
-                    </div>
-                    <button class="upgrade-btn" ${canBuy ? '' : 'disabled'} onclick="buyMixer(${m.lvl})">
-                        ${isOwned ? 'Куплено' : 'Купити'}
-                    </button>
-                </div>`;
+            if (!isOwned && timeUntilUnlockMs > 0) {
+                html += `
+                    <div class="upgrade-card" style="opacity: 0.65;">
+                        <div class="upgrade-img-wrap"><span style="font-size: 2rem;">🔒</span></div>
+                        <div class="upgrade-info">
+                            <div class="upgrade-title">${m.lvl} Рівень Бетономішалки <span class="upgrade-level-badge" style="background: #555;">Заблоковано</span></div>
+                            <div class="upgrade-desc" style="color: #e74c3c; font-weight: bold;">Розблокується через: ${formatEventCountdown(timeUntilUnlockMs)}</div>
+                            <div class="upgrade-desc">1 вода + ${formatNum(m.cementReq)} цементу ➔ ${formatNum(m.concreteGain)} бетону</div>
+                            <div class="upgrade-desc" style="color: var(--accent-gold);">Ціна: ${formatNum(m.concreteCost)} бетону + ${formatNum(m.auraCost)} аури</div>
+                        </div>
+                        <button class="upgrade-btn" disabled style="background: #444; cursor: not-allowed;">
+                            🔒 Скоро
+                        </button>
+                    </div>`;
+            } else {
+                const canBuy = state.event.mixerLvl === m.lvl - 1 && state.event.concrete >= m.concreteCost && state.aura >= m.auraCost;
+
+                html += `
+                    <div class="upgrade-card ${isOwned ? 'evo-card' : ''}">
+                        <div class="upgrade-img-wrap"><span style="font-size: 2rem;">🚜</span></div>
+                        <div class="upgrade-info">
+                            <div class="upgrade-title">${m.lvl} Рівень Бетономішалки ${isOwned ? '✅' : ''}</div>
+                            <div class="upgrade-desc">1 вода + ${formatNum(m.cementReq)} цементу ➔ ${formatNum(m.concreteGain)} бетону</div>
+                            <div class="upgrade-desc" style="color: var(--accent-gold);">Ціна: ${formatNum(m.concreteCost)} бетону + ${formatNum(m.auraCost)} аури</div>
+                        </div>
+                        <button class="upgrade-btn" ${canBuy ? '' : 'disabled'} onclick="buyMixer(${m.lvl})">
+                            ${isOwned ? 'Куплено' : 'Купити'}
+                        </button>
+                    </div>`;
+            }
         });
         html += `</div>`;
     } else if (eventSubTab === 'paving') {
