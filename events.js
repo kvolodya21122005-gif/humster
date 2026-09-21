@@ -3,7 +3,12 @@
 // ==========================================
 
 const CURRENT_EVENT_ID = 'concrete_paving_v1';
-let lastLeaderboardSync = 0; // Для запобігання спаму запитами
+let lastLeaderboardSync = 0;
+
+// Точні часові мітки за київським часом (EEST / UTC+3), прив'язані до WorldTime
+const UNLOCK_24H = 1790096400000;      // 22.09.2026 о 20:00 за Києвом
+const UNLOCK_48H = 1790182800000;      // 23.09.2026 о 20:00 за Києвом
+const EVENT_END_TIME = 1790352000000;  // 25.09.2026 о 19:00 за Києвом
 
 function getCurrentTime() {
     return (typeof getServerTime === 'function') ? getServerTime() : Date.now();
@@ -12,95 +17,82 @@ function getCurrentTime() {
 function formatEventCountdown(ms) {
     if (ms <= 0) return '00:00:00';
     const totalSec = Math.floor(ms / 1000);
-    const hours = Math.floor(totalSec / 3600);
+    const days = Math.floor(totalSec / 86400);
+    const hours = Math.floor((totalSec % 86400) / 3600);
     const mins = Math.floor((totalSec % 3600) / 60);
     const secs = totalSec % 60;
-    return `${hours}г ${mins < 10 ? '0' : ''}${mins}хв ${secs < 10 ? '0' : ''}${secs}с`;
+
+    if (days > 0) return `${days}д ${hours}г ${mins}хв ${secs}с`;
+    if (hours > 0) return `${hours}г ${mins}хв ${secs}с`;
+    if (mins > 0) return `${mins}хв ${secs}с`;
+    return `${secs}с`;
 }
 
-const EVENT_REQ_PASSIVE_ID = 21;
-const EVENT_REQ_PASSIVE_LVL = 9;
-
-// Мішалки: Рівні 1-6 доступні одразу, Рівень 7 - через 24 години
+// Мішалки 1-6 відкриті за замовчуванням, 7-ма відкриється 22.09 о 20:00
 const MIXER_LEVELS = [
-    { lvl: 1, unlockHours: 0, waterReq: 1, cementReq: 1, concreteGain: 1, concreteCost: 0, auraCost: 0 },
-    { lvl: 2, unlockHours: 0, waterReq: 1, cementReq: 10, concreteGain: 10, concreteCost: 25, auraCost: 100000000 },
-    { lvl: 3, unlockHours: 0, waterReq: 1, cementReq: 100, concreteGain: 100, concreteCost: 500, auraCost: 500000000 },
-    { lvl: 4, unlockHours: 0, waterReq: 1, cementReq: 500, concreteGain: 500, concreteCost: 10000, auraCost: 2000000000 },
-    { lvl: 5, unlockHours: 0, waterReq: 1, cementReq: 2000, concreteGain: 2000, concreteCost: 50000, auraCost: 10000000000 },
-    { lvl: 6, unlockHours: 0, waterReq: 1, cementReq: 6000, concreteGain: 6000, concreteCost: 250000, auraCost: 75000000000 },
-    { lvl: 7, unlockHours: 24, waterReq: 1, cementReq: 10000, concreteGain: 10000, concreteCost: 1500000, auraCost: 200000000000 }
+    { lvl: 1, unlockTime: 0, waterReq: 1, cementReq: 1, concreteGain: 1, concreteCost: 0, auraCost: 0, img: "img/mixer1.jpg" },
+    { lvl: 2, unlockTime: 0, waterReq: 1, cementReq: 10, concreteGain: 10, concreteCost: 25, auraCost: 100000000, img: "img/mixer2.jpg" },
+    { lvl: 3, unlockTime: 0, waterReq: 1, cementReq: 100, concreteGain: 100, concreteCost: 500, auraCost: 500000000, img: "img/mixer3.jpg" },
+    { lvl: 4, unlockTime: 0, waterReq: 1, cementReq: 500, concreteGain: 500, concreteCost: 10000, auraCost: 2000000000, img: "img/mixer4.jpg" },
+    { lvl: 5, unlockTime: 0, waterReq: 1, cementReq: 2000, concreteGain: 2000, concreteCost: 50000, auraCost: 10000000000, img: "img/mixer5.jpg" },
+    { lvl: 6, unlockTime: 0, waterReq: 1, cementReq: 6000, concreteGain: 6000, concreteCost: 250000, auraCost: 75000000000, img: "img/mixer6.jpg" },
+    { lvl: 7, unlockTime: UNLOCK_24H, waterReq: 1, cementReq: 10000, concreteGain: 10000, concreteCost: 1500000, auraCost: 200000000000, img: "img/mixer7.jpg" }
 ];
 
-// Карти цементу: Карти 1-5 відкриті одразу, 6-та через 24г, 7-ма через 48г
+// Картки добування цементу
 const CEMENT_CARDS = [
-    { id: 1, name: "Цементна яма", baseCost: 50000000, cps: 1, cdSec: 20, img: "img/cement_card1.jpg", unlockHours: 0 },
-    { id: 2, name: "Дробарка клінкеру", baseCost: 150000000, cps: 2, cdSec: 30, img: "img/cement_card2.jpg", unlockHours: 0 },
-    { id: 3, name: "Міні-завод цементу", baseCost: 400000000, cps: 4, cdSec: 40, img: "img/cement_card3.jpg", unlockHours: 0 },
-    { id: 4, name: "Силосний склад", baseCost: 1000000000, cps: 8, cdSec: 50, img: "img/cement_card4.jpg", unlockHours: 0 },
-    { id: 5, name: "Цементний кар'єр", baseCost: 2500000000, cps: 15, cdSec: 60, img: "img/cement_card5.jpg", unlockHours: 0 },
-    { id: 6, name: "Цементний холдинг", baseCost: 5000000000, cps: 25, cdSec: 75, img: "img/cement_card6.jpg", unlockHours: 24 },
-    { id: 7, name: "Глобальна корпорація", baseCost: 8000000000, cps: 35, cdSec: 90, img: "img/cement_card7.jpg", unlockHours: 48 }
+    { id: 1, name: "Цементна яма", baseCost: 50000000, cps: 1, cdSec: 20, img: "img/cement_card1.jpg", unlockTime: 0 },
+    { id: 2, name: "Дробарка клінкеру", baseCost: 150000000, cps: 2, cdSec: 30, img: "img/cement_card2.jpg", unlockTime: 0 },
+    { id: 3, name: "Міні-завод цементу", baseCost: 400000000, cps: 4, cdSec: 40, img: "img/cement_card3.jpg", unlockTime: 0 },
+    { id: 4, name: "Силосний склад", baseCost: 1000000000, cps: 8, cdSec: 50, img: "img/cement_card4.jpg", unlockTime: 0 },
+    { id: 5, name: "Цементний кар'єр", baseCost: 2500000000, cps: 15, cdSec: 60, img: "img/cement_card5.jpg", unlockTime: 0 },
+    { id: 6, name: "Цементний холдинг", baseCost: 5000000000, cps: 25, cdSec: 75, img: "img/cement_card6.jpg", unlockTime: UNLOCK_24H },
+    { id: 7, name: "Глобальна корпорація", baseCost: 8000000000, cps: 35, cdSec: 90, img: "img/cement_card7.jpg", unlockTime: UNLOCK_48H }
 ];
 
+// Покращення бруківки
 const PAVING_LEVELS = [
-    { lvl: 1, concreteCost: 120000, auraCps: 40000 },
-    { lvl: 2, concreteCost: 350000, auraCps: 80000 },
-    { lvl: 3, concreteCost: 700000, auraCps: 120000 },
-    { lvl: 4, concreteCost: 1400000, auraCps: 160000 },
-    { lvl: 5, concreteCost: 2600000, auraCps: 200000 },
-    { lvl: 6, concreteCost: 5000000, auraCps: 250000 },
-    { lvl: 7, concreteCost: 8000000, auraCps: 300000 }
+    { lvl: 1, name: "Перший шар піску", costConcrete: 10, auraCps: 1000000 },
+    { lvl: 2, name: "Укладання щебеню", costConcrete: 100, auraCps: 15000000 },
+    { lvl: 3, name: "Брукування стежки", costConcrete: 1000, auraCps: 200000000 },
+    { lvl: 4, name: "Заливка бордюрів", costConcrete: 10000, auraCps: 2500000000 },
+    { lvl: 5, name: "Гранітна бруківка", costConcrete: 100000, auraCps: 30000000000 },
+    { lvl: 6, name: "Центральна площа", costConcrete: 500000, auraCps: 200000000000 },
+    { lvl: 7, name: "Золотий проспект Хрюнделя", costConcrete: 2000000, auraCps: 1000000000000 }
 ];
-
-let eventSubTab = 'mixer';
 
 function initEventState() {
     if (!state.event || state.event.eventId !== CURRENT_EVENT_ID) {
         state.event = {
             eventId: CURRENT_EVENT_ID,
-            water: 1000,
-            cement: 0,
+            startTime: getCurrentTime(),
             concrete: 0,
             totalConcrete: 0,
+            water: 10,
+            maxWater: 10,
+            cement: 0,
             mixerLvl: 1,
+            pavingLvl: 0,
             cards: {},
             cooldowns: {},
-            pavingLvl: 0,
-            startTime: getCurrentTime()
+            subTab: 'mixer'
         };
     }
-    if (state.event.water === undefined) state.event.water = 1000;
+    if (state.event.water === undefined) state.event.water = 10;
+    if (state.event.maxWater === undefined) state.event.maxWater = 10;
     if (state.event.cement === undefined) state.event.cement = 0;
-    if (state.event.concrete === undefined) state.event.concrete = 0;
-    if (state.event.totalConcrete === undefined) state.event.totalConcrete = 0;
     if (state.event.mixerLvl === undefined) state.event.mixerLvl = 1;
+    if (state.event.pavingLvl === undefined) state.event.pavingLvl = 0;
     if (!state.event.cards) state.event.cards = {};
     if (!state.event.cooldowns) state.event.cooldowns = {};
-    if (state.event.pavingLvl === undefined) state.event.pavingLvl = 0;
-    if (!state.event.startTime) state.event.startTime = getCurrentTime();
-    if (state.savedStatueLvl === undefined) state.savedStatueLvl = 0;
-}
-
-function isEventUnlocked() {
-    const lvl = state.passives ? (state.passives[EVENT_REQ_PASSIVE_ID] || 0) : 0;
-    return lvl >= EVENT_REQ_PASSIVE_LVL;
-}
-
-function getCementCardCost(card) {
-    const lvl = (state.event.cards && state.event.cards[card.id]) || 0;
-    return Math.floor(card.baseCost * Math.pow(1.2, lvl));
+    if (!state.event.subTab) state.event.subTab = 'mixer';
 }
 
 function getTotalCementPerSec() {
     let cps = 0;
     const now = getCurrentTime();
-    const startTime = (state.event ? state.event.startTime : now);
-
-    CEMENT_CARDS.forEach((c) => {
-        const unlockHours = c.unlockHours !== undefined ? c.unlockHours : 0;
-        const unlockTime = startTime + (unlockHours * 60 * 60 * 1000);
-        if (now >= unlockTime) {
+    CEMENT_CARDS.forEach(c => {
+        if (now >= (c.unlockTime || 0)) {
             const lvl = (state.event && state.event.cards && state.event.cards[c.id]) || 0;
             cps += lvl * c.cps;
         }
@@ -108,127 +100,103 @@ function getTotalCementPerSec() {
     return cps;
 }
 
-function getPavingAuraIncome() {
-    let income = 0;
-    if (state.savedStatueLvl && state.savedStatueLvl > 0) {
-        const STATUE_LEVELS = [
-            { auraCps: 25000 }, { auraCps: 50000 }, { auraCps: 75000 },
-            { auraCps: 100000 }, { auraCps: 130000 }, { auraCps: 160000 }, { auraCps: 200000 }
-        ];
-        if (STATUE_LEVELS[state.savedStatueLvl - 1]) {
-            income += STATUE_LEVELS[state.savedStatueLvl - 1].auraCps;
-        }
+function getPavingAuraPerSec() {
+    if (!state.event || !state.event.pavingLvl) return 0;
+    let total = 0;
+    for (let i = 0; i < state.event.pavingLvl; i++) {
+        if (PAVING_LEVELS[i]) total += PAVING_LEVELS[i].auraCps;
     }
-    if (state.event && state.event.pavingLvl && state.event.pavingLvl > 0) {
-        const paving = PAVING_LEVELS[state.event.pavingLvl - 1];
-        if (paving) income += paving.auraCps;
-    }
-    return income;
+    return total;
 }
 
-function getStatueAuraIncome() {
-    return getPavingAuraIncome();
-}
-
-function updateEventCountersUI() {
-    if (!state.event) return;
-    const waterEl = document.getElementById('event-water-val');
-    const cementEl = document.getElementById('event-cement-val');
-    const concreteEl = document.getElementById('event-concrete-val');
-
-    if (waterEl) waterEl.textContent = `💧 Вода: ${Math.floor(state.event.water)}/1000`;
-    if (cementEl) cementEl.textContent = `🧱 Цемент: ${formatNum(state.event.cement)} (+${formatNum(getTotalCementPerSec())}/с)`;
-    if (concreteEl) concreteEl.textContent = `🏗️ Бетон: ${formatNum(state.event.concrete)}`;
-
-    if (eventSubTab === 'cement') {
-        const now = getCurrentTime();
-        CEMENT_CARDS.forEach(card => {
-            const btn = document.getElementById(`cement-card-btn-${card.id}`);
-            if (btn) {
-                const cost = getCementCardCost(card);
-                const cd = (state.event.cooldowns && state.event.cooldowns[card.id]) || 0;
-                const cdLeftSec = Math.max(0, Math.ceil((cd - now) / 1000));
-                const canAfford = state.aura >= cost && cdLeftSec === 0;
-
-                btn.disabled = !canAfford;
-                if (cdLeftSec > 0) {
-                    btn.innerText = `⏱️ ${formatTime(cdLeftSec)}`;
-                } else {
-                    btn.innerText = `Купити`;
-                }
-            }
-        });
+function getCementCardCost(card) {
+    const lvl = (state.event && state.event.cards && state.event.cards[card.id]) || 0;
+    let cost = card.baseCost;
+    for (let i = 0; i < lvl; i++) {
+        cost *= 1.25;
     }
+    return Math.floor(cost);
 }
 
 function updateEventLogic(dt) {
-    initEventState();
+    if (!state.event) return;
 
-    const WATER_MAX = 1000;
-    const WATER_REGEN_PER_SEC = 1000 / 57600;
-    if (state.event.water < WATER_MAX) {
-        state.event.water = Math.min(WATER_MAX, state.event.water + WATER_REGEN_PER_SEC * dt);
+    if (state.event.water < state.event.maxWater) {
+        state.event.water = Math.min(state.event.maxWater, state.event.water + (dt / 30));
     }
 
-    const cps = getTotalCementPerSec();
-    if (cps > 0) {
-        state.event.cement += cps * dt;
+    const cementCps = getTotalCementPerSec();
+    if (cementCps > 0) {
+        state.event.cement += cementCps * dt;
     }
 
-    updateEventCountersUI();
-}
-
-function calculateOfflineStone(lastSaveTime, now) {
-    initEventState();
-    const elapsedSeconds = (now - lastSaveTime) / 1000;
-    if (elapsedSeconds <= 0) return;
-
-    const WATER_MAX = 1000;
-    const WATER_REGEN_PER_SEC = 1000 / 57600;
-    state.event.water = Math.min(WATER_MAX, state.event.water + WATER_REGEN_PER_SEC * elapsedSeconds);
-
-    const cps = getTotalCementPerSec();
-    if (cps > 0) {
-        state.event.cement += cps * elapsedSeconds;
+    const pavingCps = getPavingAuraPerSec();
+    if (pavingCps > 0) {
+        const auraGain = pavingCps * dt;
+        state.aura += auraGain;
+        state.totalAura = (state.totalAura || 0) + auraGain;
     }
 }
 
 function clickMixer(e) {
-    if (e && e.preventDefault) e.preventDefault();
     initEventState();
+    const currentMixer = MIXER_LEVELS.find(m => m.lvl === state.event.mixerLvl) || MIXER_LEVELS[0];
 
-    const mixerLvl = state.event.mixerLvl || 1;
-    const mixer = MIXER_LEVELS[mixerLvl - 1] || MIXER_LEVELS[0];
+    if (state.event.water < currentMixer.waterReq) return;
+    if (state.event.cement < currentMixer.cementReq) return;
 
-    if (state.event.water < mixer.waterReq || state.event.cement < mixer.cementReq) return;
+    state.event.water -= currentMixer.waterReq;
+    state.event.cement -= currentMixer.cementReq;
 
-    state.event.water -= mixer.waterReq;
-    state.event.cement -= mixer.cementReq;
-    state.event.concrete += mixer.concreteGain;
-    state.event.totalConcrete += mixer.concreteGain;
+    const gain = currentMixer.concreteGain;
+    state.event.concrete += gain;
+    state.event.totalConcrete += gain;
 
-    if (typeof playClickSound === 'function') playClickSound();
-
-    updateEventCountersUI();
-    syncConcreteLeaderboardThrottled();
-}
-
-function syncConcreteLeaderboardThrottled() {
-    const now = Date.now();
-    if (now - lastLeaderboardSync > 3000) {
-        lastLeaderboardSync = now;
-        syncConcreteLeaderboard();
+    const mixerImg = document.getElementById('event-mixer-img');
+    if (mixerImg) {
+        mixerImg.classList.remove('mixer-shake');
+        void mixerImg.offsetWidth;
+        mixerImg.classList.add('mixer-shake');
     }
+
+    if (e && e.clientX && e.clientY) {
+        spawnFloatingTextConcrete(e.clientX, e.clientY, `+${formatNum(gain)} 🏗️`);
+    }
+
+    playClickSound();
+    syncConcreteLeaderboard();
+    updateUI();
+    renderEventUI();
 }
 
-function syncConcreteLeaderboard() {
-    if (!dbAvailable || !state.playerId || !state.nickname) return;
-    if (!state.event) initEventState();
-    firebase.database().ref('leaderboard_concrete/' + state.playerId).set({
-        name: state.nickname,
-        totalConcrete: Math.floor(state.event.totalConcrete || 0),
-        updatedAt: firebase.database.ServerValue.TIMESTAMP
-    }).catch(err => console.warn("Firebase concrete sync error:", err));
+function spawnFloatingTextConcrete(x, y, text) {
+    const el = document.createElement('div');
+    el.className = 'floating-text-concrete';
+    el.innerText = text;
+    el.style.left = `${x}px`;
+    el.style.top = `${y}px`;
+    document.body.appendChild(el);
+    setTimeout(() => { el.remove(); }, 800);
+}
+
+function buyMixer() {
+    initEventState();
+    const nextLvl = state.event.mixerLvl + 1;
+    const targetMixer = MIXER_LEVELS.find(m => m.lvl === nextLvl);
+    if (!targetMixer) return;
+
+    const now = getCurrentTime();
+    if (now < (targetMixer.unlockTime || 0)) return;
+
+    if (state.event.concrete >= targetMixer.concreteCost && state.aura >= targetMixer.auraCost) {
+        state.event.concrete -= targetMixer.concreteCost;
+        state.aura -= targetMixer.auraCost;
+        state.event.mixerLvl = nextLvl;
+
+        saveGame();
+        updateUI();
+        renderEventUI();
+    }
 }
 
 function buyCementCard(cardId) {
@@ -236,265 +204,228 @@ function buyCementCard(cardId) {
     const card = CEMENT_CARDS.find(c => c.id === cardId);
     if (!card) return;
 
-    const unlockHours = card.unlockHours !== undefined ? card.unlockHours : 0;
-    const unlockTime = (state.event.startTime || getCurrentTime()) + (unlockHours * 60 * 60 * 1000);
-    if (getCurrentTime() < unlockTime) return;
+    const now = getCurrentTime();
+    if (now < (card.unlockTime || 0)) return;
 
     const cd = state.event.cooldowns[cardId] || 0;
-    if (getCurrentTime() < cd) return;
+    if (now < cd) return;
 
     const cost = getCementCardCost(card);
     if (state.aura >= cost) {
         state.aura -= cost;
         state.event.cards[cardId] = (state.event.cards[cardId] || 0) + 1;
-        state.event.cooldowns[cardId] = getCurrentTime() + (card.cdSec * 1000);
+        state.event.cooldowns[cardId] = now + (card.cdSec * 1000);
 
         saveGame();
+        updateUI();
         renderEventUI();
     }
 }
 
-function buyMixer(targetLvl) {
+function buyPaving() {
     initEventState();
-    const currentLvl = state.event.mixerLvl || 1;
-    if (targetLvl !== currentLvl + 1) return;
+    const nextLvl = state.event.pavingLvl + 1;
+    const target = PAVING_LEVELS.find(p => p.lvl === nextLvl);
+    if (!target) return;
 
-    const targetMixer = MIXER_LEVELS[targetLvl - 1];
-    if (!targetMixer) return;
-
-    const startTime = state.event.startTime || getCurrentTime();
-    const unlockHours = targetMixer.unlockHours !== undefined ? targetMixer.unlockHours : 0;
-    const unlockTime = startTime + (unlockHours * 60 * 60 * 1000);
-    if (getCurrentTime() < unlockTime) return;
-
-    if (state.event.concrete >= targetMixer.concreteCost && state.aura >= targetMixer.auraCost) {
-        state.event.concrete -= targetMixer.concreteCost;
-        state.aura -= targetMixer.auraCost;
-        state.event.mixerLvl = targetLvl;
-
-        saveGame();
-        renderEventUI();
-    }
-}
-
-function upgradePaving() {
-    initEventState();
-    const currentLvl = state.event.pavingLvl || 0;
-    if (currentLvl >= 7) return;
-
-    const nextLvl = currentLvl + 1;
-    const req = PAVING_LEVELS[nextLvl - 1];
-
-    if (state.event.concrete >= req.concreteCost) {
-        state.event.concrete -= req.concreteCost;
+    if (state.event.concrete >= target.costConcrete) {
+        state.event.concrete -= target.costConcrete;
         state.event.pavingLvl = nextLvl;
 
         saveGame();
+        updateUI();
         renderEventUI();
     }
 }
 
-function switchEventSubTab(tab) {
-    eventSubTab = tab;
+function switchEventSubTab(tabName) {
+    initEventState();
+    state.event.subTab = tabName;
     renderEventUI();
 }
 
 function renderEventUI() {
     const container = document.getElementById('tab-event');
     if (!container) return;
-
-    if (!isEventUnlocked()) {
-        container.innerHTML = `
-            <div style="text-align: center; padding: 40px 15px; color: #e74c3c; background: var(--card-bg); border-radius: 16px; margin-top: 20px; border: 2px solid #e74c3c;">
-                <h2>🔒 Доступ до Івенту Заблоковано!</h2>
-                <br>
-                <p style="color: #ecf0f1; font-size: 1rem;">
-                    Для участі в івенті необхідно мати прокачку:<br>
-                    <b style="color: var(--accent-gold);">«Енергетик Дикий Хряк» 9 рівня</b>.
-                </p>
-            </div>`;
-        return;
-    }
-
     initEventState();
-    const currentMixer = MIXER_LEVELS[(state.event.mixerLvl || 1) - 1];
+
+    const now = getCurrentTime();
+    const timeLeft = EVENT_END_TIME - now;
+    const eventEnded = timeLeft <= 0;
 
     let html = `
-        <div style="width: 100%; text-align: center; background: var(--card-bg); padding: 12px; border-radius: 12px; border: 2px solid var(--accent-gold); margin-bottom: 12px;">
-            <div style="font-size: 1.1rem; font-weight: bold; color: var(--accent-gold);">🏗️ Івент: Заливання бетону для бруківки</div>
-            <div style="font-size: 0.85rem; color: #f39c12; font-weight: bold; margin-top: 4px;">⏳ Івент закінчиться: 25.09 19:00</div>
-            <div style="display: flex; justify-content: space-around; margin-top: 8px; font-weight: bold; font-size: 0.95rem;">
-                <span id="event-water-val" style="color: #3498db;">💧 Вода: ${Math.floor(state.event.water)}/1000</span>
-                <span id="event-cement-val" style="color: #e67e22;">🧱 Цемент: ${formatNum(state.event.cement)} (+${formatNum(getTotalCementPerSec())}/с)</span>
-                <span id="event-concrete-val" style="color: #2ecc71;">🏗️ Бетон: ${formatNum(state.event.concrete)}</span>
+        <div style="width: 100%; text-align: center; margin-bottom: 12px; background: var(--card-bg); padding: 12px; border-radius: 14px; border: 2px solid var(--accent-cyan); box-shadow: 0 4px 12px rgba(0,210,211,0.2);">
+            <div style="font-weight: 900; font-size: 1.15rem; color: var(--accent-cyan);">🏗️ Івент: Заливання Бетону</div>
+            <div style="font-size: 0.85rem; margin-top: 4px; color: #ecf0f1;">
+                ⏳ Івент закінчиться <b>25.09 о 19:00</b>
+            </div>
+            <div style="font-size: 0.8rem; color: var(--accent-gold); font-weight: bold; margin-top: 2px;">
+                ${eventEnded ? '🛑 Івент завершено!' : 'Залишилося: ' + formatEventCountdown(timeLeft)}
+            </div>
+        </div>
+
+        <div style="display: flex; gap: 8px; justify-content: space-around; width: 100%; background: rgba(0,0,0,0.3); padding: 10px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); margin-bottom: 15px;">
+            <div style="text-align: center; font-size: 0.85rem; font-weight: bold;">
+                <span id="event-water-val" style="color: #3498db;">💧 Вода: ${Math.floor(state.event.water)}/${state.event.maxWater}</span>
+            </div>
+            <div style="text-align: center; font-size: 0.85rem; font-weight: bold;">
+                <span id="event-cement-val" style="color: #e67e22;">🧱 Цемент: ${formatNum(state.event.cement)}</span>
+                <div style="font-size: 0.7rem; color: #2ecc71;">+${formatNum(getTotalCementPerSec())}/сек</div>
+            </div>
+            <div style="text-align: center; font-size: 0.85rem; font-weight: bold;">
+                <span id="event-concrete-val" style="color: var(--accent-cyan);">🏗️ Бетон: ${formatNum(state.event.concrete)}</span>
             </div>
         </div>
 
         <div class="leaderboard-toggle" style="margin-bottom: 15px;">
-            <button class="sub-tab-btn ${eventSubTab === 'mixer' ? 'active' : ''}" onclick="switchEventSubTab('mixer')">⚙️ Бетономішалка</button>
-            <button class="sub-tab-btn ${eventSubTab === 'cement' ? 'active' : ''}" onclick="switchEventSubTab('cement')">🧱 Цемент</button>
-            <button class="sub-tab-btn ${eventSubTab === 'mixers' ? 'active' : ''}" onclick="switchEventSubTab('mixers')">🚜 Мішалки</button>
-            <button class="sub-tab-btn ${eventSubTab === 'paving' ? 'active' : ''}" onclick="switchEventSubTab('paving')">🧱 Бруківка</button>
-            <button class="sub-tab-btn ${eventSubTab === 'leaderboard' ? 'active' : ''}" onclick="switchEventSubTab('leaderboard')">🏆 Топ</button>
+            <button class="sub-tab-btn ${state.event.subTab === 'mixer' ? 'active' : ''}" onclick="switchEventSubTab('mixer')">⚙️ Мішалка</button>
+            <button class="sub-tab-btn ${state.event.subTab === 'cement' ? 'active' : ''}" onclick="switchEventSubTab('cement')">🧱 Цемент</button>
+            <button class="sub-tab-btn ${state.event.subTab === 'paving' ? 'active' : ''}" onclick="switchEventSubTab('paving')">🛣️ Бруківка</button>
+            <button class="sub-tab-btn ${state.event.subTab === 'leaderboard' ? 'active' : ''}" onclick="switchEventSubTab('leaderboard')">🏆 Топ Бетону</button>
         </div>
     `;
 
-    if (eventSubTab === 'mixer') {
+    if (state.event.subTab === 'mixer') {
+        const curMixer = MIXER_LEVELS.find(m => m.lvl === state.event.mixerLvl) || MIXER_LEVELS[0];
+        const nextMixer = MIXER_LEVELS.find(m => m.lvl === state.event.mixerLvl + 1);
+
         html += `
-            <div class="upgrade-card evo-card" 
-                 style="flex-direction: column; text-align: center; padding: 25px; width: 100%; cursor: pointer; user-select: none; -webkit-user-select: none; touch-action: manipulation;" 
-                 onpointerdown="clickMixer(event)">
-                <div style="font-size: 3.5rem;">🚜</div>
-                <h2 style="color: var(--accent-gold); margin: 8px 0;">Бетономішалка ${currentMixer.lvl} Рівня</h2>
-                <p style="font-size: 0.95rem; color: #ccc;">Витрачає: <b style="color: #3498db;">${currentMixer.waterReq} воду</b> + <b style="color: #e67e22;">${formatNum(currentMixer.cementReq)} цементу</b></p>
-                <p style="font-size: 1.1rem; color: #2ecc71; font-weight: bold; margin-top: 4px;">Створює: +${formatNum(currentMixer.concreteGain)} бетону / клік</p>
-                <hr style="width: 100%; border: 1px solid rgba(255,255,255,0.1); margin: 15px 0;">
-                <button class="modal-btn" style="pointer-events: none;">
-                    Замішати бетон
-                </button>
+            <div class="mixer-container" onclick="clickMixer(event)">
+                <div class="mixer-image-wrap">
+                    <img id="event-mixer-img" src="${curMixer.img || 'img/beton.jpg'}" class="mixer-image" alt="Мішалка" onerror="this.onerror=null; this.src='img/beton.jpg';">
+                </div>
+                <div style="margin-top: 10px; text-align: center;">
+                    <div style="font-size: 1.1rem; font-weight: bold; color: var(--accent-cyan);">Бетономішалка Рівень ${curMixer.lvl}</div>
+                    <div style="font-size: 0.8rem; color: #aaa; margin-top: 2px;">
+                        Витрати: ${curMixer.waterReq} 💧 Води + ${curMixer.cementReq} 🧱 Цементу <br>
+                        Отримуєте: <b style="color: var(--accent-cyan);">+${curMixer.concreteGain} 🏗️ Бетону</b> за заміс
+                    </div>
+                </div>
             </div>
         `;
-    } else if (eventSubTab === 'cement') {
-        html += `<div class="upgrades-list">`;
-        const now = getCurrentTime();
-        const startTime = state.event.startTime || now;
 
-        CEMENT_CARDS.forEach((card) => {
-            const unlockHours = card.unlockHours !== undefined ? card.unlockHours : 0;
-            const unlockTime = startTime + (unlockHours * 60 * 60 * 1000);
-            const timeUntilUnlockMs = unlockTime - now;
+        if (nextMixer) {
+            const isUnlocked = now >= (nextMixer.unlockTime || 0);
+            const canAfford = state.event.concrete >= nextMixer.concreteCost && state.aura >= nextMixer.auraCost;
 
-            if (timeUntilUnlockMs > 0) {
-                html += `
-                    <div class="upgrade-card" style="opacity: 0.65;">
-                        <div class="upgrade-img-wrap"><span style="font-size: 2rem;">🔒</span></div>
-                        <div class="upgrade-info">
-                            <div class="upgrade-title">${card.name} <span class="upgrade-level-badge" style="background: #555;">Заблоковано</span></div>
-                            <div class="upgrade-desc" style="color: #e74c3c; font-weight: bold;">Розблокується через: ${formatEventCountdown(timeUntilUnlockMs)}</div>
-                            <div class="upgrade-desc">Базовий дохід: +${card.cps} цементу/сек</div>
-                        </div>
-                        <button class="upgrade-btn" disabled style="background: #444; cursor: not-allowed;">
-                            🔒 Скоро
-                        </button>
-                    </div>`;
-            } else {
-                const lvl = state.event.cards[card.id] || 0;
-                const cost = getCementCardCost(card);
-                const cd = state.event.cooldowns[card.id] || 0;
-                const cdLeftSec = Math.max(0, Math.ceil((cd - now) / 1000));
-                const canAfford = state.aura >= cost && cdLeftSec === 0;
-
-                html += `
-                    <div class="upgrade-card">
-                        <div class="upgrade-img-wrap"><span style="font-size: 2rem;">🧱</span></div>
-                        <div class="upgrade-info">
-                            <div class="upgrade-title">${card.name} <span class="upgrade-level-badge">Рвн ${lvl}</span></div>
-                            <div class="upgrade-desc">Дохід: +${formatNum(lvl * card.cps)} цементу/сек (+${card.cps})</div>
-                            <div class="upgrade-desc" style="color: var(--accent-gold);">Ціна: ${formatNum(cost)} аури</div>
-                            <div class="upgrade-desc" style="color: #00d2d3;">Затримка: ${card.cdSec}сек</div>
-                        </div>
-                        <button class="upgrade-btn" id="cement-card-btn-${card.id}" ${canAfford ? '' : 'disabled'} onclick="buyCementCard(${card.id})">
-                            ${cdLeftSec > 0 ? '⏱️ ' + formatTime(cdLeftSec) : 'Купити'}
-                        </button>
-                    </div>`;
-            }
-        });
-        html += `</div>`;
-    } else if (eventSubTab === 'mixers') {
-        html += `<div class="upgrades-list">`;
-        const now = getCurrentTime();
-        const startTime = state.event.startTime || now;
-
-        MIXER_LEVELS.forEach((m) => {
-            if (m.lvl === 1) return;
-            const isOwned = state.event.mixerLvl >= m.lvl;
-            const unlockHours = m.unlockHours !== undefined ? m.unlockHours : 0;
-            const unlockTime = startTime + (unlockHours * 60 * 60 * 1000);
-            const timeUntilUnlockMs = unlockTime - now;
-
-            if (!isOwned && timeUntilUnlockMs > 0) {
-                html += `
-                    <div class="upgrade-card" style="opacity: 0.65;">
-                        <div class="upgrade-img-wrap"><span style="font-size: 2rem;">🔒</span></div>
-                        <div class="upgrade-info">
-                            <div class="upgrade-title">${m.lvl} Рівень Бетономішалки <span class="upgrade-level-badge" style="background: #555;">Заблоковано</span></div>
-                            <div class="upgrade-desc" style="color: #e74c3c; font-weight: bold;">Розблокується через: ${formatEventCountdown(timeUntilUnlockMs)}</div>
-                            <div class="upgrade-desc">1 вода + ${formatNum(m.cementReq)} цементу ➔ ${formatNum(m.concreteGain)} бетону</div>
-                            <div class="upgrade-desc" style="color: var(--accent-gold);">Ціна: ${formatNum(m.concreteCost)} бетону + ${formatNum(m.auraCost)} аури</div>
-                        </div>
-                        <button class="upgrade-btn" disabled style="background: #444; cursor: not-allowed;">
-                            🔒 Скоро
-                        </button>
-                    </div>`;
-            } else {
-                const canBuy = state.event.mixerLvl === m.lvl - 1 && state.event.concrete >= m.concreteCost && state.aura >= m.auraCost;
-
-                html += `
-                    <div class="upgrade-card ${isOwned ? 'evo-card' : ''}">
-                        <div class="upgrade-img-wrap"><span style="font-size: 2rem;">🚜</span></div>
-                        <div class="upgrade-info">
-                            <div class="upgrade-title">${m.lvl} Рівень Бетономішалки ${isOwned ? '<span class="upgrade-level-badge" style="background: #2ecc71;">Куплено</span>' : ''}</div>
-                            <div class="upgrade-desc">1 вода + ${formatNum(m.cementReq)} цементу ➔ ${formatNum(m.concreteGain)} бетону</div>
-                            <div class="upgrade-desc" style="color: var(--accent-gold);">Ціна: ${formatNum(m.concreteCost)} бетону + ${formatNum(m.auraCost)} аури</div>
-                        </div>
-                        <button class="upgrade-btn" ${isOwned || !canBuy ? 'disabled' : ''} onclick="buyMixer(${m.lvl})">
-                            ${isOwned ? 'Куплено' : 'Купити'}
-                        </button>
-                    </div>`;
-            }
-        });
-        html += `</div>`;
-    } else if (eventSubTab === 'paving') {
-        const currentLvl = state.event.pavingLvl || 0;
-        const nextLvl = currentLvl + 1;
-
-        html += `<div class="upgrades-list">`;
-        if (currentLvl >= 7) {
             html += `
-                <div class="upgrade-card evo-card" style="text-align: center; padding: 20px;">
-                    <div style="font-size: 2rem;">👑</div>
-                    <div class="upgrade-title" style="color: var(--accent-gold); font-size: 1.2rem;">Максимальний рівень бруківки досягнуто!</div>
-                    <div class="upgrade-desc" style="margin-top: 5px;">Ваша бруківка приносить +${formatNum(PAVING_LEVELS[6].auraCps)} аури/сек</div>
-                </div>`;
+                <div class="upgrade-card" style="width: 100%; margin-top: 15px; border-color: var(--accent-cyan);">
+                    <div class="upgrade-info">
+                        <div class="upgrade-title">Апгрейд мішалки до Рівня ${nextMixer.lvl}</div>
+                        <div class="upgrade-desc">Дає +${nextMixer.concreteGain} бетону за клік</div>
+                        ${!isUnlocked ? `
+                            <div style="color: #e74c3c; font-weight: bold; font-size: 0.85rem; margin-top: 4px;">
+                                🔒 Відкриється 22.09 о 20:00 (через ${formatEventCountdown(nextMixer.unlockTime - now)})
+                            </div>
+                        ` : `
+                            <div class="upgrade-desc" style="color: var(--accent-cyan);">Ціна: ${formatNum(nextMixer.concreteCost)} 🏗️ бетону</div>
+                            <div class="upgrade-desc" style="color: var(--accent-gold);">Ціна: ${formatNum(nextMixer.auraCost)} ✨ аури</div>
+                        `}
+                    </div>
+                    <button class="upgrade-btn" onclick="buyMixer()" ${(!isUnlocked || !canAfford) ? 'disabled' : ''}>
+                        ${!isUnlocked ? '🔒 Заблоковано' : 'Покращити'}
+                    </button>
+                </div>
+            `;
         } else {
-            const req = PAVING_LEVELS[nextLvl - 1];
-            const canAfford = state.event.concrete >= req.concreteCost;
+            html += `
+                <div style="text-align: center; color: var(--accent-gold); font-weight: bold; margin-top: 15px; width: 100%;">
+                    🎉 Досягнуто максимальний 7-й рівень бетономішалки!
+                </div>
+            `;
+        }
+    } else if (state.event.subTab === 'cement') {
+        html += `<div class="upgrades-list">`;
+        CEMENT_CARDS.forEach(card => {
+            const isUnlocked = now >= (card.unlockTime || 0);
+            const lvl = (state.event.cards && state.event.cards[card.id]) || 0;
+            const cost = getCementCardCost(card);
+            const cd = state.event.cooldowns[card.id] || 0;
+            const inCd = now < cd;
+            const cdSecLeft = Math.ceil((cd - now) / 1000);
+            const canAfford = state.aura >= cost;
+
             html += `
                 <div class="upgrade-card">
-                    <div class="upgrade-img-wrap"><span style="font-size: 2rem;">🧱</span></div>
-                    <div class="upgrade-info">
-                        <div class="upgrade-title">Бруківка ${nextLvl} Рівня</div>
-                        <div class="upgrade-desc">Додає дохід: +${formatNum(req.auraCps)} аури/сек</div>
-                        <div class="upgrade-desc" style="color: #2ecc71;">Ціна: ${formatNum(req.concreteCost)} бетону</div>
+                    <div class="upgrade-img-wrap">
+                        <img src="${card.img}" alt="${card.name}" class="upgrade-img" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'65\\' height=\\'65\\'><rect width=\\'65\\' height=\\'65\\' fill=\'%23251a3a\\'/><text x=\\'50%\\' y=\\'50%\\' dominant-baseline=\\'middle\\' text-anchor=\\'middle\\' fill=\'%23e67e22\\' font-size=\\'24\\'>🧱</text></svg>';">
                     </div>
-                    <button class="upgrade-btn" ${canAfford ? '' : 'disabled'} onclick="upgradePaving()">
-                        Покращити
+                    <div class="upgrade-info">
+                        <div class="upgrade-title">${card.name} <span class="upgrade-level-badge">Рівень ${lvl}</span></div>
+                        <div class="upgrade-desc">Видобуток: +${formatNum(lvl * card.cps)} цементу/сек (+${card.cps}/сек)</div>
+                        ${!isUnlocked ? `
+                            <div style="color: #e74c3c; font-weight: bold; font-size: 0.8rem; margin-top: 2px;">
+                                🔒 Відкриється ${card.id === 6 ? '22.09 о 20:00' : '23.09 о 20:00'} (через ${formatEventCountdown(card.unlockTime - now)})
+                            </div>
+                        ` : `
+                            <div class="upgrade-desc" style="color: var(--accent-gold);">Ціна: ${formatNum(cost)} аури</div>
+                        `}
+                    </div>
+                    <button class="upgrade-btn" onclick="buyCementCard(${card.id})" ${(!isUnlocked || inCd || !canAfford) ? 'disabled' : ''}>
+                        ${!isUnlocked ? '🔒 Заблоковано' : (inCd ? `⏱️ ${cdSecLeft}с` : 'Купити')}
                     </button>
-                </div>`;
-        }
-
-        PAVING_LEVELS.forEach((p, idx) => {
-            const lvl = idx + 1;
-            const isDone = currentLvl >= lvl;
-            html += `
-                <div class="upgrade-card ${isDone ? 'evo-card' : ''}" style="opacity: ${isDone ? '1' : '0.6'};">
-                    <div class="upgrade-img-wrap"><span style="font-size: 1.5rem;">${isDone ? '✅' : '🧱'}</span></div>
-                    <div class="upgrade-info">
-                        <div class="upgrade-title">Бруківка ${lvl} Рівня ${isDone ? '<span class="upgrade-level-badge" style="background: #2ecc71;">Укладено</span>' : ''}</div>
-                        <div class="upgrade-desc">Дохід: +${formatNum(p.auraCps)} аури/сек</div>
-                        <div class="upgrade-desc" style="color: #2ecc71;">Потрібно бетону: ${formatNum(p.concreteCost)}</div>
-                    </div>
-                </div>`;
+                </div>
+            `;
         });
         html += `</div>`;
-    } else if (eventSubTab === 'leaderboard') {
+    } else if (state.event.subTab === 'paving') {
+        html += `<div class="upgrades-list">`;
+        const curPavingLvl = state.event.pavingLvl || 0;
+        const totalPavingAura = getPavingAuraPerSec();
+
         html += `
-            <div class="category-title" style="width: 100%; text-align: center;">🏆 Топ Гравців з Заливання Бетону</div>
-            <div id="concrete-leaderboard-list" class="leaderboard-list"></div>`;
+            <div style="background: var(--card-bg); padding: 12px; border-radius: 12px; text-align: center; border: 1px solid var(--accent-purple); width: 100%;">
+                <div style="font-weight: bold; color: var(--accent-gold);">Поточний пасивний дохід бруківки:</div>
+                <div style="font-size: 1.2rem; font-weight: 900; color: #2ecc71; margin-top: 4px;">+${formatNum(totalPavingAura)} аури / сек</div>
+            </div>
+        `;
+
+        PAVING_LEVELS.forEach(p => {
+            const isBought = curPavingLvl >= p.lvl;
+            const isNext = curPavingLvl + 1 === p.lvl;
+            const canAfford = state.event.concrete >= p.costConcrete;
+
+            html += `
+                <div class="upgrade-card ${isBought ? 'evo-card' : ''}">
+                    <div class="upgrade-info">
+                        <div class="upgrade-title">${p.name} <span class="upgrade-level-badge">${isBought ? '✓ Виконано' : `Етап ${p.lvl}`}</span></div>
+                        <div class="upgrade-desc">Дає: +${formatNum(p.auraCps)} аури/сек</div>
+                        <div class="upgrade-desc" style="color: var(--accent-cyan);">Ціна: ${formatNum(p.costConcrete)} 🏗️ бетону</div>
+                    </div>
+                    ${isBought ? `
+                        <button class="upgrade-btn" disabled style="background: #27ae60 !important;">Завершено</button>
+                    ` : `
+                        <button class="upgrade-btn" onclick="buyPaving()" ${(!isNext \vert{}\vert{} !canAfford) ? 'disabled' : ''}>${isNext ? 'Залити' : '🔒 Недоступно'}
+                        </button>
+                    `}
+                </div>
+            `;
+        });
+        html += `</div>`;
+    } else if (state.event.subTab === 'leaderboard') {
+        html += `
+            <div class="category-title" style="width: 100%; text-align: center;">🏆 Топ Будівельників (Залито Бетону)</div>
+            <div id="concrete-leaderboard-list" class="leaderboard-list">
+                <div class="empty-leaderboard">Завантаження лідерборду...</div>
+            </div>
+        `;
         setTimeout(renderConcreteLeaderboard, 50);
     }
 
     container.innerHTML = html;
+}
+
+function syncConcreteLeaderboard() {
+    if (!dbAvailable || !state.playerId || !state.nickname || !state.event) return;
+    const now = getCurrentTime();
+    if (now - lastLeaderboardSync < 5000) return;
+    lastLeaderboardSync = now;
+
+    firebase.database().ref('leaderboard_concrete/' + state.playerId).set({
+        name: state.nickname,
+        concrete: Math.floor(state.event.totalConcrete || 0),
+        updatedAt: firebase.database.ServerValue.TIMESTAMP
+    });
 }
 
 function renderConcreteLeaderboard() {
@@ -508,13 +439,13 @@ function renderConcreteLeaderboard() {
                 <div class="leaderboard-item is-player">
                     <div class="leaderboard-rank">🥇</div>
                     <div class="leaderboard-name">${state.nickname || "Ви"} (Локально)</div>
-                    <div class="leaderboard-cps">${formatNum(state.event ? state.event.totalConcrete || 0 : 0)} 🏗️</div>
+                    <div class="leaderboard-cps">${formatNum(state.event ? state.event.totalConcrete : 0)} 🏗️</div>
                 </div>
             </div>`;
         return;
     }
 
-    firebase.database().ref('leaderboard_concrete').orderByChild('totalConcrete').limitToLast(50).once('value', (snapshot) => {
+    firebase.database().ref('leaderboard_concrete').orderByChild('concrete').limitToLast(50).once('value', (snapshot) => {
         const data = snapshot.val();
         const players = [];
 
@@ -522,18 +453,18 @@ function renderConcreteLeaderboard() {
             Object.keys(data).forEach(id => {
                 players.push({
                     id: id,
-                    name: data[id].name || "Гравець",
-                    totalConcrete: data[id].totalConcrete || 0,
+                    name: data[id].name || "Будівельник",
+                    concrete: data[id].concrete || 0,
                     isPlayer: id === state.playerId
                 });
             });
         }
 
-        players.sort((a, b) => (b.totalConcrete || 0) - (a.totalConcrete || 0));
+        players.sort((a, b) => (b.concrete || 0) - (a.concrete || 0));
         list.innerHTML = '';
 
         if (players.length === 0) {
-            list.innerHTML = `<div class="empty-leaderboard">Поки немає жодного результату. Замішайте бетон першим!</div>`;
+            list.innerHTML = `<div class="empty-leaderboard">Поки немає результатів. Станьте першим!</div>`;
             return;
         }
 
@@ -549,7 +480,7 @@ function renderConcreteLeaderboard() {
             item.innerHTML = `
                 <div class="leaderboard-rank">${rankIcon}</div>
                 <div class="leaderboard-name">${p.name}${p.isPlayer ? ' (Ви)' : ''}</div>
-                <div class="leaderboard-cps">${formatNum(p.totalConcrete)} 🏗️</div>
+                <div class="leaderboard-cps">${formatNum(p.concrete)} 🏗️</div>
             `;
             list.appendChild(item);
         });
