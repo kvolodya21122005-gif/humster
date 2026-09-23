@@ -844,23 +844,7 @@
 
         const PASSIVE_UPGRADES = [
             // НОВА КАТЕГОРІЯ: Азартні ігри
-            { 
-                id: 45, 
-                cat: "Азартні ігри", 
-                name: "Хованки хрюнделя", 
-                baseCost: 15000000000, // 15b
-                baseCps: 75000, // 75k
-                img: "img/upg_gambling1.jpg",
-                customReqCheck: function(nextLvl) {
-                    if (nextLvl <= 1) return { met: true, text: "" };
-                    const found = (state.pigletGame && state.pigletGame.foundSinceLastCardUpgrade) || 0;
-                    const required = nextLvl;
-                    return {
-                        met: found >= required,
-                        text: `Вимога: Знайди ${required} хрюнделів у міні-грі (${found}/${required})`
-                    };
-                }
-            },
+            
 
             { id: 1, cat: "Імідж та Стиль", name: "Стрижка «Чіткий напівбокс»", baseCost: 60, baseCps: 1, img: "img/upg1.jpg" },
             { id: 2, cat: "Імідж та Стиль", name: "Золота цепура «100 грам»", baseCost: 100, baseCps: 1, img: "img/upg2.jpg" },
@@ -965,6 +949,23 @@
                 baseCps: 32000, 
                 img: "img/upg36.jpg",
                 req: { id: 34, lvl: 16, name: "Анаболічне висівкове пійло" } 
+            },
+            { 
+                id: 45, 
+                cat: "Азартні ігри", 
+                name: "Хованки хрюнделя", 
+                baseCost: 15000000000, // 15b
+                baseCps: 75000, // 75k
+                img: "img/upg_gambling1.jpg",
+                customReqCheck: function(nextLvl) {
+                    if (nextLvl <= 1) return { met: true, text: "" };
+                    const found = (state.pigletGame && state.pigletGame.foundSinceLastCardUpgrade) || 0;
+                    const required = nextLvl;
+                    return {
+                        met: found >= required,
+                        text: `Вимога: Знайди ${required} хрюнделів у міні-грі (${found}/${required})`
+                    };
+                }
             }
         ];
 
