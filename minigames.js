@@ -225,7 +225,6 @@ function renderMinigamesUI() {
             <div style="font-size: 1.2rem; font-weight: bold; color: var(--accent-gold); margin-bottom: 6px;">🎮 Міні-гра: Знайди хрюнделя</div>
             <div style="display: flex; justify-content: space-around; align-items: center; margin-top: 10px; font-weight: bold; font-size: 0.95rem; flex-wrap: wrap; gap: 8px;">
                 <span style="color: #3498db;">🎯 Енергія: <b id="piglet-energy-val">${state.pigletGame.energy} / 3</b></span>
-                <span style="color: #2ecc71;">🐷 Знайдено для прокачки: <b>${pigsForCard} / ${nextReqPigs}</b></span>
             </div>
             <div id="piglet-energy-timer" style="font-size: 0.85rem; color: #aaa; margin-top: 6px; font-weight: bold;"></div>
         </div>
