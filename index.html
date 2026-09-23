@@ -232,13 +232,13 @@
         }
 
         .tab-btn {
-            flex: 1 1 18%;
-            padding: 10px 5px;
+            flex: 1 1 15%;
+            padding: 10px 4px;
             background: var(--card-bg);
             border: 2px solid var(--accent-purple);
             color: #fff;
             border-radius: 12px;
-            font-size: 0.85rem;
+            font-size: 0.8rem;
             font-weight: bold;
             cursor: pointer;
             transition: all 0.2s;
@@ -538,66 +538,57 @@
         .leaderboard-cps { color: #2ecc71; font-weight: bold; font-size: 0.95rem; }
         .empty-leaderboard { text-align: center; padding: 30px; color: #888; font-size: 0.95rem; }
 
+        /* Стилі для сітки міні-гри */
+        .piglet-grid {
+            display: grid;
+            grid-template-columns: repeat(12, 1fr);
+            gap: 5px;
+            width: 100%;
+            max-width: 550px;
+            margin: 10px 0;
+            user-select: none;
+        }
 
-        /* Стилі та анімація для Бетономішалки */
-        .mixer-container {
+        .piglet-cell {
+            aspect-ratio: 1;
+            background: linear-gradient(135deg, #1e8449, #27ae60);
+            border: 1.5px solid #2ecc71;
+            border-radius: 8px;
             display: flex;
-            flex-direction: column;
             align-items: center;
             justify-content: center;
-            margin: 20px 0;
+            font-size: 1.1rem;
             cursor: pointer;
-            position: relative;
+            transition: transform 0.1s, background 0.2s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
         }
-        
-        .mixer-image-wrap {
-            position: relative;
-            padding: 12px;
-            border-radius: 50%;
-            background: radial-gradient(circle, rgba(0,210,211,0.3) 0%, rgba(0,0,0,0) 70%);
+
+        .piglet-cell:hover:not(.opened) {
+            transform: scale(1.08);
+            background: #2ecc71;
         }
-        
-        .mixer-image {
-            width: 220px;
-            height: 220px;
-            object-fit: cover;
-            border-radius: 50%;
-            border: 5px solid var(--accent-cyan);
-            box-shadow: 0 0 30px rgba(0, 210, 211, 0.5);
-            transition: transform 0.05s ease-out;
-            user-select: none;
-            -webkit-user-drag: none;
+
+        .piglet-cell:active:not(.opened) {
+            transform: scale(0.95);
         }
-        
-        /* Анімація струшування бетономішалки при кліку */
-        @keyframes mixerShake {
-            0% { transform: scale(1) rotate(0deg); }
-            20% { transform: scale(0.9) rotate(-8deg); }
-            50% { transform: scale(0.95) rotate(8deg); }
-            80% { transform: scale(0.98) rotate(-3deg); }
-            100% { transform: scale(1) rotate(0deg); }
+
+        .piglet-cell.opened {
+            background: #151022;
+            border-color: #444;
+            cursor: default;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.6);
         }
-        
-        .mixer-shake {
-            animation: mixerShake 0.22s ease-out;
+
+        .piglet-cell.opened.has-pig {
+            background: linear-gradient(135deg, #f39c12, #f1c40f);
+            border-color: #fff;
+            animation: pigPop 0.3s ease-out;
         }
-        
-        /* Плаваючий текст + бетону */
-        .floating-text-concrete {
-            position: fixed;
-            font-weight: 900;
-            font-size: 1.8rem;
-            color: var(--accent-cyan);
-            pointer-events: none;
-            animation: floatAndFadeConcrete 0.8s ease-out forwards;
-            text-shadow: 0 0 10px rgba(0,0,0,0.9), 0 0 5px var(--accent-cyan);
-            z-index: 9999;
-        }
-        
-        @keyframes floatAndFadeConcrete {
-            0% { opacity: 1; transform: translate(-50%, -50%) scale(0.8) translateY(0); }
-            50% { opacity: 1; transform: translate(-50%, -50%) scale(1.25) translateY(-40px); }
-            100% { opacity: 0; transform: translate(-50%, -50%) scale(1) translateY(-85px); }
+
+        @keyframes pigPop {
+            0% { transform: scale(0.5); opacity: 0; }
+            70% { transform: scale(1.2); opacity: 1; }
+            100% { transform: scale(1); }
         }
     </style>
 </head>
@@ -623,7 +614,7 @@
         </div>
     </div>
 
-    <!-- Модальне вікно тільки для аури -->
+    <!-- Модальне вікно для аури -->
     <div id="offline-modal" class="modal-overlay">
         <div class="modal-card">
             <div class="modal-title">🐷 З поверненням!</div>
@@ -660,6 +651,7 @@
         <div class="tab-nav">
             <button class="tab-btn active" onclick="switchTab('clicker')">🐷 Клікер</button>
             <button class="tab-btn" onclick="switchTab('upgrades')">⚡ Прокачки</button>
+            <button class="tab-btn" onclick="switchTab('minigames')">🎮 Міні ігри</button>
             <button class="tab-btn" onclick="switchTab('event')">🎯 Івент</button>
             <button class="tab-btn" onclick="switchTab('statue')">🗿 Статуї</button>
             <button class="tab-btn" onclick="switchTab('leaderboard')">🏆 Топ</button>
@@ -735,12 +727,15 @@
                 <div id="passive-upgrades-container"></div>
             </div>
 
-            <!-- Маленькі кнопки в самому низу -->
+            <!-- Кнопки в самому низу -->
             <div class="bottom-actions-container">
                 <button class="promo-btn-bottom" onclick="openPromoModal()">🎁 Ввести промокод</button>
                 <button class="promo-btn-bottom" onclick="openNicknameModal()">✏️ Змінити нікнейм</button>
             </div>
         </div>
+
+        <!-- Вкладка Міні-ігор -->
+        <div id="tab-minigames" class="tab-content"></div>
 
         <!-- Вкладка Івенту -->
         <div id="tab-event" class="tab-content"></div>
@@ -760,8 +755,9 @@
         </div>
     </div>
 
-    <!-- Підключення івент-скрипту -->
+    <!-- Підключення івент-скрипту та міні-ігор -->
     <script src="events.js"></script>
+    <script src="minigames.js"></script>
 
     <script>
         const firebaseConfig = {
@@ -847,6 +843,25 @@
         const NEW_ENERGY_COST = 25000000;
 
         const PASSIVE_UPGRADES = [
+            // НОВА КАТЕГОРІЯ: Азартні ігри
+            { 
+                id: 45, 
+                cat: "Азартні ігри", 
+                name: "Хованки хрюнделя", 
+                baseCost: 15000000000, // 15b
+                baseCps: 75000, // 75k
+                img: "img/upg_gambling1.jpg",
+                customReqCheck: function(nextLvl) {
+                    if (nextLvl <= 1) return { met: true, text: "" };
+                    const found = (state.pigletGame && state.pigletGame.foundSinceLastCardUpgrade) || 0;
+                    const required = nextLvl;
+                    return {
+                        met: found >= required,
+                        text: `Вимога: Знайди ${required} хрюнделів у міні-грі (${found}/${required})`
+                    };
+                }
+            },
+
             { id: 1, cat: "Імідж та Стиль", name: "Стрижка «Чіткий напівбокс»", baseCost: 60, baseCps: 1, img: "img/upg1.jpg" },
             { id: 2, cat: "Імідж та Стиль", name: "Золота цепура «100 грам»", baseCost: 100, baseCps: 1, img: "img/upg2.jpg" },
             { id: 3, cat: "Імідж та Стиль", name: "Спортивка з трикотажу", baseCost: 650, baseCps: 5, img: "img/upg3.jpg" },
@@ -1048,7 +1063,6 @@
             document.getElementById('nickname-modal').classList.add('active');
         }
 
-        /* Повне обнулення акаунту */
         function resetAccount() {
             window.removeEventListener('beforeunload', saveGame);
 
@@ -1237,6 +1251,7 @@
             if (!state.nickname) state.nickname = "";
 
             if (typeof initEventState === 'function') initEventState();
+            if (typeof initMinigamesState === 'function') initMinigamesState();
 
             if (state.energy > getMaxEnergy()) {
                 state.energy = getMaxEnergy();
@@ -1397,6 +1412,12 @@
                 if (reqLvl < u.req.lvl) return;
             }
 
+            const curLvl = state.passives[id] || 0;
+            if (u.customReqCheck) {
+                const check = u.customReqCheck(curLvl + 1);
+                if (!check.met) return;
+            }
+
             if ((u.cat === "Навчання хрюнделя" || u.cat === "Свинячий Люкс") && state.cooldowns && state.cooldowns[u.id]) {
                 const nowTime = getServerTime();
                 if (nowTime < state.cooldowns[u.id]) return;
@@ -1405,8 +1426,14 @@
             const cost = getPassiveCost(u);
             if (state.aura >= cost) {
                 state.aura -= cost;
-                const newLvl = (state.passives[id] || 0) + 1;
+                const newLvl = curLvl + 1;
                 state.passives[id] = newLvl;
+
+                // Для карточки "Хованки хрюнделя" скидаємо лічильник після кожної прокачки
+                if (id === 45) {
+                    if (!state.pigletGame) initMinigamesState();
+                    state.pigletGame.foundSinceLastCardUpgrade = 0;
+                }
 
                 if (u.cat === "Навчання хрюнделя" || u.cat === "Свинячий Люкс") {
                     const cdSec = getCooldownSeconds(newLvl, u.cat);
@@ -1540,7 +1567,7 @@
             document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
             document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
 
-            const tabMap = { 'clicker': 0, 'upgrades': 1, 'event': 2, 'statue': 3, 'leaderboard': 4 };
+            const tabMap = { 'clicker': 0, 'upgrades': 1, 'minigames': 2, 'event': 3, 'statue': 4, 'leaderboard': 5 };
             const index = tabMap[tabName];
 
             if (index !== undefined) {
@@ -1551,6 +1578,7 @@
             if (tabName === 'leaderboard') renderLeaderboard();
             if (tabName === 'event' && typeof renderEventUI === 'function') renderEventUI();
             if (tabName === 'statue' && typeof renderStatuesTabUI === 'function') renderStatuesTabUI();
+            if (tabName === 'minigames' && typeof renderMinigamesUI === 'function') renderMinigamesUI();
         }
 
         function updateUI() {
@@ -1612,17 +1640,17 @@
                 document.getElementById('energy-new-upg-btn').disabled = state.aura < energyNewCost;
             }
 
+            // Оновлення пасивних карточок
             PASSIVE_UPGRADES.forEach(u => {
                 const count = state.passives[u.id] || 0;
                 const cost = getPassiveCost(u);
-
-                const lvlBadge = document.getElementById(`passive-lvl-badge-${u.id}`);
+                const btn = document.getElementById(`passive-btn-${u.id}`);
+                const badge = document.getElementById(`passive-lvl-badge-${u.id}`);
                 const desc = document.getElementById(`passive-desc-${u.id}`);
                 const reqEl = document.getElementById(`passive-req-${u.id}`);
                 const costEl = document.getElementById(`passive-cost-${u.id}`);
-                const btn = document.getElementById(`passive-btn-${u.id}`);
 
-                if (lvlBadge) lvlBadge.innerText = `Рівень ${count}`;
+                if (badge) badge.innerText = `Рівень ${count}`;
                 if (desc) desc.innerText = `Дохід: +${formatNum(count * u.baseCps)} аури/сек (+${formatNum(u.baseCps)})`;
                 if (costEl) costEl.innerText = `Ціна: ${formatNum(cost)} аури`;
 
@@ -1631,127 +1659,118 @@
                     const reqLvl = state.passives[u.req.id] || 0;
                     reqMet = reqLvl >= u.req.lvl;
                     if (reqEl) {
-                        if (!reqMet) {
-                            reqEl.innerText = `Вимога: ${u.req.name} ${reqLvl}/${u.req.lvl} лвл`;
-                            reqEl.style.display = 'block';
-                        } else reqEl.style.display = 'none';
+                        reqEl.style.display = 'block';
+                        reqEl.innerText = `Вимога: ${u.req.name} (Рвн ${reqLvl}/${u.req.lvl})`;
+                        reqEl.style.color = reqMet ? '#2ecc71' : '#e74c3c';
                     }
-                } else if (reqEl) reqEl.style.display = 'none';
+                } else if (reqEl) {
+                    reqEl.style.display = 'none';
+                }
 
-                let cooldownSec = 0;
+                if (u.customReqCheck && typeof u.customReqCheck === 'function') {
+                    const check = u.customReqCheck(count + 1);
+                    if (!check.met) {
+                        reqMet = false;
+                        if (reqEl) {
+                            reqEl.style.display = 'block';
+                            reqEl.innerText = check.text;
+                            reqEl.style.color = '#e74c3c';
+                        }
+                    }
+                }
+
+                let cdMet = true;
                 if ((u.cat === "Навчання хрюнделя" || u.cat === "Свинячий Люкс") && state.cooldowns && state.cooldowns[u.id]) {
                     const nowTime = getServerTime();
-                    const diff = state.cooldowns[u.id] - nowTime;
-                    if (diff > 0) cooldownSec = Math.ceil(diff / 1000);
+                    if (nowTime < state.cooldowns[u.id]) {
+                        cdMet = false;
+                        const cdLeft = Math.ceil((state.cooldowns[u.id] - nowTime) / 1000);
+                        if (btn) btn.innerText = `⏱️ ${formatTime(cdLeft)}`;
+                    } else if (btn) {
+                        btn.innerText = 'Купити';
+                    }
                 }
 
                 if (btn) {
-                    if (cooldownSec > 0) {
-                        btn.innerText = `⏱️ ${formatTime(cooldownSec)}`;
-                        btn.disabled = true;
-                    } else {
-                        btn.innerText = "Купити";
-                        btn.disabled = !reqMet || state.aura < cost;
-                    }
+                    btn.disabled = !(reqMet && cdMet && state.aura >= cost);
                 }
             });
         }
 
+        // Головний ігровий цикл
+        let lastTick = getServerTime();
         setInterval(() => {
-            const dt = 0.1;
-            const maxE = getMaxEnergy();
+            const now = getServerTime();
+            const dt = (now - lastTick) / 1000;
+            lastTick = now;
 
-            if (state.energy < maxE) {
-                const regenPerSec = maxE / 1800;
-                state.energy = Math.min(maxE, state.energy + regenPerSec * dt);
+            if (dt > 0) {
+                const maxE = getMaxEnergy();
+                if (state.energy < maxE) {
+                    const regenPerSec = maxE / 1800;
+                    state.energy = Math.min(maxE, state.energy + regenPerSec * dt);
+                }
+
+                const cps = getTotalCps();
+                if (cps > 0) {
+                    state.aura += cps * dt;
+                    state.totalAura = (state.totalAura || 0) + cps * dt;
+                }
+
+                if (typeof updateEventLogic === 'function') {
+                    updateEventLogic(dt);
+                }
+
+                if (typeof updateMinigamesLogic === 'function') {
+                    updateMinigamesLogic(dt);
+                }
+
+                updateUI();
             }
-
-            const cps = getTotalCps();
-            if (cps > 0) {
-                const gained = cps * dt;
-                state.aura += gained;
-                state.totalAura = (state.totalAura || 0) + gained;
-            }
-
-            if (typeof updateEventLogic === 'function') {
-                updateEventLogic(dt);
-            }
-
-            updateUI();
         }, 100);
 
-        setInterval(saveGame, 5000);
-        setInterval(syncWorldTime, 60000);
-        window.addEventListener('beforeunload', saveGame);
+        // Автозбереження кожні 10 сек
+        setInterval(() => {
+            saveGame();
+        }, 10000);
 
-        document.addEventListener('visibilitychange', async () => {
-            if (document.visibilityState === 'hidden') {
-                saveGame();
-            } else if (document.visibilityState === 'visible') {
-                await syncWorldTime();
-                calculateOfflineProgress();
-                updateUI();
-                if (state.nickname) displayOfflineModalIfAvailable();
-            }
+        window.addEventListener('beforeunload', () => {
+            saveGame();
         });
 
-        window.onload = async function() {
+        window.addEventListener('DOMContentLoaded', async () => {
+            const loadingScreen = document.getElementById('loading-screen');
+            const gameScreen = document.getElementById('game-screen');
+            const progressBar = document.getElementById('loading-progress-bar');
+
+            let progress = 0;
+            const progressInterval = setInterval(() => {
+                progress += 5;
+                if (progressBar) progressBar.style.width = `${Math.min(progress, 90)}%`;
+            }, 100);
+
             await syncWorldTime();
             loadGame();
             calculateOfflineProgress();
-            renderPassiveUpgrades();
-            setupMultiTouch();
-            updateUI();
 
-            const video = document.getElementById('loading-video');
-            const bar = document.getElementById('loading-progress-bar');
-            let finished = false;
+            clearInterval(progressInterval);
+            if (progressBar) progressBar.style.width = '100%';
 
-            function finishLoading() {
-                if (finished) return;
-                finished = true;
+            setTimeout(() => {
+                if (loadingScreen) loadingScreen.style.display = 'none';
+                if (gameScreen) gameScreen.style.display = 'flex';
 
-                const loadingContent = document.querySelector('.loading-content');
-                const betonImg = document.getElementById('beton-img');
-                if (loadingContent) loadingContent.style.display = 'none';
-                if (betonImg) betonImg.style.display = 'block';
+                setupMultiTouch();
+                renderPassiveUpgrades();
+                updateUI();
 
-                setTimeout(() => {
-                    const showGameScreen = () => {
-                        document.getElementById('game-screen').style.display = 'flex';
-                        updateUI();
-
-                        if (!state.nickname || state.nickname.trim() === "") {
-                            document.getElementById('nickname-modal').classList.add('active');
-                        } else {
-                            displayOfflineModalIfAvailable();
-                        }
-                    };
-
-                    const loadingScreen = document.getElementById('loading-screen');
-                    if (loadingScreen) {
-                        loadingScreen.style.opacity = '0';
-                        loadingScreen.style.transition = 'opacity 0.4s ease';
-                        setTimeout(() => {
-                            loadingScreen.style.display = 'none';
-                            showGameScreen();
-                        }, 400);
-                    } else showGameScreen();
-                }, 1500);
-            }
-
-            if (video) {
-                video.play().catch(e => console.log("Автовідтворення блоковано:", e));
-                video.addEventListener('timeupdate', () => {
-                    if (video.duration && video.duration > 0) {
-                        const pct = Math.min(100, (video.currentTime / video.duration) * 100);
-                        bar.style.width = pct + '%';
-                    }
-                });
-                video.addEventListener('ended', finishLoading);
-                setTimeout(finishLoading, 10000);
-            } else finishLoading();
-        };
+                if (!state.nickname) {
+                    openNicknameModal();
+                } else {
+                    displayOfflineModalIfAvailable();
+                }
+            }, 300);
+        });
     </script>
 </body>
 </html>
