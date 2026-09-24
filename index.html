@@ -537,58 +537,6 @@
         .leaderboard-name { font-weight: bold; font-size: 1rem; flex-grow: 1; margin: 0 10px; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .leaderboard-cps { color: #2ecc71; font-weight: bold; font-size: 0.95rem; }
         .empty-leaderboard { text-align: center; padding: 30px; color: #888; font-size: 0.95rem; }
-
-        .piglet-grid {
-            display: grid;
-            grid-template-columns: repeat(12, 1fr);
-            gap: 5px;
-            width: 100%;
-            max-width: 550px;
-            margin: 10px 0;
-            user-select: none;
-        }
-
-        .piglet-cell {
-            aspect-ratio: 1;
-            background: linear-gradient(135deg, #1e8449, #27ae60);
-            border: 1.5px solid #2ecc71;
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.1rem;
-            cursor: pointer;
-            transition: transform 0.1s, background 0.2s;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-        }
-
-        .piglet-cell:hover:not(.opened) {
-            transform: scale(1.08);
-            background: #2ecc71;
-        }
-
-        .piglet-cell:active:not(.opened) {
-            transform: scale(0.95);
-        }
-
-        .piglet-cell.opened {
-            background: #151022;
-            border-color: #444;
-            cursor: default;
-            box-shadow: inset 0 2px 4px rgba(0,0,0,0.6);
-        }
-
-        .piglet-cell.opened.has-pig {
-            background: linear-gradient(135deg, #f39c12, #f1c40f);
-            border-color: #fff;
-            animation: pigPop 0.3s ease-out;
-        }
-
-        @keyframes pigPop {
-            0% { transform: scale(0.5); opacity: 0; }
-            70% { transform: scale(1.2); opacity: 1; }
-            100% { transform: scale(1); }
-        }
     </style>
 </head>
 <body>
@@ -641,7 +589,7 @@
             </div>
             <div class="stat-badge energy">
                 <div>⚡ <span id="energy-count">1000</span></div>
-                <div class="stat-subtext" style="color: #3498db;">відновл. 30хв</div>
+                <div class="stat-subtext" id="energy-timer-subtext" style="color: #3498db;">відновл. 30хв</div>
             </div>
         </header>
 
@@ -899,6 +847,7 @@
             aura: 0,
             totalAura: 0,
             energy: 1000,
+            energyRegenStart: null, // Збереження точки відліку відновлення енергії
             auraLvl: 0,
             energyLvl: 0,
             hasEvolved: false,
@@ -915,10 +864,17 @@
         let currentLeaderboardSort = 'cps';
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
-        // Універсальна функція використання енергії без збивання таймерів
+        // Універсальна функція використання енергії без скидання таймера відновлення
         function useEnergy(amount) {
             if (state.energy >= amount) {
                 state.energy -= amount;
+                
+                const maxE = getMaxEnergy();
+                // Якщо енергія була повною і щойно витрачена — запускаємо новий відлік
+                if (state.energy < maxE && !state.energyRegenStart) {
+                    state.energyRegenStart = getServerTime();
+                }
+
                 updateUI();
                 return true;
             }
@@ -1046,12 +1002,10 @@
                     if (!state.usedCodes) state.usedCodes = {};
                     state.usedCodes['синаура135'] = true;
 
-                    // 1.35Т аури
                     const auraReward = 1350000000000;
                     state.aura += auraReward;
                     state.totalAura = (state.totalAura || 0) + auraReward;
 
-                    // Статуя хрюнделя 7 рівня
                     state.savedStatueLvl = 7;
                     state.statueLvl = 7;
                     if (typeof initEventState === 'function') {
@@ -1063,12 +1017,10 @@
                     if (!state.statue) state.statue = {};
                     state.statue.lvl = 7;
 
-                    // 21млн бетону
                     const concreteReward = 21000000;
                     state.event.concrete = (state.event.concrete || 0) + concreteReward;
                     state.event.totalConcrete = (state.event.totalConcrete || 0) + concreteReward;
 
-                    // Вимкнення КД на 1 годину (3600000 мс)
                     const nowTime = getServerTime();
                     state.noCdUntil = nowTime + 3600000;
                     state.cooldowns = {};
@@ -1234,6 +1186,7 @@
             if (state.hasEvolved === undefined) state.hasEvolved = false;
             if (state.postEvoAuraLvl === undefined) state.postEvoAuraLvl = 0;
             if (state.postEvoEnergyLvl === undefined) state.postEvoEnergyLvl = 0;
+            if (state.energyRegenStart === undefined) state.energyRegenStart = null;
             if (!state.nickname) state.nickname = "";
 
             if (typeof initEventState === 'function') initEventState();
@@ -1271,6 +1224,9 @@
                     if (state.energy < maxE) {
                         const regenPerSec = maxE / 1800;
                         state.energy = Math.min(maxE, state.energy + regenPerSec * elapsedSeconds);
+                        if (state.energy >= maxE) {
+                            state.energyRegenStart = null;
+                        }
                     }
 
                     state.aura += offlineAura;
@@ -1575,6 +1531,19 @@
             document.getElementById('cps-count').innerText = formatNum(totalCps);
             document.getElementById('energy-count').innerText = Math.floor(state.energy);
 
+            // Оновлення таймера відновлення енергії у шапці
+            const timerSubtext = document.getElementById('energy-timer-subtext');
+            if (timerSubtext) {
+                if (state.energy >= maxE) {
+                    timerSubtext.innerText = 'Повна енергія';
+                } else {
+                    const neededE = maxE - state.energy;
+                    const regenPerSec = maxE / 1800; // 1800s = 30 min
+                    const remainingSec = Math.ceil(neededE / regenPerSec);
+                    timerSubtext.innerText = `відновл. ${formatTime(remainingSec)}`;
+                }
+            }
+
             document.getElementById('energy-bar-text').innerText = `${Math.floor(state.energy)} / ${maxE}`;
             const pct = Math.max(0, Math.min(100, (state.energy / maxE) * 100));
             document.getElementById('energy-bar-fill').style.width = pct + '%';
@@ -1626,7 +1595,6 @@
                 document.getElementById('energy-new-upg-btn').disabled = state.aura < energyNewCost;
             }
 
-            // Перевірка активності промокоду без КД
             const isNoCdActive = state.noCdUntil && getServerTime() < state.noCdUntil;
 
             PASSIVE_UPGRADES.forEach(u => {
@@ -1696,8 +1664,16 @@
             if (dt > 0) {
                 const maxE = getMaxEnergy();
                 if (state.energy < maxE) {
+                    if (!state.energyRegenStart) {
+                        state.energyRegenStart = now;
+                    }
                     const regenPerSec = maxE / 1800;
                     state.energy = Math.min(maxE, state.energy + regenPerSec * dt);
+                    if (state.energy >= maxE) {
+                        state.energyRegenStart = null;
+                    }
+                } else {
+                    state.energyRegenStart = null;
                 }
 
                 const cps = getTotalCps();
