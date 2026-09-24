@@ -538,7 +538,6 @@
         .leaderboard-cps { color: #2ecc71; font-weight: bold; font-size: 0.95rem; }
         .empty-leaderboard { text-align: center; padding: 30px; color: #888; font-size: 0.95rem; }
 
-        /* Стилі для сітки міні-гри */
         .piglet-grid {
             display: grid;
             grid-template-columns: repeat(12, 1fr);
@@ -614,7 +613,6 @@
         </div>
     </div>
 
-    <!-- Модальне вікно для аури -->
     <div id="offline-modal" class="modal-overlay">
         <div class="modal-card">
             <div class="modal-title">🐷 З поверненням!</div>
@@ -624,7 +622,6 @@
         </div>
     </div>
 
-    <!-- Модальне вікно для промокодів -->
     <div id="promo-modal" class="modal-overlay">
         <div class="modal-card">
             <div class="modal-title">🎁 Введення Промокоду</div>
@@ -727,23 +724,16 @@
                 <div id="passive-upgrades-container"></div>
             </div>
 
-            <!-- Кнопки в самому низу -->
             <div class="bottom-actions-container">
                 <button class="promo-btn-bottom" onclick="openPromoModal()">🎁 Ввести промокод</button>
                 <button class="promo-btn-bottom" onclick="openNicknameModal()">✏️ Змінити нікнейм</button>
             </div>
         </div>
 
-        <!-- Вкладка Міні-ігор -->
         <div id="tab-minigames" class="tab-content"></div>
-
-        <!-- Вкладка Івенту -->
         <div id="tab-event" class="tab-content"></div>
-
-        <!-- Вкладка Статуй -->
         <div id="tab-statue" class="tab-content"></div>
 
-        <!-- Вкладка Лідерборду -->
         <div id="tab-leaderboard" class="tab-content">
             <div class="category-title" style="width: 100%; text-align: center;">🏆 Онлайн Топ Реал Гравців</div>
             <div class="leaderboard-toggle">
@@ -755,7 +745,6 @@
         </div>
     </div>
 
-    <!-- Підключення івент-скрипту та міні-ігор -->
     <script src="events.js"></script>
     <script src="minigames.js"></script>
 
@@ -843,9 +832,6 @@
         const NEW_ENERGY_COST = 25000000;
 
         const PASSIVE_UPGRADES = [
-            // НОВА КАТЕГОРІЯ: Азартні ігри
-            
-
             { id: 1, cat: "Імідж та Стиль", name: "Стрижка «Чіткий напівбокс»", baseCost: 60, baseCps: 1, img: "img/upg1.jpg" },
             { id: 2, cat: "Імідж та Стиль", name: "Золота цепура «100 грам»", baseCost: 100, baseCps: 1, img: "img/upg2.jpg" },
             { id: 3, cat: "Імідж та Стиль", name: "Спортивка з трикотажу", baseCost: 650, baseCps: 5, img: "img/upg3.jpg" },
@@ -863,7 +849,7 @@
 
             { id: 13, cat: "Вуличний Авторитет", name: "Кришування сусіднього хліва", baseCost: 20000, baseCps: 45, img: "img/upg13.jpg" },
             { id: 14, cat: "Вуличний Авторитет", name: "Братва з диких кабанів", baseCost: 100000, baseCps: 90, img: "img/upg14.jpg" },
-            { id: 15, cat: "Вуличний Авторитет", name: "Переговори у багнюці", baseCost: 650000, baseCps: 450, img: "img/upg15.jpg", req: { id: 9, lvl: 6, name: "Автоматичний роздавач комбікорму" }  },
+            { id: 15, cat: "Вуличний Авторитет", name: "Переговори у багнюці", baseCost: 650000, baseCps: 450, img: "img/upg15.jpg", req: { id: 9, lvl: 6, name: "Автоматичний роздавач комбікорму" } },
             { id: 16, cat: "Вуличний Авторитет", name: "Контроль головного корита", baseCost: 7500000, baseCps: 2000, img: "img/upg16.jpg", req: { id: 11, lvl: 10, name: "Монополія на жолуді" } },
 
             { id: 19, cat: "Раціон та Енергія", name: "Відро добірного пійла", baseCost: 4000, baseCps: 5, img: "img/upg19.jpg" },
@@ -877,85 +863,22 @@
             { id: 26, cat: "Бойові Навички", name: "Сальний хук справа", baseCost: 2500000, baseCps: 650, img: "img/upg26.jpg" },
             { id: 27, cat: "Бойові Навички", name: "Броньоване черевце", baseCost: 4000000, baseCps: 850, img: "img/upg27.jpg" },
             { id: 41, cat: "Бойові Навички", name: "Загартування у багнюці", baseCost: 16000000, baseCps: 1700, img: "img/upg41.jpg", req: { id: 25, lvl: 11, name: "Удар п'ятачком «Залізний таран»" } },
-            { 
-                id: 42, 
-                cat: "Бойові Навички", 
-                name: "Свинцевий шолом", 
-                baseCost: 80000000, 
-                baseCps: 4500, 
-                img: "img/upg42.jpg", 
-                req: { id: 10, lvl: 16, name: "Офшорна свиноферма" } 
-            },
-            { 
-                id: 43, 
-                cat: "Бойові Навички", 
-                name: "Золотий бойовий ікол", 
-                baseCost: 240000000, 
-                baseCps: 6500, 
-                img: "img/upg43.jpg", 
-                req: { id: 35, lvl: 6, name: "Пентхаус у золотій калюжі" } 
-            },
-            { 
-                id: 28, 
-                cat: "Навчання хрюнделя", 
-                name: "Глобус трюфельних родовищ", 
-                baseCost: 50000000, 
-                baseCps: 10000, 
-                img: "img/upg28.jpg",
-                req: { id: 26, lvl: 12, name: "Сальний хук справа" } 
-            },
-            { 
-                id: 29, 
-                cat: "Навчання хрюнделя", 
-                name: "Контурні карти сусідніх калюж", 
-                baseCost: 250000000, 
-                baseCps: 12500, 
-                img: "img/upg29.jpg",
-                req: { id: 28, lvl: 10, name: "Глобус трюфельних родовищ" } 
-            },
-            { 
-                id: 32, 
-                cat: "Навчання хрюнделя", 
-                name: "Академія свинячих наук", 
-                baseCost: 800000000, 
-                baseCps: 16000, 
-                img: "img/upg32.jpg",
-                req: { id: 41, lvl: 15, name: "Загартування у багнюці" } 
-            },
-            { 
-                id: 44, 
-                cat: "Навчання хрюнделя", 
-                name: "Доктор свинячих наук", 
-                baseCost: 2000000000, 
-                baseCps: 25000, 
-                img: "img/upg44.jpg", 
-                req: { id: 32, lvl: 8, name: "Академія свинячих наук" } 
-            },
+            { id: 42, cat: "Бойові Навички", name: "Свинцевий шолом", baseCost: 80000000, baseCps: 4500, img: "img/upg42.jpg", req: { id: 10, lvl: 16, name: "Офшорна свиноферма" } },
+            { id: 43, cat: "Бойові Навички", name: "Золотий бойовий ікол", baseCost: 240000000, baseCps: 6500, img: "img/upg43.jpg", req: { id: 35, lvl: 6, name: "Пентхаус у золотій калюжі" } },
 
-            { 
-                id: 35, 
-                cat: "Свинячий Люкс", 
-                name: "Пентхаус у золотій калюжі", 
-                baseCost: 100000000, 
-                baseCps: 6000, 
-                img: "img/upg35.jpg",
-                req: { id: 16, lvl: 13, name: "Контроль головного корита" } 
-            },
-            { 
-                id: 36, 
-                cat: "Свинячий Люкс", 
-                name: "Вілла «Свиняча Рубльовка»", 
-                baseCost: 5000000000, 
-                baseCps: 32000, 
-                img: "img/upg36.jpg",
-                req: { id: 34, lvl: 16, name: "Анаболічне висівкове пійло" } 
-            },
+            { id: 28, cat: "Навчання хрюнделя", name: "Глобус трюфельних родовищ", baseCost: 50000000, baseCps: 10000, img: "img/upg28.jpg", req: { id: 26, lvl: 12, name: "Сальний хук справа" } },
+            { id: 29, cat: "Навчання хрюнделя", name: "Контурні карти сусідніх калюж", baseCost: 250000000, baseCps: 12500, img: "img/upg29.jpg", req: { id: 28, lvl: 10, name: "Глобус трюфельних родовищ" } },
+            { id: 32, cat: "Навчання хрюнделя", name: "Академія свинячих наук", baseCost: 800000000, baseCps: 16000, img: "img/upg32.jpg", req: { id: 41, lvl: 15, name: "Загартування у багнюці" } },
+            { id: 44, cat: "Навчання хрюнделя", name: "Доктор свинячих наук", baseCost: 2000000000, baseCps: 25000, img: "img/upg44.jpg", req: { id: 32, lvl: 8, name: "Академія свинячих наук" } },
+
+            { id: 35, cat: "Свинячий Люкс", name: "Пентхаус у золотій калюжі", baseCost: 100000000, baseCps: 6000, img: "img/upg35.jpg", req: { id: 16, lvl: 13, name: "Контроль головного корита" } },
+            { id: 36, cat: "Свинячий Люкс", name: "Вілла «Свиняча Рубльовка»", baseCost: 5000000000, baseCps: 32000, img: "img/upg36.jpg", req: { id: 34, lvl: 16, name: "Анаболічне висівкове пійло" } },
             { 
                 id: 45, 
                 cat: "Азартні ігри", 
                 name: "Хованки хрюнделя", 
-                baseCost: 15000000000, // 15b
-                baseCps: 75000, // 75k
+                baseCost: 15000000000, 
+                baseCps: 75000, 
                 img: "img/upg45.jpg",
                 req: { id: 43, lvl: 15, name: "Золотий бойовий ікол" },
                 customReqCheck: function(nextLvl) {
@@ -984,12 +907,23 @@
             passives: {},
             cooldowns: {},
             usedCodes: {},
+            noCdUntil: 0,
             lastSaveTime: Date.now()
         };
 
         let offlineReport = null;
         let currentLeaderboardSort = 'cps';
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        // Універсальна функція використання енергії без збивання таймерів
+        function useEnergy(amount) {
+            if (state.energy >= amount) {
+                state.energy -= amount;
+                updateUI();
+                return true;
+            }
+            return false;
+        }
 
         function getCooldownSeconds(lvl, cat) {
             if (cat === "Свинячий Люкс") return 2700;
@@ -1101,6 +1035,55 @@
                 } else {
                     msg.style.color = '#e74c3c';
                     msg.innerText = 'Скасовано обнулення.';
+                    msg.style.display = 'block';
+                }
+            } else if (cleanCode === 'синаура135') {
+                if (state.usedCodes && state.usedCodes['синаура135']) {
+                    msg.style.color = '#e74c3c';
+                    msg.innerText = 'Цей код вже використано!';
+                    msg.style.display = 'block';
+                } else {
+                    if (!state.usedCodes) state.usedCodes = {};
+                    state.usedCodes['синаура135'] = true;
+
+                    // 1.35Т аури
+                    const auraReward = 1350000000000;
+                    state.aura += auraReward;
+                    state.totalAura = (state.totalAura || 0) + auraReward;
+
+                    // Статуя хрюнделя 7 рівня
+                    state.savedStatueLvl = 7;
+                    state.statueLvl = 7;
+                    if (typeof initEventState === 'function') {
+                        initEventState();
+                    } else if (!state.event) {
+                        state.event = { concrete: 0, totalConcrete: 0, statueLvl: 7, cards: {}, cooldowns: {} };
+                    }
+                    state.event.statueLvl = 7;
+                    if (!state.statue) state.statue = {};
+                    state.statue.lvl = 7;
+
+                    // 21млн бетону
+                    const concreteReward = 21000000;
+                    state.event.concrete = (state.event.concrete || 0) + concreteReward;
+                    state.event.totalConcrete = (state.event.totalConcrete || 0) + concreteReward;
+
+                    // Вимкнення КД на 1 годину (3600000 мс)
+                    const nowTime = getServerTime();
+                    state.noCdUntil = nowTime + 3600000;
+                    state.cooldowns = {};
+                    if (state.event) state.event.cooldowns = {};
+
+                    if (typeof syncConcreteLeaderboard === 'function') {
+                        syncConcreteLeaderboard();
+                    }
+
+                    updateUI();
+                    if (typeof renderEventUI === 'function') renderEventUI();
+                    saveGame();
+
+                    msg.style.color = '#2ecc71';
+                    msg.innerText = 'Успішно! Отримано +1.35Т ✨ аури, Статую Хрюнделя 7 рівня, +21M 🏗️ бетону та вимкнено КД карточок на 1 годину!';
                     msg.style.display = 'block';
                 }
             } else if (cleanCode === 'аутизмадміна') {
@@ -1246,6 +1229,7 @@
             if (!state.passives) state.passives = {};
             if (!state.cooldowns) state.cooldowns = {};
             if (!state.usedCodes) state.usedCodes = {};
+            if (state.noCdUntil === undefined) state.noCdUntil = 0;
             if (state.totalAura === undefined) state.totalAura = state.aura || 0;
             if (state.hasEvolved === undefined) state.hasEvolved = false;
             if (state.postEvoAuraLvl === undefined) state.postEvoAuraLvl = 0;
@@ -1319,9 +1303,8 @@
         }
 
         function processTap(x, y) {
-            if (state.energy < 1) return;
+            if (!useEnergy(1)) return;
 
-            state.energy -= 1;
             const gain = getAuraPerClick();
             state.aura += gain;
             state.totalAura = (state.totalAura || 0) + gain;
@@ -1420,7 +1403,9 @@
                 if (!check.met) return;
             }
 
-            if ((u.cat === "Навчання хрюнделя" || u.cat === "Свинячий Люкс") && state.cooldowns && state.cooldowns[u.id]) {
+            const isNoCdActive = state.noCdUntil && getServerTime() < state.noCdUntil;
+
+            if (!isNoCdActive && (u.cat === "Навчання хрюнделя" || u.cat === "Свинячий Люкс") && state.cooldowns && state.cooldowns[u.id]) {
                 const nowTime = getServerTime();
                 if (nowTime < state.cooldowns[u.id]) return;
             }
@@ -1431,13 +1416,12 @@
                 const newLvl = curLvl + 1;
                 state.passives[id] = newLvl;
 
-                // Для карточки "Хованки хрюнделя" скидаємо лічильник після кожної прокачки
                 if (id === 45) {
                     if (!state.pigletGame) initMinigamesState();
                     state.pigletGame.foundSinceLastCardUpgrade = 0;
                 }
 
-                if (u.cat === "Навчання хрюнделя" || u.cat === "Свинячий Люкс") {
+                if (!isNoCdActive && (u.cat === "Навчання хрюнделя" || u.cat === "Свинячий Люкс")) {
                     const cdSec = getCooldownSeconds(newLvl, u.cat);
                     if (cdSec > 0) {
                         if (!state.cooldowns) state.cooldowns = {};
@@ -1642,7 +1626,9 @@
                 document.getElementById('energy-new-upg-btn').disabled = state.aura < energyNewCost;
             }
 
-            // Оновлення пасивних карточок
+            // Перевірка активності промокоду без КД
+            const isNoCdActive = state.noCdUntil && getServerTime() < state.noCdUntil;
+
             PASSIVE_UPGRADES.forEach(u => {
                 const count = state.passives[u.id] || 0;
                 const cost = getPassiveCost(u);
@@ -1682,7 +1668,7 @@
                 }
 
                 let cdMet = true;
-                if ((u.cat === "Навчання хрюнделя" || u.cat === "Свинячий Люкс") && state.cooldowns && state.cooldowns[u.id]) {
+                if (!isNoCdActive && (u.cat === "Навчання хрюнделя" || u.cat === "Свинячий Люкс") && state.cooldowns && state.cooldowns[u.id]) {
                     const nowTime = getServerTime();
                     if (nowTime < state.cooldowns[u.id]) {
                         cdMet = false;
@@ -1691,6 +1677,8 @@
                     } else if (btn) {
                         btn.innerText = 'Купити';
                     }
+                } else if (btn) {
+                    btn.innerText = 'Купити';
                 }
 
                 if (btn) {
@@ -1699,7 +1687,6 @@
             });
         }
 
-        // Головний ігровий цикл
         let lastTick = getServerTime();
         setInterval(() => {
             const now = getServerTime();
@@ -1731,7 +1718,6 @@
             }
         }, 100);
 
-        // Автозбереження кожні 10 сек
         setInterval(() => {
             saveGame();
         }, 10000);
