@@ -81,13 +81,17 @@ let eventSubTab = 'game'; // 'game', 'upgrades', 'lab', 'leaderboard'
 let labGame = {
     state: 'idle', // 'idle', 'playing', 'ended'
     step: 1,
-    reqType: '', // 'click_1', 'click_n', 'dont_click', 'click_gt4', 'remember'
+    reqType: '', // 'click_1', 'click_n', 'dont_click', 'click_gt4', 'remember', 'remember_check'
     reqCount: 1,
     currentClicks: 0,
     timer: 1.0,
     maxTimer: 1.0,
     rememberNumber: 0,
-    lastEarned: 0
+    checkStep: 45,
+    shownNumber: 0,
+    rememberCheckMatch: false,
+    lastEarned: 0,
+    completed100: false
 };
 
 function initEventState() {
@@ -116,7 +120,7 @@ function initEventState() {
 
 function getEnergyRegenInterval() {
     if (!state.event || !state.event.regenUpgLvl || state.event.regenUpgLvl === 0) {
-        return 120; // Default: 2 min per 1 energy
+        return 120; // За замовчуванням: 2 хв на 1 енергію
     }
     const upg = REGEN_UPGRADES[state.event.regenUpgLvl - 1];
     return upg ? upg.intervalSec : 120;
@@ -167,12 +171,38 @@ function updateEventLogic(dt) {
         labGame.timer -= dt;
 
         if (labGame.timer <= 0) {
-            // Перевірка результату при вичерпанні часу
-            if (labGame.reqType === 'dont_click') {
-                // Гравець успішно протримався і не натискав
-                completeStep();
+            labGame.timer = 0;
+
+            // Перевірка результату виконання умови після завершення таймера
+            let isStepSuccess = false;
+
+            if (labGame.reqType === 'click_1') {
+                isStepSuccess = (labGame.currentClicks === 1);
+            } else if (labGame.reqType === 'remember') {
+                // На умовах "Запам'ятай число" не потрібно натискати
+                isStepSuccess = (labGame.currentClicks === 0);
+            } else if (labGame.reqType === 'click_n') {
+                isStepSuccess = (labGame.currentClicks === labGame.reqCount);
+            } else if (labGame.reqType === 'dont_click') {
+                isStepSuccess = (labGame.currentClicks === 0);
+            } else if (labGame.reqType === 'click_gt4') {
+                isStepSuccess = (labGame.currentClicks >= 5);
+            } else if (labGame.reqType === 'remember_check') {
+                if (labGame.rememberCheckMatch) {
+                    isStepSuccess = (labGame.currentClicks === 1);
+                } else {
+                    isStepSuccess = (labGame.currentClicks === 0);
+                }
+            }
+
+            if (isStepSuccess) {
+                if (labGame.step >= 100) {
+                    // 100-ий крок є останнім
+                    endLabGame(true);
+                } else {
+                    completeStep();
+                }
             } else {
-                // Час вичерпано, а вимогу кліків не виконано
                 endLabGame(false);
             }
         }
@@ -216,10 +246,25 @@ function setupNextStep() {
     } else if (labGame.step === 2) {
         labGame.reqType = 'remember';
         labGame.rememberNumber = Math.floor(Math.random() * 90) + 10; // Рандомне двоцифрове число (10-99)
-        labGame.reqCount = 1;
+        labGame.reqCount = 0; // Натискати НЕ потрібно!
+    } else if (labGame.step === labGame.checkStep) {
+        labGame.reqType = 'remember_check';
+        const isMatch = Math.random() < 0.5; // 50% шанс того самого числа
+        labGame.rememberCheckMatch = isMatch;
+        if (isMatch) {
+            labGame.shownNumber = labGame.rememberNumber;
+            labGame.reqCount = 1;
+        } else {
+            let fakeNum;
+            do {
+                fakeNum = Math.floor(Math.random() * 90) + 10;
+            } while (fakeNum === labGame.rememberNumber);
+            labGame.shownNumber = fakeNum;
+            labGame.reqCount = 0; // Не те число -> натискати НЕ потрібно
+        }
     } else {
         // Рандомний патерн
-        const patternType = Math.floor(Math.random() * 4); // 0, 1, 2, 3
+        const patternType = Math.floor(Math.random() * 4);
         if (patternType === 0) {
             labGame.reqType = 'click_1';
             labGame.reqCount = 1;
@@ -248,6 +293,9 @@ function handleLabButtonClick() {
         state.event.energy -= 1;
         labGame.state = 'playing';
         labGame.step = 1;
+        labGame.completed100 = false;
+        // Випадковий крок для перевірки пам'яті (40-60)
+        labGame.checkStep = Math.floor(Math.random() * 21) + 40;
         setupNextStep();
         if (typeof playClickSound === 'function') playClickSound();
         renderLabButtonUI();
@@ -257,35 +305,37 @@ function handleLabButtonClick() {
     if (labGame.state === 'playing') {
         if (typeof playClickSound === 'function') playClickSound();
 
-        if (labGame.reqType === 'dont_click') {
-            // Натиснув коли було "не натискай" -> Поразка!
+        // Якщо за умовами кликати заборонено:
+        if (labGame.reqType === 'dont_click' || labGame.reqType === 'remember' || (labGame.reqType === 'remember_check' && !labGame.rememberCheckMatch)) {
             endLabGame(false);
             return;
         }
 
         labGame.currentClicks += 1;
 
-        if (labGame.reqType === 'click_1' || labGame.reqType === 'remember') {
-            completeStep();
-        } else if (labGame.reqType === 'click_n') {
-            if (labGame.currentClicks >= labGame.reqCount) {
-                completeStep();
-            } else {
-                renderLabButtonUI();
+        // Поразка при перевищенні кількості кліків:
+        if (labGame.reqType === 'click_1' || (labGame.reqType === 'remember_check' && labGame.rememberCheckMatch)) {
+            if (labGame.currentClicks > 1) {
+                endLabGame(false);
+                return;
             }
-        } else if (labGame.reqType === 'click_gt4') {
-            if (labGame.currentClicks >= 5) {
-                completeStep();
-            } else {
-                renderLabButtonUI();
+        } else if (labGame.reqType === 'click_n') {
+            if (labGame.currentClicks > labGame.reqCount) {
+                endLabGame(false);
+                return;
             }
         }
+
+        // Кнопка НЕ переходить далі до закінчення таймера
+        renderLabButtonUI();
     }
 }
 
 function endLabGame(isSuccess) {
     labGame.state = 'ended';
-    const reachedStep = labGame.step;
+    labGame.completed100 = isSuccess && (labGame.step >= 100);
+
+    const reachedStep = labGame.completed100 ? 100 : Math.max(1, labGame.step - 1);
     const earnedRaw = Math.pow(reachedStep, 2);
     const earnedTotal = earnedRaw * getChemMultiplier();
 
@@ -312,12 +362,21 @@ function renderLabButtonUI() {
         `;
         if (ring) ring.style.width = '0%';
     } else if (labGame.state === 'ended') {
-        btn.innerHTML = `
-            <div class="lab-btn-title" style="color: #e74c3c;">ГРУ ЗАВЕРШЕНО!</div>
-            <div class="lab-btn-sub">Дойшов до кроку: ${labGame.step}</div>
-            <div class="lab-btn-timer" style="color: #2ecc71;">+${formatNum(labGame.lastEarned)} 🧪</div>
-            <div style="font-size: 0.8rem; margin-top: 6px;">Натисни, щоб зіграти знов</div>
-        `;
+        if (labGame.completed100) {
+            btn.innerHTML = `
+                <div class="lab-btn-title" style="color: #f1c40f; font-size: 1.15rem; line-height: 1.3;">100-ий крок є останнім на перший день івенту.</div>
+                <div class="lab-btn-sub" style="color: #2ecc71; margin-top: 4px;">Вітаємо!</div>
+                <div class="lab-btn-timer" style="color: #2ecc71;">+${formatNum(labGame.lastEarned)} 🧪</div>
+                <div style="font-size: 0.8rem; margin-top: 6px;">Натисни, щоб зіграти знов</div>
+            `;
+        } else {
+            btn.innerHTML = `
+                <div class="lab-btn-title" style="color: #e74c3c;">ГРУ ЗАВЕРШЕНО!</div>
+                <div class="lab-btn-sub">Пройдено кроків: ${Math.max(0, labGame.step - 1)}</div>
+                <div class="lab-btn-timer" style="color: #2ecc71;">+${formatNum(labGame.lastEarned)} 🧪</div>
+                <div style="font-size: 0.8rem; margin-top: 6px;">Натисни, щоб зіграти знов</div>
+            `;
+        }
         if (ring) ring.style.width = '0%';
     } else if (labGame.state === 'playing') {
         let titleText = "";
@@ -325,26 +384,34 @@ function renderLabButtonUI() {
 
         if (labGame.reqType === 'click_1') {
             titleText = "натисни";
+            subText = labGame.currentClicks >= 1 ? "✓ Виконано! Чекай..." : "Натисни 1 раз";
         } else if (labGame.reqType === 'remember') {
             titleText = `Запам'ятай число ${labGame.rememberNumber}`;
-            subText = "Натисни!";
+            subText = "Не натискай! Чекай...";
+        } else if (labGame.reqType === 'remember_check') {
+            titleText = `Натисни якщо це число то яке ти мав запам'ятати ${labGame.shownNumber}`;
+            if (labGame.rememberCheckMatch) {
+                subText = labGame.currentClicks >= 1 ? "✓ Виконано! Чекай..." : "Натисни 1 раз!";
+            } else {
+                subText = "Не натискай! Чекай...";
+            }
         } else if (labGame.reqType === 'click_n') {
             titleText = `натисни ${labGame.reqCount} разів`;
-            subText = `Прогрес: ${labGame.currentClicks}/${labGame.reqCount}`;
+            subText = `Прогрес: ${labGame.currentClicks}/${labGame.reqCount} ${labGame.currentClicks >= labGame.reqCount ? '✓' : ''}`;
         } else if (labGame.reqType === 'dont_click') {
             titleText = "НЕ натискай";
             subText = "Зачекай вичерпання часу!";
         } else if (labGame.reqType === 'click_gt4') {
             titleText = "натисни більше 4-х разів";
-            subText = `Прогрес: ${labGame.currentClicks}/5`;
+            subText = `Прогрес: ${labGame.currentClicks}/5 ${labGame.currentClicks >= 5 ? '✓' : ''}`;
         }
 
         const pct = Math.max(0, Math.min(100, (labGame.timer / labGame.maxTimer) * 100));
 
         btn.innerHTML = `
-            <div style="font-size: 0.85rem; color: #f1c40f; font-weight: bold;">Крок ${labGame.step}</div>
-            <div class="lab-btn-title" style="font-size: 1.4rem; margin: 4px 0;">${titleText}</div>
-            ${subText ? `<div class="lab-btn-sub" style="font-size: 0.95rem;">${subText}</div>` : ''}
+            <div style="font-size: 0.85rem; color: #f1c40f; font-weight: bold;">Крок ${labGame.step}/100</div>
+            <div class="lab-btn-title" style="font-size: ${labGame.reqType === 'remember_check' ? '1.05rem' : '1.35rem'}; margin: 4px 0; line-height: 1.2;">${titleText}</div>
+            ${subText ? `<div class="lab-btn-sub" style="font-size: 0.9rem;">${subText}</div>` : ''}
             <div class="lab-btn-timer">${labGame.timer.toFixed(1)}s</div>
             <div id="lab-ring-bar" class="lab-progress-ring" style="width: ${pct}%;"></div>
         `;
@@ -371,7 +438,7 @@ function syncChemicalsLeaderboard() {
 
 function buyLabTimeUpg(targetLvl) {
     initEventState();
-    if (state.event.timeUpgLvl !== targetLvl - 1) return; // Послідовна покупка
+    if (state.event.timeUpgLvl !== targetLvl - 1) return;
     const upg = TIME_UPGRADES[targetLvl - 1];
     if (!upg) return;
 
@@ -385,7 +452,7 @@ function buyLabTimeUpg(targetLvl) {
 
 function buyLabMultUpg(targetLvl) {
     initEventState();
-    if (state.event.multUpgLvl !== targetLvl - 1) return; // Послідовна покупка
+    if (state.event.multUpgLvl !== targetLvl - 1) return;
     const upg = MULT_UPGRADES[targetLvl - 1];
     if (!upg) return;
 
@@ -399,7 +466,7 @@ function buyLabMultUpg(targetLvl) {
 
 function buyLabRegenUpg(targetLvl) {
     initEventState();
-    if (state.event.regenUpgLvl !== targetLvl - 1) return; // Послідовна покупка
+    if (state.event.regenUpgLvl !== targetLvl - 1) return;
     const upg = REGEN_UPGRADES[targetLvl - 1];
     if (!upg) return;
 
@@ -536,21 +603,21 @@ function renderEventUI() {
         html += `</div>`;
     } else if (eventSubTab === 'lab') {
         html += `<div class="upgrades-list">
-            <div class="category-title">🔬 Будівництво Лабораторії</div>`;
+            <div class="category-title">🔬 Рівні Лабораторії</div>`;
 
-        LAB_LEVELS.forEach(l => {
-            const isOwned = state.event.labLvl >= l.level;
-            const canBuy = state.event.labLvl === l.level - 1 && state.event.chemicals >= l.costChem;
+        LAB_LEVELS.forEach(lab => {
+            const isOwned = state.event.labLvl >= lab.level;
+            const canBuy = state.event.labLvl === lab.level - 1 && state.event.chemicals >= lab.costChem;
 
             html += `
                 <div class="upgrade-card ${isOwned ? 'evo-card' : ''}">
                     <div class="upgrade-img-wrap"><span style="font-size: 2rem;">🧪</span></div>
                     <div class="upgrade-info">
-                        <div class="upgrade-title">${l.level} Рівень Лабораторії</div>
-                        <div class="upgrade-desc" style="color: #2ecc71; font-weight: bold;">Дохід: +${formatNum(l.auraIncome)} аури/сек</div>
-                        <div class="upgrade-desc" style="color: var(--accent-gold);">Ціна: ${formatNum(l.costChem)} хімікатів</div>
+                        <div class="upgrade-title">Лабораторія Рівень ${lab.level}</div>
+                        <div class="upgrade-desc">Пасивний пасивний дохід: +${formatNum(lab.auraIncome)} аури/сек</div>
+                        <div class="upgrade-desc" style="color: var(--accent-gold);">Ціна: ${formatNum(lab.costChem)} хімікатів</div>
                     </div>
-                    <button class="upgrade-btn" ${isOwned ? 'disabled' : (canBuy ? '' : 'disabled')} onclick="buyLabBuilding(${l.level})">
+                    <button class="upgrade-btn" ${isOwned ? 'disabled' : (canBuy ? '' : 'disabled')} onclick="buyLabBuilding(${lab.level})">
                         ${isOwned ? 'Куплено' : 'Купити'}
                     </button>
                 </div>`;
@@ -559,18 +626,16 @@ function renderEventUI() {
         html += `</div>`;
     } else if (eventSubTab === 'leaderboard') {
         html += `
-            <div class="category-title" style="width: 100%; text-align: center;">🏆 Топ за Хімікатами Івенту</div>
-            <div id="lab-leaderboard-list" class="leaderboard-list"></div>
+            <div class="category-title" style="width: 100%; text-align: center;">🏆 Топ Лабораторії (Завжди Хімікати)</div>
+            <div id="lab-leaderboard-list" class="leaderboard-list">
+                <div class="empty-leaderboard">Завантаження топу хімікатів...</div>
+            </div>
         `;
+        setTimeout(() => renderLabLeaderboard(), 50);
     }
 
     container.innerHTML = html;
-
-    if (eventSubTab === 'game') {
-        renderLabButtonUI();
-    } else if (eventSubTab === 'leaderboard') {
-        renderLabLeaderboard();
-    }
+    renderLabButtonUI();
 }
 
 function renderLabLeaderboard() {
@@ -584,7 +649,7 @@ function renderLabLeaderboard() {
                 <div class="leaderboard-item is-player">
                     <div class="leaderboard-rank">🥇</div>
                     <div class="leaderboard-name">${state.nickname || "Ви"} (Локально)</div>
-                    <div class="leaderboard-cps">${formatNum(state.event.totalChemicals || 0)} 🧪</div>
+                    <div class="leaderboard-cps">${formatNum(state.event.totalChemicals)} 🧪</div>
                 </div>
             </div>`;
         return;
@@ -605,11 +670,11 @@ function renderLabLeaderboard() {
             });
         }
 
-        players.sort((a, b) => b.totalChemicals - a.totalChemicals);
+        players.sort((a, b) => (b.totalChemicals || 0) - (a.totalChemicals || 0));
         list.innerHTML = '';
 
         if (players.length === 0) {
-            list.innerHTML = `<div class="empty-leaderboard">Поки немає жодного результату в івенті. Будьте першим!</div>`;
+            list.innerHTML = `<div class="empty-leaderboard">Поки немає жодного результату. Будьте першим!</div>`;
             return;
         }
 
@@ -629,5 +694,7 @@ function renderLabLeaderboard() {
             `;
             list.appendChild(item);
         });
+    }).catch(err => {
+        console.warn("Помилка завантаження топ-лабораторії:", err);
     });
 }
