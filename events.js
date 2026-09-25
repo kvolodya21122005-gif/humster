@@ -23,16 +23,16 @@ function formatEventCountdown(ms) {
 
 // Покращення часу на крок (Time Upgrades)
 const TIME_UPGRADES = [
-    { level: 1, timeSec: 1.1, costChem: 5 },
-    { level: 2, timeSec: 1.2, costChem: 10 },
-    { level: 3, timeSec: 1.3, costChem: 25 },
-    { level: 4, timeSec: 1.4, costChem: 150 },
-    { level: 5, timeSec: 1.5, costChem: 500 },
-    { level: 6, timeSec: 1.6, costChem: 10000 },
-    { level: 7, timeSec: 1.7, costChem: 250000 },
-    { level: 8, timeSec: 1.8, costChem: 5000000 },
-    { level: 9, timeSec: 1.9, costChem: 15000000 },
-    { level: 10, timeSec: 2.0, costChem: 50000000 }
+    { level: 1, timeSec: 1.2, costChem: 5 },
+    { level: 2, timeSec: 1.4, costChem: 10 },
+    { level: 3, timeSec: 1.6, costChem: 25 },
+    { level: 4, timeSec: 1.8, costChem: 150 },
+    { level: 5, timeSec: 2, costChem: 500 },
+    { level: 6, timeSec: 2.2, costChem: 10000 },
+    { level: 7, timeSec: 2.4, costChem: 250000 },
+    { level: 8, timeSec: 2.6, costChem: 5000000 },
+    { level: 9, timeSec: 2.8, costChem: 15000000 },
+    { level: 10, timeSec: 3, costChem: 50000000 }
 ];
 
 // Покращення множника хімікатів (Multiplier Upgrades)
