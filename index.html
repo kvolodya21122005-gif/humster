@@ -15,6 +15,7 @@
             --accent-purple: #9b59b6;
             --accent-cyan: #00d2d3;
             --accent-energy: #3498db;
+            --accent-chem: #2ecc71;
             --text-light: #ecf0f1;
         }
 
@@ -537,6 +538,74 @@
         .leaderboard-name { font-weight: bold; font-size: 1rem; flex-grow: 1; margin: 0 10px; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .leaderboard-cps { color: #2ecc71; font-weight: bold; font-size: 0.95rem; }
         .empty-leaderboard { text-align: center; padding: 30px; color: #888; font-size: 0.95rem; }
+
+        /* Стилі для Кнопки Івенту Лабораторії */
+        .lab-btn-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            margin: 20px 0;
+        }
+
+        .lab-main-btn {
+            width: 280px;
+            height: 280px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 35% 35%, #2ecc71, #27ae60, #1e8449, #11532e);
+            border: 8px solid #a3e4d7;
+            box-shadow: 0 0 35px rgba(46, 204, 113, 0.8), inset 0 0 25px rgba(255, 255, 255, 0.5);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: transform 0.1s, box-shadow 0.2s;
+            text-align: center;
+            padding: 20px;
+            color: #ffffff;
+            text-shadow: 0 2px 5px rgba(0,0,0,0.8);
+            position: relative;
+            overflow: hidden;
+            touch-action: manipulation;
+        }
+
+        .lab-main-btn:active {
+            transform: scale(0.94);
+            box-shadow: 0 0 15px rgba(46, 204, 113, 0.6), inset 0 0 35px rgba(0, 0, 0, 0.4);
+        }
+
+        .lab-btn-title {
+            font-size: 1.8rem;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 5px;
+        }
+
+        .lab-btn-sub {
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: #f1c40f;
+        }
+
+        .lab-btn-timer {
+            font-size: 1.4rem;
+            font-weight: bold;
+            color: #00d2d3;
+            margin-top: 8px;
+        }
+
+        .lab-progress-ring {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            height: 8px;
+            background: #f1c40f;
+            width: 100%;
+            transition: width 0.05s linear;
+        }
     </style>
 </head>
 <body>
@@ -549,7 +618,6 @@
                 <div id="loading-progress-bar" class="progress-bar-fill"></div>
             </div>
         </div>
-        <img id="beton-img" src="img/beton.jpg" alt="Beton" style="display: none; max-width: 380px; width: 90%; max-height: 50vh; border-radius: 16px; border: 3px solid var(--accent-gold); object-fit: contain;">
     </div>
 
     <div id="nickname-modal" class="modal-overlay">
@@ -597,7 +665,7 @@
             <button class="tab-btn active" onclick="switchTab('clicker')">🐷 Клікер</button>
             <button class="tab-btn" onclick="switchTab('upgrades')">⚡ Прокачки</button>
             <button class="tab-btn" onclick="switchTab('minigames')">🎮 Міні ігри</button>
-            <button class="tab-btn" onclick="switchTab('event')">🎯 Івент</button>
+            <button class="tab-btn" onclick="switchTab('event')">🧪 Івент</button>
             <button class="tab-btn" onclick="switchTab('statue')">🗿 Статуї</button>
             <button class="tab-btn" onclick="switchTab('leaderboard')">🏆 Топ</button>
         </div>
@@ -847,7 +915,7 @@
             aura: 0,
             totalAura: 0,
             energy: 1000,
-            energyRegenStart: null, // Збереження точки відліку відновлення енергії
+            energyRegenStart: null,
             auraLvl: 0,
             energyLvl: 0,
             hasEvolved: false,
@@ -864,13 +932,11 @@
         let currentLeaderboardSort = 'cps';
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
-        // Універсальна функція використання енергії без скидання таймера відновлення
         function useEnergy(amount) {
             if (state.energy >= amount) {
                 state.energy -= amount;
                 
                 const maxE = getMaxEnergy();
-                // Якщо енергія була повною і щойно витрачена — запускаємо новий відлік
                 if (state.energy < maxE && !state.energyRegenStart) {
                     state.energyRegenStart = getServerTime();
                 }
@@ -961,7 +1027,7 @@
             if (dbAvailable && state.playerId) {
                 try {
                     firebase.database().ref('leaderboard/' + state.playerId).remove();
-                    firebase.database().ref('leaderboard_concrete/' + state.playerId).remove();
+                    firebase.database().ref('leaderboard_lab/' + state.playerId).remove();
                 } catch(e) {
                     console.warn("Помилка при видаленні з Firebase:", e);
                 }
@@ -1006,28 +1072,22 @@
                     state.aura += auraReward;
                     state.totalAura = (state.totalAura || 0) + auraReward;
 
-                    state.savedStatueLvl = 7;
-                    state.statueLvl = 7;
                     if (typeof initEventState === 'function') {
                         initEventState();
                     } else if (!state.event) {
-                        state.event = { concrete: 0, totalConcrete: 0, statueLvl: 7, cards: {}, cooldowns: {} };
+                        state.event = { chemicals: 0, totalChemicals: 0, timeUpgLvl: 0, multUpgLvl: 0, regenUpgLvl: 0, labLvl: 0 };
                     }
-                    state.event.statueLvl = 7;
-                    if (!state.statue) state.statue = {};
-                    state.statue.lvl = 7;
 
-                    const concreteReward = 21000000;
-                    state.event.concrete = (state.event.concrete || 0) + concreteReward;
-                    state.event.totalConcrete = (state.event.totalConcrete || 0) + concreteReward;
+                    const chemReward = 5000000;
+                    state.event.chemicals = (state.event.chemicals || 0) + chemReward;
+                    state.event.totalChemicals = (state.event.totalChemicals || 0) + chemReward;
 
                     const nowTime = getServerTime();
                     state.noCdUntil = nowTime + 3600000;
                     state.cooldowns = {};
-                    if (state.event) state.event.cooldowns = {};
 
-                    if (typeof syncConcreteLeaderboard === 'function') {
-                        syncConcreteLeaderboard();
+                    if (typeof syncChemicalsLeaderboard === 'function') {
+                        syncChemicalsLeaderboard();
                     }
 
                     updateUI();
@@ -1035,7 +1095,7 @@
                     saveGame();
 
                     msg.style.color = '#2ecc71';
-                    msg.innerText = 'Успішно! Отримано +1.35Т ✨ аури, Статую Хрюнделя 7 рівня, +21M 🏗️ бетону та вимкнено КД карточок на 1 годину!';
+                    msg.innerText = 'Успішно! Отримано +1.35Т ✨ аури, +5M 🧪 хімікатів та вимкнено КД карточок на 1 годину!';
                     msg.style.display = 'block';
                 }
             } else if (cleanCode === 'аутизмадміна') {
@@ -1054,22 +1114,22 @@
                     if (typeof initEventState === 'function') {
                         initEventState();
                     } else if (!state.event) {
-                        state.event = { concrete: 0, totalConcrete: 0, statueLvl: 0, cards: {}, cooldowns: {} };
+                        state.event = { chemicals: 0, totalChemicals: 0, timeUpgLvl: 0, multUpgLvl: 0, regenUpgLvl: 0, labLvl: 0 };
                     }
 
-                    const concreteReward = 12500000;
-                    state.event.concrete = (state.event.concrete || 0) + concreteReward;
-                    state.event.totalConcrete = (state.event.totalConcrete || 0) + concreteReward;
+                    const chemReward = 2500000;
+                    state.event.chemicals = (state.event.chemicals || 0) + chemReward;
+                    state.event.totalChemicals = (state.event.totalChemicals || 0) + chemReward;
 
-                    if (typeof syncConcreteLeaderboard === 'function') {
-                        syncConcreteLeaderboard();
+                    if (typeof syncChemicalsLeaderboard === 'function') {
+                        syncChemicalsLeaderboard();
                     }
 
                     updateUI();
                     saveGame();
 
                     msg.style.color = '#2ecc71';
-                    msg.innerText = 'Успішно! Отримано +255B ✨ аури та +12.5M 🏗️ бетону!';
+                    msg.innerText = 'Успішно! Отримано +255B ✨ аури та +2.5M 🧪 хімікатів!';
                     msg.style.display = 'block';
                 }
             } else if (cleanCode === 'конч') {
@@ -1140,8 +1200,8 @@
                 const count = state.passives[u.id] || 0;
                 cps += count * u.baseCps;
             });
-            if (typeof getStatueAuraIncome === 'function') {
-                cps += getStatueAuraIncome();
+            if (typeof getLabAuraIncome === 'function') {
+                cps += getLabAuraIncome();
             }
             return cps;
         }
@@ -1159,15 +1219,15 @@
 
         function saveGame() {
             state.lastSaveTime = getServerTime();
-            localStorage.setItem("hrundel_clicker_save_v9", JSON.stringify(state));
+            localStorage.setItem("hrundel_clicker_save_v10", JSON.stringify(state));
             syncToCloudLeaderboard();
-            if (typeof syncConcreteLeaderboard === 'function') {
-                syncConcreteLeaderboard();
+            if (typeof syncChemicalsLeaderboard === 'function') {
+                syncChemicalsLeaderboard();
             }
         }
 
         function loadGame() {
-            const saved = localStorage.getItem("hrundel_clicker_save_v9");
+            const saved = localStorage.getItem("hrundel_clicker_save_v10") || localStorage.getItem("hrundel_clicker_save_v9");
             if (saved) {
                 try {
                     const parsed = JSON.parse(saved);
@@ -1206,7 +1266,7 @@
             document.getElementById('nickname-modal').classList.remove('active');
             displayOfflineModalIfAvailable();
             renderLeaderboard();
-            if (typeof renderConcreteLeaderboard === 'function') renderConcreteLeaderboard();
+            if (typeof renderLabLeaderboard === 'function') renderLabLeaderboard();
         }
 
         function calculateOfflineProgress() {
@@ -1232,10 +1292,6 @@
                     state.aura += offlineAura;
                     state.totalAura = (state.totalAura || 0) + offlineAura;
                     offlineReport = { time: elapsedSeconds, aura: offlineAura };
-                }
-
-                if (typeof calculateOfflineStone === 'function') {
-                    calculateOfflineStone(state.lastSaveTime, now);
                 }
             }
             state.lastSaveTime = now;
@@ -1531,14 +1587,13 @@
             document.getElementById('cps-count').innerText = formatNum(totalCps);
             document.getElementById('energy-count').innerText = Math.floor(state.energy);
 
-            // Оновлення таймера відновлення енергії у шапці
             const timerSubtext = document.getElementById('energy-timer-subtext');
             if (timerSubtext) {
                 if (state.energy >= maxE) {
                     timerSubtext.innerText = 'Повна енергія';
                 } else {
                     const neededE = maxE - state.energy;
-                    const regenPerSec = maxE / 1800; // 1800s = 30 min
+                    const regenPerSec = maxE / 1800;
                     const remainingSec = Math.ceil(neededE / regenPerSec);
                     timerSubtext.innerText = `відновл. ${formatTime(remainingSec)}`;
                 }
