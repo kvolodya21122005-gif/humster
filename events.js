@@ -98,7 +98,7 @@ function initEventState() {
     if (!state.event || state.event.eventId !== CURRENT_EVENT_ID) {
         state.event = {
             eventId: CURRENT_EVENT_ID,
-            energy: 100,
+            energy: 20,
             lastEnergyTime: getCurrentTime(),
             chemicals: 0,
             totalChemicals: 0,
@@ -108,7 +108,7 @@ function initEventState() {
             labLvl: 0
         };
     }
-    if (state.event.energy === undefined) state.event.energy = 100;
+    if (state.event.energy === undefined) state.event.energy = 20;
     if (state.event.lastEnergyTime === undefined) state.event.lastEnergyTime = getCurrentTime();
     if (state.event.chemicals === undefined) state.event.chemicals = 0;
     if (state.event.totalChemicals === undefined) state.event.totalChemicals = 0;
@@ -151,15 +151,15 @@ function getLabAuraIncome() {
 function updateEventLogic(dt) {
     initEventState();
 
-    // Відновлення енергії кнопки (до 100)
-    if (state.event.energy < 100) {
+    // Відновлення енергії кнопки (до 20)
+    if (state.event.energy < 20) {
         const interval = getEnergyRegenInterval();
         const now = getCurrentTime();
         const elapsed = (now - state.event.lastEnergyTime) / 1000;
 
         if (elapsed >= interval) {
             const added = Math.floor(elapsed / interval);
-            state.event.energy = Math.min(100, state.event.energy + added);
+            state.event.energy = Math.min(20, state.event.energy + added);
             state.event.lastEnergyTime = now - ((elapsed % interval) * 1000);
         }
     } else {
