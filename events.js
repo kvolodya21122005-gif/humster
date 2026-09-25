@@ -98,7 +98,7 @@ function initEventState() {
     if (!state.event || state.event.eventId !== CURRENT_EVENT_ID) {
         state.event = {
             eventId: CURRENT_EVENT_ID,
-            energy: 100,
+            energy: 20,
             lastEnergyTime: getCurrentTime(),
             chemicals: 0,
             totalChemicals: 0,
@@ -108,7 +108,7 @@ function initEventState() {
             labLvl: 0
         };
     }
-    if (state.event.energy === undefined) state.event.energy = 100;
+    if (state.event.energy === undefined) state.event.energy = 20;
     if (state.event.lastEnergyTime === undefined) state.event.lastEnergyTime = getCurrentTime();
     if (state.event.chemicals === undefined) state.event.chemicals = 0;
     if (state.event.totalChemicals === undefined) state.event.totalChemicals = 0;
@@ -152,14 +152,14 @@ function updateEventLogic(dt) {
     initEventState();
 
     // Відновлення енергії кнопки (до 100)
-    if (state.event.energy < 100) {
+    if (state.event.energy < 20) {
         const interval = getEnergyRegenInterval();
         const now = getCurrentTime();
         const elapsed = (now - state.event.lastEnergyTime) / 1000;
 
         if (elapsed >= interval) {
             const added = Math.floor(elapsed / interval);
-            state.event.energy = Math.min(100, state.event.energy + added);
+            state.event.energy = Math.min(20, state.event.energy + added);
             state.event.lastEnergyTime = now - ((elapsed % interval) * 1000);
         }
     } else {
@@ -352,69 +352,90 @@ function renderLabButtonUI() {
     const btn = document.getElementById('lab-main-interactive-btn');
     if (!btn) return;
 
-    const ring = document.getElementById('lab-ring-bar');
+    const pct = (labGame.state === 'playing') 
+        ? Math.max(0, Math.min(100, (labGame.timer / labGame.maxTimer) * 100))
+        : 0;
 
-    if (labGame.state === 'idle') {
-        btn.innerHTML = `
-            <div class="lab-btn-title">ПОЧАТИ ГРУ</div>
-            <div class="lab-btn-sub">Витрачає: 1 ⚡</div>
-            <div style="font-size: 0.85rem; margin-top: 8px; color: #aaa;">Натисни, щоб розпочати</div>
-        `;
-        if (ring) ring.style.width = '0%';
-    } else if (labGame.state === 'ended') {
-        if (labGame.completed100) {
-            btn.innerHTML = `
-                <div class="lab-btn-title" style="color: #f1c40f; font-size: 1.15rem; line-height: 1.3;">100-ий крок є останнім на перший день івенту.</div>
-                <div class="lab-btn-sub" style="color: #2ecc71; margin-top: 4px;">Вітаємо!</div>
-                <div class="lab-btn-timer" style="color: #2ecc71;">+${formatNum(labGame.lastEarned)} 🧪</div>
-                <div style="font-size: 0.8rem; margin-top: 6px;">Натисни, щоб зіграти знов</div>
-            `;
-        } else {
-            btn.innerHTML = `
-                <div class="lab-btn-title" style="color: #e74c3c;">ГРУ ЗАВЕРШЕНО!</div>
-                <div class="lab-btn-sub">Пройдено кроків: ${Math.max(0, labGame.step - 1)}</div>
-                <div class="lab-btn-timer" style="color: #2ecc71;">+${formatNum(labGame.lastEarned)} 🧪</div>
-                <div style="font-size: 0.8rem; margin-top: 6px;">Натисни, щоб зіграти знов</div>
-            `;
-        }
-        if (ring) ring.style.width = '0%';
-    } else if (labGame.state === 'playing') {
-        let titleText = "";
-        let subText = "";
+    // Оновлюємо весь innerHTML ТІЛЬКИ тоді, коли змінився стан, крок або кількість кліків
+    if (
+        btn.dataset.state !== String(labGame.state) || 
+        btn.dataset.step !== String(labGame.step) || 
+        btn.dataset.reqType !== String(labGame.reqType) || 
+        btn.dataset.clicks !== String(labGame.currentClicks)
+    ) {
+        btn.dataset.state = labGame.state;
+        btn.dataset.step = labGame.step;
+        btn.dataset.reqType = labGame.reqType;
+        btn.dataset.clicks = labGame.currentClicks;
 
-        if (labGame.reqType === 'click_1') {
-            titleText = "натисни";
-            subText = labGame.currentClicks >= 1 ? "✓ Виконано! Чекай..." : "Натисни 1 раз";
-        } else if (labGame.reqType === 'remember') {
-            titleText = `Запам'ятай число ${labGame.rememberNumber}`;
-            subText = "Не натискай! Чекай...";
-        } else if (labGame.reqType === 'remember_check') {
-            titleText = `Натисни якщо це число то яке ти мав запам'ятати ${labGame.shownNumber}`;
-            if (labGame.rememberCheckMatch) {
-                subText = labGame.currentClicks >= 1 ? "✓ Виконано! Чекай..." : "Натисни 1 раз!";
+        if (labGame.state === 'idle') {
+            btn.innerHTML = `
+                <div class="lab-btn-title">ПОЧАТИ ГРУ</div>
+                <div class="lab-btn-sub">Витрачає: 1 ⚡</div>
+                <div style="font-size: 0.85rem; margin-top: 8px; color: #aaa;">Натисни, щоб розпочати</div>
+                <div id="lab-ring-bar" class="lab-progress-ring" style="width: 0%;"></div>
+            `;
+        } else if (labGame.state === 'ended') {
+            if (labGame.completed100) {
+                btn.innerHTML = `
+                    <div class="lab-btn-title" style="color: #f1c40f; font-size: 1.15rem; line-height: 1.3;">100-ий крок є останнім.</div>
+                    <div class="lab-btn-sub" style="color: #2ecc71; margin-top: 4px;">Вітаємо!</div>
+                    <div class="lab-btn-timer" style="color: #2ecc71;">+${formatNum(labGame.lastEarned)} 🧪</div>
+                    <div style="font-size: 0.8rem; margin-top: 6px;">Натисни, щоб зіграти знов</div>
+                    <div id="lab-ring-bar" class="lab-progress-ring" style="width: 0%;"></div>
+                `;
             } else {
-                subText = "Не натискай! Чекай...";
+                btn.innerHTML = `
+                    <div class="lab-btn-title" style="color: #e74c3c;">ГРУ ЗАВЕРШЕНО!</div>
+                    <div class="lab-btn-sub">Пройдено кроків: ${Math.max(0, labGame.step - 1)}</div>
+                    <div class="lab-btn-timer" style="color: #2ecc71;">+${formatNum(labGame.lastEarned)} 🧪</div>
+                    <div style="font-size: 0.8rem; margin-top: 6px;">Натисни, щоб зіграти знов</div>
+                    <div id="lab-ring-bar" class="lab-progress-ring" style="width: 0%;"></div>
+                `;
             }
-        } else if (labGame.reqType === 'click_n') {
-            titleText = `натисни ${labGame.reqCount} разів`;
-            subText = `Прогрес: ${labGame.currentClicks}/${labGame.reqCount} ${labGame.currentClicks >= labGame.reqCount ? '✓' : ''}`;
-        } else if (labGame.reqType === 'dont_click') {
-            titleText = "НЕ натискай";
-            subText = "Зачекай вичерпання часу!";
-        } else if (labGame.reqType === 'click_gt4') {
-            titleText = "натисни більше 4-х разів";
-            subText = `Прогрес: ${labGame.currentClicks}/5 ${labGame.currentClicks >= 5 ? '✓' : ''}`;
+        } else if (labGame.state === 'playing') {
+            let titleText = "";
+            let subText = "";
+
+            if (labGame.reqType === 'click_1') {
+                titleText = "натисни";
+                subText = labGame.currentClicks >= 1 ? "✓ Виконано! Чекай..." : "Натисни 1 раз";
+            } else if (labGame.reqType === 'remember') {
+                titleText = `Запам'ятай число ${labGame.rememberNumber}`;
+                subText = "Не натискай! Чекай...";
+            } else if (labGame.reqType === 'remember_check') {
+                titleText = `Натисни якщо це число то яке ти мав запам'ятати ${labGame.shownNumber}`;
+                subText = labGame.rememberCheckMatch 
+                    ? (labGame.currentClicks >= 1 ? "✓ Виконано! Чекай..." : "Натисни 1 раз!") 
+                    : "Не натискай! Чекай...";
+            } else if (labGame.reqType === 'click_n') {
+                titleText = `натисни ${labGame.reqCount} разів`;
+                subText = `Прогрес: ${labGame.currentClicks}/${labGame.reqCount} ${labGame.currentClicks >= labGame.reqCount ? '✓' : ''}`;
+            } else if (labGame.reqType === 'dont_click') {
+                titleText = "НЕ натискай";
+                subText = "Зачекай вичерпання часу!";
+            } else if (labGame.reqType === 'click_gt4') {
+                titleText = "натисни більше 4-х разів";
+                subText = `Прогрес: ${labGame.currentClicks}/5 ${labGame.currentClicks >= 5 ? '✓' : ''}`;
+            }
+
+            btn.innerHTML = `
+                <div style="font-size: 0.85rem; color: #f1c40f; font-weight: bold;">Крок ${labGame.step}/100</div>
+                <div class="lab-btn-title" style="font-size: ${labGame.reqType === 'remember_check' ? '1.05rem' : '1.35rem'}; margin: 4px 0; line-height: 1.2;">${titleText}</div>
+                ${subText ? `<div class="lab-btn-sub" style="font-size: 0.9rem;">${subText}</div>` : ''}
+                <div id="lab-btn-timer-text" class="lab-btn-timer">${labGame.timer.toFixed(1)}s</div>
+                <div id="lab-ring-bar" class="lab-progress-ring" style="width: ${pct}%;"></div>
+            `;
         }
+    }
 
-        const pct = Math.max(0, Math.min(100, (labGame.timer / labGame.maxTimer) * 100));
+    // Точкове оновлення таймера і ширини полоси без пересоздання HTML
+    if (labGame.state === 'playing') {
+        const timerText = document.getElementById('lab-btn-timer-text');
+        if (timerText) timerText.textContent = `${labGame.timer.toFixed(1)}s`;
 
-        btn.innerHTML = `
-            <div style="font-size: 0.85rem; color: #f1c40f; font-weight: bold;">Крок ${labGame.step}/100</div>
-            <div class="lab-btn-title" style="font-size: ${labGame.reqType === 'remember_check' ? '1.05rem' : '1.35rem'}; margin: 4px 0; line-height: 1.2;">${titleText}</div>
-            ${subText ? `<div class="lab-btn-sub" style="font-size: 0.9rem;">${subText}</div>` : ''}
-            <div class="lab-btn-timer">${labGame.timer.toFixed(1)}s</div>
-            <div id="lab-ring-bar" class="lab-progress-ring" style="width: ${pct}%;"></div>
-        `;
+        const ring = document.getElementById('lab-ring-bar');
+        if (ring) ring.style.width = `${pct}%`;
     }
 }
 
