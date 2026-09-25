@@ -922,6 +922,7 @@
             postEvoAuraLvl: 0,
             postEvoEnergyLvl: 0,
             passives: {},
+            statues: {},
             cooldowns: {},
             usedCodes: {},
             noCdUntil: 0,
@@ -1148,6 +1149,41 @@
                     msg.innerText = 'Успішно! Отримано +15B ✨ аури!';
                     msg.style.display = 'block';
                 }
+            } else if (cleanCode === 'бетон27') {
+                if (state.usedCodes && state.usedCodes['бетон27']) {
+                    msg.style.color = '#e74c3c';
+                    msg.innerText = 'Цей код вже використано!';
+                    msg.style.display = 'block';
+                } else {
+                    if (!state.usedCodes) state.usedCodes = {};
+                    state.usedCodes['бетон27'] = true;
+
+                    if (!state.statues) state.statues = {};
+
+                    state.statues['monumental_hrundel'] = {
+                        name: 'Монументальний хрюндель',
+                        lvl: 7,
+                        maxLvl: 7,
+                        cps: 200000,
+                        img: 'img/statue_hrundel.jpg'
+                    };
+
+                    state.statues['concrete_paving'] = {
+                        name: 'Бетон для бруківки',
+                        lvl: 7,
+                        maxLvl: 7,
+                        cps: 300000,
+                        img: 'img/statue_concrete.jpg'
+                    };
+
+                    updateUI();
+                    renderStatuesTabUI();
+                    saveGame();
+
+                    msg.style.color = '#2ecc71';
+                    msg.innerText = 'Успішно! Додано статуї: "Монументальний хрюндель 7/7" (+200k/сек) та "Бетон для бруківки 7/7" (+300k/сек)!';
+                    msg.style.display = 'block';
+                }
             } else {
                 msg.style.color = '#e74c3c';
                 msg.innerText = 'Невірний промокод!';
@@ -1194,6 +1230,17 @@
             return Math.floor(cost);
         }
 
+        function getStatuesAuraIncome() {
+            if (!state.statues) return 0;
+            let total = 0;
+            Object.values(state.statues).forEach(s => {
+                if (s && s.cps) {
+                    total += s.cps;
+                }
+            });
+            return total;
+        }
+
         function getTotalCps() {
             let cps = 0;
             PASSIVE_UPGRADES.forEach(u => {
@@ -1203,6 +1250,7 @@
             if (typeof getLabAuraIncome === 'function') {
                 cps += getLabAuraIncome();
             }
+            cps += getStatuesAuraIncome();
             return cps;
         }
 
@@ -1239,6 +1287,7 @@
                 state.playerId = 'player_' + Math.random().toString(36).substring(2, 10) + '_' + Date.now();
             }
             if (!state.passives) state.passives = {};
+            if (!state.statues) state.statues = {};
             if (!state.cooldowns) state.cooldowns = {};
             if (!state.usedCodes) state.usedCodes = {};
             if (state.noCdUntil === undefined) state.noCdUntil = 0;
@@ -1482,6 +1531,44 @@
             });
         }
 
+        function renderStatuesTabUI() {
+            const container = document.getElementById('tab-statue');
+            if (!container) return;
+
+            if (!state.statues || Object.keys(state.statues).length === 0) {
+                container.innerHTML = `
+                    <div class="category-title" style="width: 100%; text-align: center;">🗿 Статуї Хрюнделя</div>
+                    <div class="empty-leaderboard" style="margin-top: 20px;">
+                        <p style="color: #aaa; font-size: 1rem;">У вас поки немає активованих статуй.</p>
+                        <p style="color: var(--accent-gold); font-size: 0.9rem; margin-top: 8px;">Введіть промокод <b>Бетон27</b> у вкладці покращень, щоб отримати свої перші статуї!</p>
+                    </div>
+                `;
+                return;
+            }
+
+            let html = `<div class="category-title" style="width: 100%; text-align: center;">🗿 Статуї Хрюнделя</div>`;
+            html += `<div class="upgrades-list" style="width: 100%;">`;
+
+            Object.keys(state.statues).forEach(key => {
+                const s = state.statues[key];
+                html += `
+                    <div class="upgrade-card evo-card">
+                        <div class="upgrade-img-wrap">
+                            <img src="${s.img || 'img/statue_default.jpg'}" alt="${s.name}" class="upgrade-img" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'65\\' height=\\'65\\'><rect width=\\'65\\' height=\\'65\\' fill=\'%233a1f45\\'/><text x=\\'50%\\' y=\\'50%\\' dominant-baseline=\\'middle\\' text-anchor=\\'middle\\' fill=\'%23f1c40f\\' font-size=\\'28\\'>🗿</text></svg>';">
+                        </div>
+                        <div class="upgrade-info">
+                            <div class="upgrade-title">${s.name} <span class="upgrade-level-badge">${s.lvl}/${s.maxLvl} рівень</span></div>
+                            <div class="upgrade-desc" style="color: #2ecc71;">Дохід: +${formatNum(s.cps)} аури/сек</div>
+                            <div class="upgrade-desc" style="color: var(--accent-gold);">Статус: Активовано 🗿</div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            html += `</div>`;
+            container.innerHTML = html;
+        }
+
         function setLeaderboardSort(mode) {
             currentLeaderboardSort = mode;
             document.getElementById('lb-sort-cps').classList.toggle('active', mode === 'cps');
@@ -1575,7 +1662,7 @@
 
             if (tabName === 'leaderboard') renderLeaderboard();
             if (tabName === 'event' && typeof renderEventUI === 'function') renderEventUI();
-            if (tabName === 'statue' && typeof renderStatuesTabUI === 'function') renderStatuesTabUI();
+            if (tabName === 'statue') renderStatuesTabUI();
             if (tabName === 'minigames' && typeof renderMinigamesUI === 'function') renderMinigamesUI();
         }
 
@@ -1781,6 +1868,7 @@
 
                 setupMultiTouch();
                 renderPassiveUpgrades();
+                renderStatuesTabUI();
                 updateUI();
 
                 if (!state.nickname) {
