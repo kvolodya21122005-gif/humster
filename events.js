@@ -217,7 +217,7 @@ function updateEventCountersUI() {
     const chemEl = document.getElementById('lab-chem-val');
     const timerEl = document.getElementById('lab-event-timer');
 
-    if (energyEl) energyEl.textContent = `⚡ Енергія кнопки: ${Math.floor(state.event.energy)}/100`;
+    if (energyEl) energyEl.textContent = `⚡ Енергія кнопки: ${Math.floor(state.event.energy)}/20`;
     if (chemEl) chemEl.textContent = `🧪 Хімікати: ${formatNum(state.event.chemicals)}`;
 
     if (timerEl) {
