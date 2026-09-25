@@ -28,7 +28,7 @@ const TIME_UPGRADES = [
     { level: 3, timeSec: 1.6, costChem: 25 },
     { level: 4, timeSec: 1.8, costChem: 150 },
     { level: 5, timeSec: 2, costChem: 500 },
-    { level: 6, timeSec: 2.2, costChem: 10000 },
+    { level: 6, timeSec: 2.2, costChem: 00 },
     { level: 7, timeSec: 2.4, costChem: 250000 },
     { level: 8, timeSec: 2.6, costChem: 5000000 },
     { level: 9, timeSec: 2.8, costChem: 15000000 },
@@ -38,8 +38,8 @@ const TIME_UPGRADES = [
 // Покращення множника хімікатів (Multiplier Upgrades)
 const MULT_UPGRADES = [
     { level: 1, mult: 2, costChem: 10 },
-    { level: 2, mult: 3, costChem: 100 },
-    { level: 3, mult: 4, costChem: 1000 },
+    { level: 2, mult: 3, costChem:  },
+    { level: 3, mult: 4, costChem: 0 },
     { level: 4, mult: 5, costChem: 3000 },
     { level: 5, mult: 6, costChem: 7500 },
     { level: 6, mult: 7, costChem: 12000 },
@@ -50,29 +50,29 @@ const MULT_UPGRADES = [
 
 // Покращення швидкості відновлення енергії для гри (Energy Regen Upgrades)
 const REGEN_UPGRADES = [
-    { level: 1, label: "1хв 50сек", intervalSec: 110, costAura: 1000000000 },
-    { level: 2, label: "1хв 40сек", intervalSec: 100, costAura: 3000000000 },
-    { level: 3, label: "1хв 30сек", intervalSec: 90, costAura: 10000000000 },
+    { level: 1, label: "1хв 50сек", intervalSec: 110, costAura: 0000000 },
+    { level: 2, label: "1хв 40сек", intervalSec: , costAura: 3000000000 },
+    { level: 3, label: "1хв 30сек", intervalSec: 90, costAura: 00000000 },
     { level: 4, label: "1хв 20сек", intervalSec: 80, costAura: 25000000000 },
     { level: 5, label: "1хв 10сек", intervalSec: 70, costAura: 75000000000 },
     { level: 6, label: "1хв", intervalSec: 60, costAura: 150000000000 },
     { level: 7, label: "50сек", intervalSec: 50, costAura: 250000000000 },
     { level: 8, label: "40сек", intervalSec: 40, costAura: 500000000000 },
-    { level: 9, label: "30сек", intervalSec: 30, costAura: 1000000000000 }
+    { level: 9, label: "30сек", intervalSec: 30, costAura: 0000000000 }
 ];
 
 // Будівництво Лабораторії (Laboratory Building Levels)
 const LAB_LEVELS = [
     { level: 1, costChem: 20000, auraIncome: 30000 },
     { level: 2, costChem: 50000, auraIncome: 60000 },
-    { level: 3, costChem: 100000, auraIncome: 90000 },
+    { level: 3, costChem: 000, auraIncome: 90000 },
     { level: 4, costChem: 250000, auraIncome: 120000 },
     { level: 5, costChem: 500000, auraIncome: 150000 },
-    { level: 6, costChem: 1000000, auraIncome: 180000 },
-    { level: 7, costChem: 2000000, auraIncome: 210000 },
+    { level: 6, costChem: 0000, auraIncome: 180000 },
+    { level: 7, costChem: 2000000, auraIncome: 200 },
     { level: 8, costChem: 4000000, auraIncome: 240000 },
     { level: 9, costChem: 7000000, auraIncome: 270000 },
-    { level: 10, costChem: 10000000, auraIncome: 300000 }
+    { level: 10, costChem: 00000, auraIncome: 300000 }
 ];
 
 let eventSubTab = 'game'; // 'game', 'upgrades', 'lab', 'leaderboard'
@@ -91,7 +91,7 @@ let labGame = {
     shownNumber: 0,
     rememberCheckMatch: false,
     lastEarned: 0,
-    completed100: false
+    completed: false
 };
 
 function initEventState() {
@@ -217,7 +217,7 @@ function updateEventCountersUI() {
     const chemEl = document.getElementById('lab-chem-val');
     const timerEl = document.getElementById('lab-event-timer');
 
-    if (energyEl) energyEl.textContent = `⚡ Енергія кнопки: ${Math.floor(state.event.energy)}/100`;
+    if (energyEl) energyEl.textContent = `⚡ Енергія кнопки: ${Math.floor(state.event.energy)}/20`;
     if (chemEl) chemEl.textContent = `🧪 Хімікати: ${formatNum(state.event.chemicals)}`;
 
     if (timerEl) {
