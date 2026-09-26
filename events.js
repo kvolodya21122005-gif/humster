@@ -45,20 +45,33 @@ const MULT_UPGRADES = [
     { level: 6, mult: 7, costChem: 12000 },
     { level: 7, mult: 8, costChem: 20000 },
     { level: 8, mult: 9, costChem: 30000 },
-    { level: 9, mult: 10, costChem: 45000 }
+    { level: 9, mult: 10, costChem: 45000 },
+    { level: 10, mult: 11, costChem: 60000 },
+    { level: 11, mult: 12, costChem: 80000 },
+    { level: 12, mult: 13, costChem: 100000 },
+    { level: 13, mult: 14, costChem: 125000 },
+    { level: 14, mult: 15, costChem: 160000 },
+    { level: 15, mult: 16, costChem: 200000 }
 ];
 
 // Покращення швидкості відновлення енергії для гри (Energy Regen Upgrades)
+// Початковий час відновлення: 20хв (1200сек). Кожен рівень зменшує час на 1хв (60сек).
 const REGEN_UPGRADES = [
-    { level: 1, label: "1хв 50сек", intervalSec: 110, costAura: 1000000000 },
-    { level: 2, label: "1хв 40сек", intervalSec: 100, costAura: 3000000000 },
-    { level: 3, label: "1хв 30сек", intervalSec: 90, costAura: 10000000000 },
-    { level: 4, label: "1хв 20сек", intervalSec: 80, costAura: 25000000000 },
-    { level: 5, label: "1хв 10сек", intervalSec: 70, costAura: 75000000000 },
-    { level: 6, label: "1хв", intervalSec: 60, costAura: 150000000000 },
-    { level: 7, label: "50сек", intervalSec: 50, costAura: 250000000000 },
-    { level: 8, label: "40сек", intervalSec: 40, costAura: 500000000000 },
-    { level: 9, label: "30сек", intervalSec: 30, costAura: 1000000000000 }
+    { level: 1, label: "19хв", intervalSec: 1140, costAura: 1000000000 },
+    { level: 2, label: "18хв", intervalSec: 1080, costAura: 3000000000 },
+    { level: 3, label: "17хв", intervalSec: 1020, costAura: 10000000000 },
+    { level: 4, label: "16хв", intervalSec: 960, costAura: 25000000000 },
+    { level: 5, label: "15хв", intervalSec: 900, costAura: 75000000000 },
+    { level: 6, label: "14хв", intervalSec: 840, costAura: 120000000000 },
+    { level: 7, label: "13хв", intervalSec: 780, costAura: 200000000000 },
+    { level: 8, label: "12хв", intervalSec: 720, costAura: 300000000000 },
+    { level: 9, label: "11хв", intervalSec: 660, costAura: 400000000000 },
+    { level: 10, label: "10хв", intervalSec: 600, costAura: 500000000000 },
+    { level: 11, label: "9хв", intervalSec: 540, costAura: 600000000000 },
+    { level: 12, label: "8хв", intervalSec: 480, costAura: 800000000000 },
+    { level: 13, label: "7хв", intervalSec: 420, costAura: 1000000000000 },
+    { level: 14, label: "6хв", intervalSec: 360, costAura: 1200000000000 },
+    { level: 15, label: "5хв", intervalSec: 300, costAura: 1500000000000 }
 ];
 
 // Будівництво Лабораторії (Laboratory Building Levels)
@@ -98,7 +111,7 @@ function initEventState() {
     if (!state.event || state.event.eventId !== CURRENT_EVENT_ID) {
         state.event = {
             eventId: CURRENT_EVENT_ID,
-            energy: 20,
+            energy: 10,
             lastEnergyTime: getCurrentTime(),
             chemicals: 0,
             totalChemicals: 0,
@@ -108,7 +121,7 @@ function initEventState() {
             labLvl: 0
         };
     }
-    if (state.event.energy === undefined) state.event.energy = 20;
+    if (state.event.energy === undefined || state.event.energy > 10) state.event.energy = 10;
     if (state.event.lastEnergyTime === undefined) state.event.lastEnergyTime = getCurrentTime();
     if (state.event.chemicals === undefined) state.event.chemicals = 0;
     if (state.event.totalChemicals === undefined) state.event.totalChemicals = 0;
@@ -120,10 +133,10 @@ function initEventState() {
 
 function getEnergyRegenInterval() {
     if (!state.event || !state.event.regenUpgLvl || state.event.regenUpgLvl === 0) {
-        return 120; // За замовчуванням: 2 хв на 1 енергію
+        return 1200; // 20 хвилин (1200 секунд) за замовчуванням
     }
     const upg = REGEN_UPGRADES[state.event.regenUpgLvl - 1];
-    return upg ? upg.intervalSec : 120;
+    return upg ? upg.intervalSec : 1200;
 }
 
 function getStepTime() {
@@ -151,18 +164,19 @@ function getLabAuraIncome() {
 function updateEventLogic(dt) {
     initEventState();
 
-    // Відновлення енергії кнопки (до 20)
-    if (state.event.energy < 20) {
+    // Відновлення енергії кнопки (максимум 10)
+    if (state.event.energy < 10) {
         const interval = getEnergyRegenInterval();
         const now = getCurrentTime();
         const elapsed = (now - state.event.lastEnergyTime) / 1000;
 
         if (elapsed >= interval) {
             const added = Math.floor(elapsed / interval);
-            state.event.energy = Math.min(20, state.event.energy + added);
+            state.event.energy = Math.min(10, state.event.energy + added);
             state.event.lastEnergyTime = now - ((elapsed % interval) * 1000);
         }
     } else {
+        if (state.event.energy > 10) state.event.energy = 10;
         state.event.lastEnergyTime = getCurrentTime();
     }
 
@@ -217,7 +231,7 @@ function updateEventCountersUI() {
     const chemEl = document.getElementById('lab-chem-val');
     const timerEl = document.getElementById('lab-event-timer');
 
-    if (energyEl) energyEl.textContent = `⚡ Енергія кнопки: ${Math.floor(state.event.energy)}/20`;
+    if (energyEl) energyEl.textContent = `⚡ Енергія кнопки: ${Math.floor(state.event.energy)}/10`;
     if (chemEl) chemEl.textContent = `🧪 Хімікати: ${formatNum(state.event.chemicals)}`;
 
     if (timerEl) {
@@ -519,7 +533,7 @@ function renderEventUI() {
                 ${timerText}
             </div>
             <div style="display: flex; justify-content: space-around; margin-top: 10px; font-weight: bold; font-size: 0.95rem;">
-                <span id="lab-energy-val" style="color: #3498db;">⚡ Енергія кнопки: ${Math.floor(state.event.energy)}/100</span>
+                <span id="lab-energy-val" style="color: #3498db;">⚡ Енергія кнопки: ${Math.floor(state.event.energy)}/10</span>
                 <span id="lab-chem-val" style="color: #2ecc71;">🧪 Хімікати: ${formatNum(state.event.chemicals)}</span>
             </div>
         </div>
@@ -614,7 +628,7 @@ function renderEventUI() {
                     <div class="upgrade-img-wrap"><span style="font-size: 2rem;">🧪</span></div>
                     <div class="upgrade-info">
                         <div class="upgrade-title">Лабораторія Рівень ${lab.level}</div>
-                        <div class="upgrade-desc">Пасивний пасивний дохід: +${formatNum(lab.auraIncome)} аури/сек</div>
+                        <div class="upgrade-desc">Пасивний дохід: +${formatNum(lab.auraIncome)} аури/сек</div>
                         <div class="upgrade-desc" style="color: var(--accent-gold);">Ціна: ${formatNum(lab.costChem)} хімікатів</div>
                     </div>
                     <button class="upgrade-btn" ${isOwned ? 'disabled' : (canBuy ? '' : 'disabled')} onclick="buyLabBuilding(${lab.level})">
