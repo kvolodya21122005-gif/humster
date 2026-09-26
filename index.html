@@ -336,6 +336,43 @@
             pointer-events: none;
         }
 
+        .piglet-grid {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 8px;
+            width: 100%;
+            margin-top: 15px;
+        }
+
+        .piglet-cell {
+            aspect-ratio: 1;
+            background: #27ae60;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            cursor: pointer;
+            border: 2px solid #2ecc71;
+            box-shadow: 0 3px 6px rgba(0,0,0,0.3);
+            transition: transform 0.1s;
+        }
+
+        .piglet-cell:active {
+            transform: scale(0.92);
+        }
+
+        .piglet-cell.opened {
+            background: #1e1730;
+            border-color: #555;
+            cursor: default;
+        }
+
+        .piglet-cell.has-pig {
+            background: #f1c40f;
+            border-color: #f39c12;
+        }
+
         .floating-text {
             position: absolute;
             font-weight: 900;
@@ -669,7 +706,7 @@
             <button class="tab-btn" onclick="switchTab('leaderboard')">🏆 Топ</button>
         </div>
 
-        <div id="tab-clicker" class="tab-content active">
+        <div id="tab-clicker" class="tab-content active" onclick="handlePigClick(event)">
             <div class="clicker-container">
                 <div class="energy-bar-wrap">
                     <div id="energy-bar-fill" class="energy-bar-fill"></div>
@@ -928,19 +965,54 @@
             lastSaveTime: Date.now()
         };
 
-        let offlineReport = null;
         let currentLeaderboardSort = 'cps';
-        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        let audioCtx = null;
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+
+        function playClickSound() {
+            try {
+                initAudio();
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+                const now = audioCtx.currentTime;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(250 + Math.random() * 80, now);
+                osc.frequency.exponentialRampToValueAtTime(550 + Math.random() * 100, now + 0.08);
+
+                gain.gain.setValueAtTime(0.25, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.08);
+
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                osc.start(now);
+                osc.stop(now + 0.08);
+            } catch (e) {
+                console.warn("Audio error:", e);
+            }
+        }
+
+        function getMaxEnergy() {
+            if (state.hasEvolved) {
+                return 1000 + ((state.postEvoEnergyLvl || 0) * 200);
+            }
+            return 1000 + ((state.energyLvl || 0) * 100);
+        }
 
         function useEnergy(amount) {
             if (state.energy >= amount) {
                 state.energy -= amount;
-                
                 const maxE = getMaxEnergy();
                 if (state.energy < maxE && !state.energyRegenStart) {
                     state.energyRegenStart = getServerTime();
                 }
-
                 updateUI();
                 return true;
             }
@@ -961,6 +1033,7 @@
         }
 
         function formatNum(num) {
+            if (num === undefined || num === null || isNaN(num)) return '0';
             if (num >= 1e12) return (num / 1e12).toFixed(2) + 'T';
             if (num >= 1e9) return (num / 1e9).toFixed(2) + 'B';
             if (num >= 1e6) return (num / 1e6).toFixed(2) + 'M';
@@ -970,6 +1043,7 @@
 
         function formatTime(seconds) {
             seconds = Math.floor(seconds);
+            if (seconds <= 0) return '0 сек';
             const hrs = Math.floor(seconds / 3600);
             const mins = Math.floor((seconds % 3600) / 60);
             const secs = seconds % 60;
@@ -981,24 +1055,503 @@
             return parts.join(' ');
         }
 
-        function playClickSound() {
-            if (audioCtx.state === 'suspended') audioCtx.resume();
-            const now = audioCtx.currentTime;
-            const osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
+        function getTotalCps() {
+            let cps = 0;
+            if (state.passives) {
+                PASSIVE_UPGRADES.forEach(upg => {
+                    const lvl = state.passives[upg.id] || 0;
+                    if (lvl > 0) {
+                        cps += upg.baseCps * lvl;
+                    }
+                });
+            }
+            if (state.statues) {
+                Object.values(state.statues).forEach(st => {
+                    if (st && st.cps) cps += st.cps;
+                });
+            }
+            if (typeof getLabAuraIncome === 'function') {
+                cps += getLabAuraIncome();
+            }
+            return cps;
+        }
 
-            osc.type = 'sine';
-            osc.frequency.setValueAtTime(250 + Math.random() * 80, now);
-            osc.frequency.exponentialRampToValueAtTime(550 + Math.random() * 100, now + 0.08);
+        function getPassiveUpgradeCost(upg, currentLvl) {
+            return Math.floor(upg.baseCost * Math.pow(BASE_PRICE_MULTIPLIER, currentLvl));
+        }
 
-            gain.gain.setValueAtTime(0.25, now);
-            gain.gain.exponentialRampToValueAtTime(0.01, now + 0.08);
+        function buyAuraUpgrade() {
+            if (state.hasEvolved) return;
+            const cost = Math.floor(BASE_AURA_COST * Math.pow(BASE_PRICE_MULTIPLIER, state.auraLvl || 0));
+            if (state.aura >= cost) {
+                state.aura -= cost;
+                state.auraLvl = (state.auraLvl || 0) + 1;
+                saveGame();
+                updateUI();
+            }
+        }
 
-            osc.connect(gain);
-            gain.connect(audioCtx.destination);
+        function buyEnergyUpgrade() {
+            if (state.hasEvolved) return;
+            const cost = Math.floor(BASE_ENERGY_COST * Math.pow(BASE_PRICE_MULTIPLIER, state.energyLvl || 0));
+            if (state.aura >= cost) {
+                state.aura -= cost;
+                state.energyLvl = (state.energyLvl || 0) + 1;
+                state.energy = getMaxEnergy();
+                saveGame();
+                updateUI();
+            }
+        }
 
-            osc.start(now);
-            osc.stop(now + 0.08);
+        function buyEvolution() {
+            if (state.hasEvolved) return;
+            const auraReqMet = (state.auraLvl || 0) >= 50;
+            const energyReqMet = (state.energyLvl || 0) >= 40;
+            if (auraReqMet && energyReqMet && state.aura >= EVO_COST) {
+                state.aura -= EVO_COST;
+                state.hasEvolved = true;
+                state.energy = getMaxEnergy();
+                saveGame();
+                updateUI();
+            }
+        }
+
+        function buyPostEvoAuraUpgrade() {
+            if (!state.hasEvolved) return;
+            const cost = Math.floor(NEW_AURA_COST * Math.pow(BASE_PRICE_MULTIPLIER, state.postEvoAuraLvl || 0));
+            if (state.aura >= cost) {
+                state.aura -= cost;
+                state.postEvoAuraLvl = (state.postEvoAuraLvl || 0) + 1;
+                saveGame();
+                updateUI();
+            }
+        }
+
+        function buyPostEvoEnergyUpgrade() {
+            if (!state.hasEvolved) return;
+            const cost = Math.floor(NEW_ENERGY_COST * Math.pow(BASE_PRICE_MULTIPLIER, state.postEvoEnergyLvl || 0));
+            if (state.aura >= cost) {
+                state.aura -= cost;
+                state.postEvoEnergyLvl = (state.postEvoEnergyLvl || 0) + 1;
+                state.energy = getMaxEnergy();
+                saveGame();
+                updateUI();
+            }
+        }
+
+        function buyPassiveUpgrade(id) {
+            const upg = PASSIVE_UPGRADES.find(u => u.id === id);
+            if (!upg) return;
+
+            if (!state.passives) state.passives = {};
+            const currentLvl = state.passives[id] || 0;
+            const nextLvl = currentLvl + 1;
+
+            if (upg.req) {
+                const reqLvl = state.passives[upg.req.id] || 0;
+                if (reqLvl < upg.req.lvl) return;
+            }
+
+            if (typeof upg.customReqCheck === 'function') {
+                const check = upg.customReqCheck(nextLvl);
+                if (!check.met) return;
+            }
+
+            const now = getServerTime();
+            if (state.cooldowns && state.cooldowns[id] && state.cooldowns[id] > now) {
+                if (!state.noCdUntil || now < state.noCdUntil) {
+                    return;
+                }
+            }
+
+            const cost = getPassiveUpgradeCost(upg, currentLvl);
+            if (state.aura >= cost) {
+                state.aura -= cost;
+                state.passives[id] = nextLvl;
+
+                if (id === 45) {
+                    if (typeof initMinigamesState === 'function') initMinigamesState();
+                    if (state.pigletGame) state.pigletGame.foundSinceLastCardUpgrade = 0;
+                }
+
+                const cdSec = getCooldownSeconds(nextLvl, upg.cat);
+                if (cdSec > 0 && (!state.noCdUntil || now < state.noCdUntil)) {
+                    if (!state.cooldowns) state.cooldowns = {};
+                    state.cooldowns[id] = now + (cdSec * 1000);
+                }
+
+                saveGame();
+                updateUI();
+                if (typeof renderMinigamesUI === 'function') renderMinigamesUI();
+            }
+        }
+
+        function renderPassiveUpgrades() {
+            const container = document.getElementById('passive-upgrades-container');
+            if (!container) return;
+
+            let html = '';
+            const categories = {};
+
+            PASSIVE_UPGRADES.forEach(upg => {
+                if (!categories[upg.cat]) categories[upg.cat] = [];
+                categories[upg.cat].push(upg);
+            });
+
+            const now = getServerTime();
+
+            Object.keys(categories).forEach(cat => {
+                html += `<div class="category-title">${cat}</div>`;
+
+                categories[cat].forEach(upg => {
+                    const currentLvl = (state.passives && state.passives[upg.id]) || 0;
+                    const nextLvl = currentLvl + 1;
+                    const cost = getPassiveUpgradeCost(upg, currentLvl);
+
+                    let reqMet = true;
+                    let reqText = '';
+
+                    if (upg.req) {
+                        const reqLvl = (state.passives && state.passives[upg.req.id]) || 0;
+                        if (reqLvl < upg.req.lvl) {
+                            reqMet = false;
+                            reqText = `Вимога: «${upg.req.name}» ${upg.req.lvl} рівень (${reqLvl}/${upg.req.lvl})`;
+                        }
+                    }
+
+                    if (reqMet && typeof upg.customReqCheck === 'function') {
+                        const customCheck = upg.customReqCheck(nextLvl);
+                        if (!customCheck.met) {
+                            reqMet = false;
+                            reqText = customCheck.text;
+                        }
+                    }
+
+                    let onCd = false;
+                    let cdText = '';
+                    if (state.cooldowns && state.cooldowns[upg.id] && state.cooldowns[upg.id] > now) {
+                        if (!state.noCdUntil || now < state.noCdUntil) {
+                            onCd = true;
+                            const leftSec = Math.ceil((state.cooldowns[upg.id] - now) / 1000);
+                            cdText = `⏳ Перезарядка: ${formatTime(leftSec)}`;
+                        }
+                    }
+
+                    const canBuy = reqMet && !onCd && state.aura >= cost;
+
+                    html += `
+                        <div class="upgrade-card">
+                            <div class="upgrade-img-wrap">
+                                <img src="${upg.img}" alt="${upg.name}" class="upgrade-img" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'65\\' height=\\'65\\'><rect width=\\'65\\' height=\\'65\\' fill=\\'%232a1f45\\'/><text x=\\'50%\\' y=\\'50%\\' dominant-baseline=\\'middle\\' text-anchor=\\'middle\\' fill=\\'%23f1c40f\\' font-size=\\'28\\'>🐷</text></svg>';">
+                            </div>
+                            <div class="upgrade-info">
+                                <div class="upgrade-title">${upg.name} <span class="upgrade-level-badge">Рівень ${currentLvl}</span></div>
+                                <div class="upgrade-desc">Дохід: +${formatNum(upg.baseCps)}/сек (всього: +${formatNum(upg.baseCps * currentLvl)}/сек)</div>
+                                ${reqText ? `<div class="upgrade-req">${reqText}</div>` : ''}
+                                ${cdText ? `<div class="upgrade-req" style="color: #f39c12;">${cdText}</div>` : ''}
+                                <div class="upgrade-desc" style="color: var(--accent-gold);">Ціна: ${formatNum(cost)} аури</div>
+                            </div>
+                            <button class="upgrade-btn" ${canBuy ? '' : 'disabled'} onclick="buyPassiveUpgrade(${upg.id})">
+                                Купити
+                            </button>
+                        </div>
+                    `;
+                });
+            });
+
+            container.innerHTML = html;
+        }
+
+        function handlePigClick(e) {
+            if (!useEnergy(1)) return;
+
+            let reward = 1;
+            if (state.hasEvolved) {
+                const cps = getTotalCps();
+                const baseEvoReward = Math.floor(cps * 0.1);
+                reward = Math.max(1, baseEvoReward + ((state.postEvoAuraLvl || 0) * Math.floor(cps * 0.02)));
+            } else {
+                reward = 1 + (state.auraLvl || 0);
+            }
+
+            state.aura += reward;
+            state.totalAura = (state.totalAura || 0) + reward;
+
+            playClickSound();
+            createFloatingText(e, `+${formatNum(reward)}`);
+            updateUI();
+        }
+
+        function createFloatingText(e, text) {
+            const wrapper = document.getElementById('pig-wrapper');
+            if (!wrapper) return;
+
+            const rect = wrapper.getBoundingClientRect();
+            let x = rect.width / 2;
+            let y = rect.height / 2;
+
+            if (e && e.clientX) {
+                x = e.clientX - rect.left;
+                y = e.clientY - rect.top;
+            }
+
+            const el = document.createElement('div');
+            el.className = 'floating-text';
+            el.innerText = text;
+            el.style.left = `${x}px`;
+            el.style.top = `${y}px`;
+
+            wrapper.appendChild(el);
+
+            setTimeout(() => {
+                if (el.parentNode) el.parentNode.removeChild(el);
+            }, 800);
+        }
+
+        function updateUI() {
+            const auraEl = document.getElementById('aura-count');
+            const cpsEl = document.getElementById('cps-count');
+            const energyEl = document.getElementById('energy-count');
+            const energyBarText = document.getElementById('energy-bar-text');
+            const energyBarFill = document.getElementById('energy-bar-fill');
+
+            const maxE = getMaxEnergy();
+            const totalCps = getTotalCps();
+
+            if (auraEl) auraEl.innerText = formatNum(state.aura);
+            if (cpsEl) cpsEl.innerText = formatNum(totalCps);
+            if (energyEl) energyEl.innerText = Math.floor(state.energy);
+            if (energyBarText) energyBarText.innerText = `${Math.floor(state.energy)} / ${maxE}`;
+            if (energyBarFill) energyBarFill.style.width = `${Math.max(0, Math.min(100, (state.energy / maxE) * 100))}%`;
+
+            // Базові покращення
+            const auraOldCard = document.getElementById('card-aura-old');
+            const energyOldCard = document.getElementById('card-energy-old');
+            const evoCard = document.getElementById('card-evolution');
+            const auraNewCard = document.getElementById('card-aura-new');
+            const energyNewCard = document.getElementById('card-energy-new');
+
+            if (state.hasEvolved) {
+                if (auraOldCard) auraOldCard.style.display = 'none';
+                if (energyOldCard) energyOldCard.style.display = 'none';
+                if (evoCard) evoCard.style.display = 'none';
+
+                if (auraNewCard) auraNewCard.style.display = 'flex';
+                if (energyNewCard) energyNewCard.style.display = 'flex';
+
+                const newAuraBadge = document.getElementById('aura-new-lvl-badge');
+                const newAuraCost = document.getElementById('aura-new-upg-cost');
+                const newAuraBtn = document.getElementById('aura-new-upg-btn');
+                const newAuraCostVal = Math.floor(NEW_AURA_COST * Math.pow(BASE_PRICE_MULTIPLIER, state.postEvoAuraLvl || 0));
+
+                if (newAuraBadge) newAuraBadge.innerText = `Рівень ${state.postEvoAuraLvl || 0}`;
+                if (newAuraCost) newAuraCost.innerText = `Ціна: ${formatNum(newAuraCostVal)} аури`;
+                if (newAuraBtn) newAuraBtn.disabled = state.aura < newAuraCostVal;
+
+                const newEnergyBadge = document.getElementById('energy-new-lvl-badge');
+                const newEnergyCost = document.getElementById('energy-new-upg-cost');
+                const newEnergyBtn = document.getElementById('energy-new-upg-btn');
+                const newEnergyCostVal = Math.floor(NEW_ENERGY_COST * Math.pow(BASE_PRICE_MULTIPLIER, state.postEvoEnergyLvl || 0));
+
+                if (newEnergyBadge) newEnergyBadge.innerText = `Рівень ${state.postEvoEnergyLvl || 0}`;
+                if (newEnergyCost) newEnergyCost.innerText = `Ціна: ${formatNum(newEnergyCostVal)} аури`;
+                if (newEnergyBtn) newEnergyBtn.disabled = state.aura < newEnergyCostVal;
+            } else {
+                if (auraOldCard) auraOldCard.style.display = 'flex';
+                if (energyOldCard) energyOldCard.style.display = 'flex';
+                if (evoCard) evoCard.style.display = 'flex';
+
+                if (auraNewCard) auraNewCard.style.display = 'none';
+                if (energyNewCard) energyNewCard.style.display = 'none';
+
+                const auraBadge = document.getElementById('aura-lvl-badge');
+                const auraCost = document.getElementById('aura-upg-cost');
+                const auraBtn = document.getElementById('aura-upg-btn');
+                const auraCostVal = Math.floor(BASE_AURA_COST * Math.pow(BASE_PRICE_MULTIPLIER, state.auraLvl || 0));
+
+                if (auraBadge) auraBadge.innerText = `Рівень ${state.auraLvl || 0}`;
+                if (auraCost) auraCost.innerText = `Ціна: ${formatNum(auraCostVal)} аури`;
+                if (auraBtn) auraBtn.disabled = state.aura < auraCostVal;
+
+                const energyBadge = document.getElementById('energy-lvl-badge');
+                const energyCost = document.getElementById('energy-upg-cost');
+                const energyBtn = document.getElementById('energy-upg-btn');
+                const energyCostVal = Math.floor(BASE_ENERGY_COST * Math.pow(BASE_PRICE_MULTIPLIER, state.energyLvl || 0));
+
+                if (energyBadge) energyBadge.innerText = `Рівень ${state.energyLvl || 0}`;
+                if (energyCost) energyCost.innerText = `Ціна: ${formatNum(energyCostVal)} аури`;
+                if (energyBtn) energyBtn.disabled = state.aura < energyCostVal;
+
+                const evoReq = document.getElementById('evo-req-desc');
+                const evoBtn = document.getElementById('evo-btn');
+                const auraMet = (state.auraLvl || 0) >= 50;
+                const energyMet = (state.energyLvl || 0) >= 40;
+
+                if (evoReq) {
+                    evoReq.innerText = `Вимоги: Аура ${state.auraLvl || 0}/50, Енергія ${state.energyLvl || 0}/40`;
+                    evoReq.style.color = (auraMet && energyMet) ? '#2ecc71' : '#e74c3c';
+                }
+                if (evoBtn) {
+                    evoBtn.disabled = !(auraMet && energyMet && state.aura >= EVO_COST);
+                }
+            }
+
+            renderPassiveUpgrades();
+        }
+
+        function switchTab(tab) {
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+
+            const targetContent = document.getElementById(`tab-${tab}`);
+            if (targetContent) targetContent.classList.add('active');
+
+            const activeBtn = Array.from(document.querySelectorAll('.tab-btn')).find(b => b.getAttribute('onclick').includes(tab));
+            if (activeBtn) activeBtn.classList.add('active');
+
+            if (tab === 'minigames' && typeof renderMinigamesUI === 'function') renderMinigamesUI();
+            if (tab === 'event' && typeof renderEventUI === 'function') renderEventUI();
+            if (tab === 'statue') renderStatuesTabUI();
+            if (tab === 'leaderboard') renderLeaderboard();
+        }
+
+        function renderStatuesTabUI() {
+            const container = document.getElementById('tab-statue');
+            if (!container) return;
+
+            let html = `<div class="category-title" style="width: 100%; text-align: center;">🗿 Статуї та Монументи</div>`;
+
+            if (!state.statues || Object.keys(state.statues).length === 0) {
+                html += `
+                    <div style="text-align: center; padding: 30px; color: #888;">
+                        У вас поки немає активованих статуй.<br>
+                        Активуйте їх за допомогою промокодів!
+                    </div>
+                `;
+            } else {
+                html += `<div class="upgrades-list">`;
+                Object.values(state.statues).forEach(st => {
+                    html += `
+                        <div class="upgrade-card evo-card">
+                            <div class="upgrade-img-wrap">
+                                <img src="${st.img}" alt="${st.name}" class="upgrade-img" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'65\\' height=\\'65\\'><rect width=\\'65\\' height=\\'65\\' fill=\\'%23f1c40f\\'/><text x=\\'50%\\' y=\\'50%\\' dominant-baseline=\\'middle\\' text-anchor=\\'middle\\' fill=\\'%23000\\' font-size=\\'28\\'>🗿</text></svg>';">
+                            </div>
+                            <div class="upgrade-info">
+                                <div class="upgrade-title">${st.name} <span class="upgrade-level-badge">${st.lvl}/${st.maxLvl}</span></div>
+                                <div class="upgrade-desc" style="color: #2ecc71;">Дохід: +${formatNum(st.cps)} аури/сек</div>
+                            </div>
+                        </div>
+                    `;
+                });
+                html += `</div>`;
+            }
+
+            container.innerHTML = html;
+        }
+
+        function setLeaderboardSort(sortKey) {
+            currentLeaderboardSort = sortKey;
+            document.querySelectorAll('#tab-leaderboard .sub-tab-btn').forEach(btn => btn.classList.remove('active'));
+            const activeBtn = document.getElementById(`lb-sort-${sortKey}`);
+            if (activeBtn) activeBtn.classList.add('active');
+            renderLeaderboard();
+        }
+
+        function renderLeaderboard() {
+            const list = document.getElementById('leaderboard-list');
+            if (!list) return;
+
+            if (!dbAvailable) {
+                list.innerHTML = `
+                    <div class="empty-leaderboard">
+                        <p style="color: var(--accent-gold); font-size: 1.1rem; margin-bottom: 10px;">⚠️ Firebase не підключено!</p>
+                        <div class="leaderboard-item is-player">
+                            <div class="leaderboard-rank">🥇</div>
+                            <div class="leaderboard-name">${state.nickname || "Ви"} (Локально)</div>
+                            <div class="leaderboard-cps">${formatNum(getTotalCps())}/сек</div>
+                        </div>
+                    </div>`;
+                return;
+            }
+
+            dbRef.orderByChild(currentLeaderboardSort).limitToLast(50).once('value', (snapshot) => {
+                const data = snapshot.val();
+                const players = [];
+
+                if (data) {
+                    Object.keys(data).forEach(id => {
+                        players.push({
+                            id: id,
+                            name: data[id].name || "Гравець",
+                            cps: data[id].cps || 0,
+                            aura: data[id].aura || 0,
+                            totalAura: data[id].totalAura || 0,
+                            isPlayer: id === state.playerId
+                        });
+                    });
+                }
+
+                players.sort((a, b) => (b[currentLeaderboardSort] || 0) - (a[currentLeaderboardSort] || 0));
+                list.innerHTML = '';
+
+                if (players.length === 0) {
+                    list.innerHTML = `<div class="empty-leaderboard">Поки немає жодного результату. Будьте першим!</div>`;
+                    return;
+                }
+
+                players.forEach((p, index) => {
+                    const rank = index + 1;
+                    let rankIcon = `#${rank}`;
+                    if (rank === 1) rankIcon = '🥇';
+                    else if (rank === 2) rankIcon = '🥈';
+                    else if (rank === 3) rankIcon = '🥉';
+
+                    let valDisplay = `${formatNum(p.cps)}/сек`;
+                    if (currentLeaderboardSort === 'aura') valDisplay = `${formatNum(p.aura)} ✨`;
+                    if (currentLeaderboardSort === 'totalAura') valDisplay = `${formatNum(p.totalAura)} 👑`;
+
+                    const item = document.createElement('div');
+                    item.className = `leaderboard-item ${p.isPlayer ? 'is-player' : ''}`;
+                    item.innerHTML = `
+                        <div class="leaderboard-rank">${rankIcon}</div>
+                        <div class="leaderboard-name">${p.name}${p.isPlayer ? ' (Ви)' : ''}</div>
+                        <div class="leaderboard-cps">${valDisplay}</div>
+                    `;
+                    list.appendChild(item);
+                });
+            }).catch(err => {
+                console.warn("Помилка завантаження топу:", err);
+            });
+        }
+
+        function syncLeaderboard() {
+            if (!dbAvailable || !state.playerId || !state.nickname) return;
+            dbRef.child(state.playerId).set({
+                name: state.nickname,
+                cps: Math.floor(getTotalCps()),
+                aura: Math.floor(state.aura || 0),
+                totalAura: Math.floor(state.totalAura || 0),
+                updatedAt: firebase.database.ServerValue.TIMESTAMP
+            }).catch(err => console.warn("Firebase sync error:", err));
+        }
+
+        function saveNickname() {
+            const input = document.getElementById('nickname-input');
+            const name = input ? input.value.trim() : '';
+            if (name) {
+                state.nickname = name;
+                saveGame();
+                syncLeaderboard();
+                document.getElementById('nickname-modal').classList.remove('active');
+            } else {
+                alert("Введіть коректний нікнейм!");
+            }
+        }
+
+        function openNicknameModal() {
+            const input = document.getElementById('nickname-input');
+            if (input) input.value = state.nickname || '';
+            document.getElementById('nickname-modal').classList.add('active');
         }
 
         function openPromoModal() {
@@ -1015,24 +1568,20 @@
             document.getElementById('promo-modal').classList.remove('active');
         }
 
-        function openNicknameModal() {
-            const input = document.getElementById('nickname-input');
-            if (input) input.value = state.nickname || '';
-            document.getElementById('nickname-modal').classList.add('active');
+        function closeOfflineModal() {
+            document.getElementById('offline-modal').classList.remove('active');
         }
 
         function resetAccount() {
             window.removeEventListener('beforeunload', saveGame);
-
             if (dbAvailable && state.playerId) {
                 try {
                     firebase.database().ref('leaderboard/' + state.playerId).remove();
                     firebase.database().ref('leaderboard_lab/' + state.playerId).remove();
                 } catch(e) {
-                    console.warn("Помилка при видаленні з Firebase:", e);
+                    console.warn("Error removing player:", e);
                 }
             }
-
             localStorage.clear();
             location.reload();
         }
@@ -1072,12 +1621,7 @@
                     state.aura += auraReward;
                     state.totalAura = (state.totalAura || 0) + auraReward;
 
-                    if (typeof initEventState === 'function') {
-                        initEventState();
-                    } else if (!state.event) {
-                        state.event = { chemicals: 0, totalChemicals: 0, timeUpgLvl: 0, multUpgLvl: 0, regenUpgLvl: 0, labLvl: 0 };
-                    }
-
+                    if (typeof initEventState === 'function') initEventState();
                     const chemReward = 5000000;
                     state.event.chemicals = (state.event.chemicals || 0) + chemReward;
                     state.event.totalChemicals = (state.event.totalChemicals || 0) + chemReward;
@@ -1086,9 +1630,7 @@
                     state.noCdUntil = nowTime + 3600000;
                     state.cooldowns = {};
 
-                    if (typeof syncChemicalsLeaderboard === 'function') {
-                        syncChemicalsLeaderboard();
-                    }
+                    if (typeof syncChemicalsLeaderboard === 'function') syncChemicalsLeaderboard();
 
                     updateUI();
                     if (typeof renderEventUI === 'function') renderEventUI();
@@ -1111,19 +1653,12 @@
                     state.aura += auraReward;
                     state.totalAura = (state.totalAura || 0) + auraReward;
 
-                    if (typeof initEventState === 'function') {
-                        initEventState();
-                    } else if (!state.event) {
-                        state.event = { chemicals: 0, totalChemicals: 0, timeUpgLvl: 0, multUpgLvl: 0, regenUpgLvl: 0, labLvl: 0 };
-                    }
-
+                    if (typeof initEventState === 'function') initEventState();
                     const chemReward = 2500000;
                     state.event.chemicals = (state.event.chemicals || 0) + chemReward;
                     state.event.totalChemicals = (state.event.totalChemicals || 0) + chemReward;
 
-                    if (typeof syncChemicalsLeaderboard === 'function') {
-                        syncChemicalsLeaderboard();
-                    }
+                    if (typeof syncChemicalsLeaderboard === 'function') syncChemicalsLeaderboard();
 
                     updateUI();
                     saveGame();
@@ -1158,7 +1693,6 @@
                     state.usedCodes['бетон27'] = true;
 
                     if (!state.statues) state.statues = {};
-
                     state.statues['concrete_paving'] = {
                         name: 'Бетон для бруківки',
                         lvl: 7,
@@ -1185,7 +1719,6 @@
                     state.usedCodes['статуя14'] = true;
 
                     if (!state.statues) state.statues = {};
-
                     state.statues['monumental_hrundel'] = {
                         name: 'Монументальний хрюндель',
                         lvl: 7,
@@ -1209,642 +1742,108 @@
             }
         }
 
-        function getAuraPerClick() {
-            if (state.hasEvolved) {
-                const cps = getTotalCps();
-                const pct = 0.10 + (state.postEvoAuraLvl * 0.01);
-                return Math.max(1, cps * pct);
-            }
-            return 1 + state.auraLvl;
-        }
-
-        function getAuraUpgradeCost() {
-            return Math.floor(BASE_AURA_COST * Math.pow(BASE_PRICE_MULTIPLIER, state.auraLvl));
-        }
-
-        function getMaxEnergy() {
-            if (state.hasEvolved) return 1000 + (state.postEvoEnergyLvl * 50);
-            return 1000 + (state.energyLvl * 1000);
-        }
-
-        function getEnergyUpgradeCost() {
-            return Math.floor(BASE_ENERGY_COST * Math.pow(BASE_PRICE_MULTIPLIER, state.energyLvl));
-        }
-
-        function getPostEvoAuraCost() {
-            return Math.floor(NEW_AURA_COST * Math.pow(BASE_PRICE_MULTIPLIER, state.postEvoAuraLvl));
-        }
-
-        function getPostEvoEnergyCost() {
-            return Math.floor(NEW_ENERGY_COST * Math.pow(BASE_PRICE_MULTIPLIER, state.postEvoEnergyLvl));
-        }
-
-        function getPassiveCost(u) {
-            const count = state.passives[u.id] || 0;
-            let cost = u.baseCost;
-            for (let i = 1; i <= count; i++) {
-                cost *= (1 + 0.05 * i);
-            }
-            return Math.floor(cost);
-        }
-
-        function getStatuesAuraIncome() {
-            if (!state.statues) return 0;
-            let total = 0;
-            Object.values(state.statues).forEach(s => {
-                if (s && s.cps) {
-                    total += s.cps;
-                }
-            });
-            return total;
-        }
-
-        function getTotalCps() {
-            let cps = 0;
-            PASSIVE_UPGRADES.forEach(u => {
-                const count = state.passives[u.id] || 0;
-                cps += count * u.baseCps;
-            });
-            if (typeof getLabAuraIncome === 'function') {
-                cps += getLabAuraIncome();
-            }
-            cps += getStatuesAuraIncome();
-            return cps;
-        }
-
-        function syncToCloudLeaderboard() {
-            if (!dbAvailable || !state.playerId || !state.nickname) return;
-            firebase.database().ref('leaderboard/' + state.playerId).set({
-                name: state.nickname,
-                cps: getTotalCps(),
-                aura: Math.floor(state.aura),
-                totalAura: Math.floor(state.totalAura || state.aura),
-                updatedAt: firebase.database.ServerValue.TIMESTAMP
-            });
-        }
-
         function saveGame() {
             state.lastSaveTime = getServerTime();
-            localStorage.setItem("hrundel_clicker_save_v10", JSON.stringify(state));
-            syncToCloudLeaderboard();
-            if (typeof syncChemicalsLeaderboard === 'function') {
-                syncChemicalsLeaderboard();
-            }
+            localStorage.setItem('hrundel_game_save', JSON.stringify(state));
+            syncLeaderboard();
         }
 
         function loadGame() {
-            const saved = localStorage.getItem("hrundel_clicker_save_v10") || localStorage.getItem("hrundel_clicker_save_v9");
+            const saved = localStorage.getItem('hrundel_game_save');
             if (saved) {
                 try {
                     const parsed = JSON.parse(saved);
                     state = Object.assign(state, parsed);
-                } catch(e) {}
+                } catch(e) {
+                    console.warn("Помилка завантаження збереження:", e);
+                }
             }
 
             if (!state.playerId) {
-                state.playerId = 'player_' + Math.random().toString(36).substring(2, 10) + '_' + Date.now();
+                state.playerId = 'player_' + Math.random().toString(36).substr(2, 9);
             }
-            if (!state.passives) state.passives = {};
-            if (!state.statues) state.statues = {};
-            if (!state.cooldowns) state.cooldowns = {};
-            if (!state.usedCodes) state.usedCodes = {};
-            if (state.noCdUntil === undefined) state.noCdUntil = 0;
-            if (state.totalAura === undefined) state.totalAura = state.aura || 0;
-            if (state.hasEvolved === undefined) state.hasEvolved = false;
-            if (state.postEvoAuraLvl === undefined) state.postEvoAuraLvl = 0;
-            if (state.postEvoEnergyLvl === undefined) state.postEvoEnergyLvl = 0;
-            if (state.energyRegenStart === undefined) state.energyRegenStart = null;
-            if (!state.nickname) state.nickname = "";
 
-            if (typeof initEventState === 'function') initEventState();
-            if (typeof initMinigamesState === 'function') initMinigamesState();
-
-            if (state.energy > getMaxEnergy()) {
-                state.energy = getMaxEnergy();
+            if (!state.nickname) {
+                document.getElementById('nickname-modal').classList.add('active');
             }
-        }
 
-        function saveNickname() {
-            const input = document.getElementById('nickname-input');
-            let val = input.value.trim();
-            if (!val) val = "Хрюндель_" + Math.floor(Math.random() * 8999 + 1000);
-            state.nickname = val;
-            saveGame();
-            document.getElementById('nickname-modal').classList.remove('active');
-            displayOfflineModalIfAvailable();
-            renderLeaderboard();
-            if (typeof renderLabLeaderboard === 'function') renderLabLeaderboard();
-        }
-
-        function calculateOfflineProgress() {
+            // Розрахунок офлайн доходу
             const now = getServerTime();
-            if (state.lastSaveTime) {
-                let elapsedSeconds = (now - state.lastSaveTime) / 1000;
-                if (elapsedSeconds < 0) elapsedSeconds = 0;
+            const lastSave = state.lastSaveTime || now;
+            const offlineSec = Math.floor((now - lastSave) / 1000);
 
+            if (offlineSec > 10) {
                 const cps = getTotalCps();
-
-                if (elapsedSeconds >= 3 && cps > 0) {
-                    const offlineAura = cps * elapsedSeconds;
-                    const maxE = getMaxEnergy();
-
-                    if (state.energy < maxE) {
-                        const regenPerSec = maxE / 1800;
-                        state.energy = Math.min(maxE, state.energy + regenPerSec * elapsedSeconds);
-                        if (state.energy >= maxE) {
-                            state.energyRegenStart = null;
-                        }
-                    }
-
-                    state.aura += offlineAura;
-                    state.totalAura = (state.totalAura || 0) + offlineAura;
-                    offlineReport = { time: elapsedSeconds, aura: offlineAura };
+                const earned = Math.floor(cps * offlineSec);
+                if (earned > 0) {
+                    state.aura += earned;
+                    state.totalAura = (state.totalAura || 0) + earned;
+                    document.getElementById('offline-time').innerText = formatTime(offlineSec);
+                    document.getElementById('offline-aura-amount').innerText = formatNum(earned);
+                    document.getElementById('offline-modal').classList.add('active');
                 }
             }
-            state.lastSaveTime = now;
-            saveGame();
-        }
 
-        function displayOfflineModalIfAvailable() {
-            if (offlineReport && offlineReport.aura > 0) {
-                document.getElementById('offline-time').innerText = formatTime(offlineReport.time);
-                document.getElementById('offline-aura-amount').innerText = formatNum(offlineReport.aura);
-                
-                const modal = document.getElementById('offline-modal');
-                if (modal) modal.classList.add('active');
-                offlineReport = null;
-            }
-        }
-
-        function closeOfflineModal() {
-            document.getElementById('offline-modal').classList.remove('active');
-            saveGame();
-        }
-
-        function processTap(x, y) {
-            if (!useEnergy(1)) return;
-
-            const gain = getAuraPerClick();
-            state.aura += gain;
-            state.totalAura = (state.totalAura || 0) + gain;
-
-            playClickSound();
-            spawnFloatingText(x, y, `+${formatNum(gain)}`);
-
-            const pigImg = document.getElementById('pig-img');
-            pigImg.style.transform = 'scale(0.92)';
-            setTimeout(() => { pigImg.style.transform = 'scale(1)'; }, 60);
+            if (typeof initMinigamesState === 'function') initMinigamesState();
+            if (typeof initEventState === 'function') initEventState();
 
             updateUI();
         }
 
-        function spawnFloatingText(x, y, text) {
-            const el = document.createElement('div');
-            el.className = 'floating-text';
-            el.innerText = text;
-            el.style.left = `${x}px`;
-            el.style.top = `${y}px`;
-            document.body.appendChild(el);
+        let lastTick = Date.now();
+        function gameLoop() {
+            const now = Date.now();
+            const dt = (now - lastTick) / 1000;
+            lastTick = now;
 
-            setTimeout(() => { el.remove(); }, 800);
-        }
-
-        function setupMultiTouch() {
-            const clickerTab = document.getElementById('tab-clicker');
-            clickerTab.addEventListener('pointerdown', (e) => {
-                e.preventDefault();
-                processTap(e.clientX, e.clientY);
-            });
-        }
-
-        function buyAuraUpgrade() {
-            const cost = getAuraUpgradeCost();
-            if (state.aura >= cost) {
-                state.aura -= cost;
-                state.auraLvl += 1;
-                updateUI();
-                saveGame();
-            }
-        }
-
-        function buyEnergyUpgrade() {
-            const cost = getEnergyUpgradeCost();
-            if (state.aura >= cost) {
-                state.aura -= cost;
-                state.energyLvl += 1;
-                updateUI();
-                saveGame();
-            }
-        }
-
-        function buyEvolution() {
-            if (!state.hasEvolved && state.auraLvl >= 50 && state.energyLvl >= 40 && state.aura >= EVO_COST) {
-                state.aura -= EVO_COST;
-                state.hasEvolved = true;
-                if (state.energy > getMaxEnergy()) state.energy = getMaxEnergy();
-                updateUI();
-                saveGame();
-            }
-        }
-
-        function buyPostEvoAuraUpgrade() {
-            const cost = getPostEvoAuraCost();
-            if (state.aura >= cost) {
-                state.aura -= cost;
-                state.postEvoAuraLvl += 1;
-                updateUI();
-                saveGame();
-            }
-        }
-
-        function buyPostEvoEnergyUpgrade() {
-            const cost = getPostEvoEnergyCost();
-            if (state.aura >= cost) {
-                state.aura -= cost;
-                state.postEvoEnergyLvl += 1;
-                updateUI();
-                saveGame();
-            }
-        }
-
-        function buyPassiveUpgrade(id) {
-            const u = PASSIVE_UPGRADES.find(item => item.id === id);
-            if (!u) return;
-
-            if (u.req) {
-                const reqLvl = state.passives[u.req.id] || 0;
-                if (reqLvl < u.req.lvl) return;
-            }
-
-            const curLvl = state.passives[id] || 0;
-            if (u.customReqCheck) {
-                const check = u.customReqCheck(curLvl + 1);
-                if (!check.met) return;
-            }
-
-            const isNoCdActive = state.noCdUntil && getServerTime() < state.noCdUntil;
-
-            if (!isNoCdActive && (u.cat === "Навчання хрюнделя" || u.cat === "Свинячий Люкс") && state.cooldowns && state.cooldowns[u.id]) {
-                const nowTime = getServerTime();
-                if (nowTime < state.cooldowns[u.id]) return;
-            }
-
-            const cost = getPassiveCost(u);
-            if (state.aura >= cost) {
-                state.aura -= cost;
-                const newLvl = curLvl + 1;
-                state.passives[id] = newLvl;
-
-                if (id === 45) {
-                    if (!state.pigletGame) initMinigamesState();
-                    state.pigletGame.foundSinceLastCardUpgrade = 0;
-                }
-
-                if (!isNoCdActive && (u.cat === "Навчання хрюнделя" || u.cat === "Свинячий Люкс")) {
-                    const cdSec = getCooldownSeconds(newLvl, u.cat);
-                    if (cdSec > 0) {
-                        if (!state.cooldowns) state.cooldowns = {};
-                        const nowTime = getServerTime();
-                        state.cooldowns[id] = nowTime + (cdSec * 1000);
-                    }
-                }
-
-                updateUI();
-                saveGame();
-            }
-        }
-
-        function renderPassiveUpgrades() {
-            const container = document.getElementById('passive-upgrades-container');
-            container.innerHTML = '';
-            let currentCategory = '';
-
-            PASSIVE_UPGRADES.forEach(u => {
-                if (u.cat !== currentCategory) {
-                    currentCategory = u.cat;
-                    const catEl = document.createElement('div');
-                    catEl.className = 'category-title';
-                    catEl.innerText = currentCategory;
-                    container.appendChild(catEl);
-                }
-
-                const count = state.passives[u.id] || 0;
-                const cost = getPassiveCost(u);
-
-                const card = document.createElement('div');
-                card.className = 'upgrade-card';
-                card.innerHTML = `
-                    <div class="upgrade-img-wrap">
-                        <img src="${u.img}" alt="${u.name}" class="upgrade-img" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'65\\' height=\\'65\\'><rect width=\\'65\\' height=\\'65\\' fill=\'%23251a3a\\'/><text x=\\'50%\\' y=\\'50%\\' dominant-baseline=\\'middle\\' text-anchor=\\'middle\\' fill=\'%239b59b6\\' font-size=\\'20\\'>✨</text></svg>';">
-                    </div>
-                    <div class="upgrade-info">
-                        <div class="upgrade-title">${u.name} <span class="upgrade-level-badge" id="passive-lvl-badge-${u.id}">Рівень ${count}</span></div>
-                        <div class="upgrade-desc" id="passive-desc-${u.id}">Дохід: +${formatNum(count * u.baseCps)} аури/сек (+${formatNum(u.baseCps)})</div>
-                        <div class="upgrade-req" id="passive-req-${u.id}" style="display: none;"></div>
-                        <div class="upgrade-desc" style="color: var(--accent-gold);" id="passive-cost-${u.id}">Ціна: ${formatNum(cost)} аури</div>
-                    </div>
-                    <button class="upgrade-btn" id="passive-btn-${u.id}" onclick="buyPassiveUpgrade(${u.id})">Купити</button>
-                `;
-                container.appendChild(card);
-            });
-        }
-
-        function renderStatuesTabUI() {
-            const container = document.getElementById('tab-statue');
-            if (!container) return;
-
-            if (!state.statues || Object.keys(state.statues).length === 0) {
-                container.innerHTML = `
-                    <div class="category-title" style="width: 100%; text-align: center;">🗿 Статуї Хрюнделя</div>
-                    <div class="empty-leaderboard" style="margin-top: 20px;">
-                        <p style="color: #aaa; font-size: 1rem;">У вас поки немає активованих статуй.</p>
-                    </div>
-                `;
-                return;
-            }
-
-            let html = `<div class="category-title" style="width: 100%; text-align: center;">🗿 Статуї Хрюнделя</div>
-            <div class="upgrades-list">`;
-
-            Object.keys(state.statues).forEach(key => {
-                const s = state.statues[key];
-                if (!s) return;
-                html += `
-                    <div class="upgrade-card evo-card">
-                        <div class="upgrade-img-wrap">
-                            <img src="${s.img}" alt="${s.name}" class="upgrade-img" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'65\\' height=\\'65\\'><rect width=\\'65\\' height=\\'65\\' fill=\\'%232a1f45\\'/><text x=\\'50%\\' y=\\'50%\\' dominant-baseline=\\'middle\\' text-anchor=\\'middle\\' fill=\\'%23f1c40f\\' font-size=\\'28\\'>🗿</text></svg>';">
-                        </div>
-                        <div class="upgrade-info">
-                            <div class="upgrade-title">${s.name} <span class="upgrade-level-badge">Рівень ${s.lvl}/${s.maxLvl}</span></div>
-                            <div class="upgrade-desc" style="color: #2ecc71;">Дохід: +${formatNum(s.cps)} аури/сек</div>
-                        </div>
-                        <button class="upgrade-btn" disabled>Активовано</button>
-                    </div>
-                `;
-            });
-
-            html += `</div>`;
-            container.innerHTML = html;
-        }
-
-        function updateUI() {
-            document.getElementById('aura-count').innerText = formatNum(state.aura);
-            document.getElementById('cps-count').innerText = formatNum(getTotalCps());
-            document.getElementById('energy-count').innerText = Math.floor(state.energy);
-
+            // Відновлення енергії клікера
             const maxE = getMaxEnergy();
-            const fillPct = Math.min(100, Math.max(0, (state.energy / maxE) * 100));
-            document.getElementById('energy-bar-fill').style.width = fillPct + '%';
-            document.getElementById('energy-bar-text').innerText = `${Math.floor(state.energy)} / ${maxE}`;
-
-            const auraBtn = document.getElementById('aura-upg-btn');
-            const auraCost = getAuraUpgradeCost();
-            document.getElementById('aura-lvl-badge').innerText = `Рівень ${state.auraLvl}`;
-            document.getElementById('aura-upg-desc').innerText = `Ефект: +1 аура/клік`;
-            document.getElementById('aura-upg-cost').innerText = `Ціна: ${formatNum(auraCost)} аури`;
-            if (auraBtn) auraBtn.disabled = state.aura < auraCost || state.hasEvolved;
-
-            const energyBtn = document.getElementById('energy-upg-btn');
-            const energyCost = getEnergyUpgradeCost();
-            document.getElementById('energy-lvl-badge').innerText = `Рівень ${state.energyLvl}`;
-            document.getElementById('energy-upg-desc').innerText = `Макс. Енергія: ${1000 + state.energyLvl * 1000}`;
-            document.getElementById('energy-upg-cost').innerText = `Ціна: ${formatNum(energyCost)} аури`;
-            if (energyBtn) energyBtn.disabled = state.aura < energyCost || state.hasEvolved;
-
-            const evoBtn = document.getElementById('evo-btn');
-            const evoReqDesc = document.getElementById('evo-req-desc');
-            if (evoReqDesc) evoReqDesc.innerText = `Вимоги: Аура ${state.auraLvl}/50, Енергія ${state.energyLvl}/40`;
-            if (evoBtn) {
-                if (state.hasEvolved) {
-                    evoBtn.innerText = 'Еволюціоновано';
-                    evoBtn.disabled = true;
-                } else {
-                    evoBtn.disabled = !(state.auraLvl >= 50 && state.energyLvl >= 40 && state.aura >= EVO_COST);
-                }
+            if (state.energy < maxE) {
+                const regenRate = maxE / 1800; // Повне відновлення за 30 хвилин
+                state.energy = Math.min(maxE, state.energy + (regenRate * dt));
             }
 
-            if (state.hasEvolved) {
-                document.getElementById('card-aura-old').style.display = 'none';
-                document.getElementById('card-energy-old').style.display = 'none';
-                document.getElementById('card-aura-new').style.display = 'flex';
-                document.getElementById('card-energy-new').style.display = 'flex';
-
-                const postAuraCost = getPostEvoAuraCost();
-                document.getElementById('aura-new-lvl-badge').innerText = `Рівень ${state.postEvoAuraLvl}`;
-                document.getElementById('aura-new-upg-desc').innerText = `Ефект: ${(10 + state.postEvoAuraLvl).toFixed(0)}% від фарма/сек`;
-                document.getElementById('aura-new-upg-cost').innerText = `Ціна: ${formatNum(postAuraCost)} аури`;
-                document.getElementById('aura-new-upg-btn').disabled = state.aura < postAuraCost;
-
-                const postEnergyCost = getPostEvoEnergyCost();
-                document.getElementById('energy-new-lvl-badge').innerText = `Рівень ${state.postEvoEnergyLvl}`;
-                document.getElementById('energy-new-upg-desc').innerText = `Макс. Енергія: ${getMaxEnergy()}`;
-                document.getElementById('energy-new-upg-cost').innerText = `Ціна: ${formatNum(postEnergyCost)} аури`;
-                document.getElementById('energy-new-upg-btn').disabled = state.aura < postEnergyCost;
+            // Пасивний дохід
+            const cps = getTotalCps();
+            if (cps > 0) {
+                const income = cps * dt;
+                state.aura += income;
+                state.totalAura = (state.totalAura || 0) + income;
             }
 
-            PASSIVE_UPGRADES.forEach(u => {
-                const btn = document.getElementById(`passive-btn-${u.id}`);
-                const cost = getPassiveCost(u);
-                const reqEl = document.getElementById(`passive-req-${u.id}`);
-                const count = state.passives[u.id] || 0;
+            // Оновлення міні-ігор та івенту
+            if (typeof updateMinigamesLogic === 'function') updateMinigamesLogic(dt);
+            if (typeof updateEventLogic === 'function') updateEventLogic(dt);
 
-                let disabled = state.aura < cost;
-
-                if (u.req) {
-                    const reqLvl = state.passives[u.req.id] || 0;
-                    if (reqLvl < u.req.lvl) {
-                        disabled = true;
-                        if (reqEl) {
-                            reqEl.style.display = 'block';
-                            reqEl.innerText = `Вимога: ${u.req.name} LVL ${u.req.lvl}`;
-                        }
-                    } else if (reqEl) reqEl.style.display = 'none';
-                }
-
-                if (u.customReqCheck) {
-                    const check = u.customReqCheck(count + 1);
-                    if (!check.met) {
-                        disabled = true;
-                        if (reqEl) {
-                            reqEl.style.display = 'block';
-                            reqEl.innerText = check.text;
-                        }
-                    }
-                }
-
-                const isNoCdActive = state.noCdUntil && getServerTime() < state.noCdUntil;
-
-                if (!isNoCdActive && (u.cat === "Навчання хрюнделя" || u.cat === "Свинячий Люкс") && state.cooldowns && state.cooldowns[u.id]) {
-                    const timeLeft = Math.ceil((state.cooldowns[u.id] - getServerTime()) / 1000);
-                    if (timeLeft > 0) {
-                        disabled = true;
-                        if (btn) btn.innerText = `КД: ${formatTime(timeLeft)}`;
-                    } else {
-                        if (btn) btn.innerText = 'Купити';
-                    }
-                } else {
-                    if (btn) btn.innerText = 'Купити';
-                }
-
-                if (btn) btn.disabled = disabled;
-            });
+            updateUI();
+            requestAnimationFrame(gameLoop);
         }
 
-        function switchTab(tabName) {
-            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+        // Автозбереження кожні 15 секунд
+        setInterval(() => saveGame(), 15000);
 
-            const targetBtn = Array.from(document.querySelectorAll('.tab-btn')).find(b => b.getAttribute('onclick').includes(tabName));
-            if (targetBtn) targetBtn.classList.add('active');
-
-            const targetContent = document.getElementById(`tab-${tabName}`);
-            if (targetContent) targetContent.classList.add('active');
-
-            if (tabName === 'statue') renderStatuesTabUI();
-            if (tabName === 'event' && typeof renderEventUI === 'function') renderEventUI();
-            if (tabName === 'minigames' && typeof renderMinigamesUI === 'function') renderMinigamesUI();
-            if (tabName === 'leaderboard') renderLeaderboard();
-        }
-
-        function setLeaderboardSort(sortType) {
-            currentLeaderboardSort = sortType;
-            document.querySelectorAll('#tab-leaderboard .sub-tab-btn').forEach(b => b.classList.remove('active'));
-            const activeBtn = document.getElementById(`lb-sort-${sortType}`);
-            if (activeBtn) activeBtn.classList.add('active');
-            renderLeaderboard();
-        }
-
-        function renderLeaderboard() {
-            const list = document.getElementById('leaderboard-list');
-            if (!list) return;
-
-            if (!dbAvailable) {
-                list.innerHTML = `
-                    <div class="empty-leaderboard">
-                        <p style="color: var(--accent-gold); font-size: 1.1rem; margin-bottom: 10px;">⚠️ Firebase не підключено!</p>
-                        <div class="leaderboard-item is-player">
-                            <div class="leaderboard-rank">🥇</div>
-                            <div class="leaderboard-name">${state.nickname || "Ви"} (Локально)</div>
-                            <div class="leaderboard-cps">${formatNum(getTotalCps())}/сек</div>
-                        </div>
-                    </div>`;
-                return;
-            }
-
-            firebase.database().ref('leaderboard').orderByChild(currentLeaderboardSort).limitToLast(50).once('value', (snapshot) => {
-                const data = snapshot.val();
-                const players = [];
-
-                if (data) {
-                    Object.keys(data).forEach(id => {
-                        players.push({
-                            id: id,
-                            name: data[id].name || "Гравець",
-                            cps: data[id].cps || 0,
-                            aura: data[id].aura || 0,
-                            totalAura: data[id].totalAura || 0,
-                            isPlayer: id === state.playerId
-                        });
-                    });
-                }
-
-                players.sort((a, b) => (b[currentLeaderboardSort] || 0) - (a[currentLeaderboardSort] || 0));
-                list.innerHTML = '';
-
-                if (players.length === 0) {
-                    list.innerHTML = `<div class="empty-leaderboard">Завантаження або немає даних...</div>`;
-                    return;
-                }
-
-                players.forEach((p, index) => {
-                    const rank = index + 1;
-                    let rankIcon = `#${rank}`;
-                    if (rank === 1) rankIcon = '🥇';
-                    else if (rank === 2) rankIcon = '🥈';
-                    else if (rank === 3) rankIcon = '🥉';
-
-                    let valText = formatNum(p.cps) + '/сек';
-                    if (currentLeaderboardSort === 'aura') valText = formatNum(p.aura) + ' ✨';
-                    if (currentLeaderboardSort === 'totalAura') valText = formatNum(p.totalAura) + ' ✨';
-
-                    const item = document.createElement('div');
-                    item.className = `leaderboard-item ${p.isPlayer ? 'is-player' : ''}`;
-                    item.innerHTML = `
-                        <div class="leaderboard-rank">${rankIcon}</div>
-                        <div class="leaderboard-name">${p.name}${p.isPlayer ? ' (Ви)' : ''}</div>
-                        <div class="leaderboard-cps">${valText}</div>
-                    `;
-                    list.appendChild(item);
-                });
-            }).catch(err => {
-                console.warn("Помилка завантаження лідерборду:", err);
-            });
-        }
-
+        // Ініціалізація гри
         window.addEventListener('load', async () => {
             const progressBar = document.getElementById('loading-progress-bar');
             let progress = 0;
+
             const interval = setInterval(() => {
-                progress += 5;
-                if (progressBar) progressBar.style.width = progress + '%';
+                progress += 20;
+                if (progressBar) progressBar.style.width = `${progress}%`;
                 if (progress >= 100) {
                     clearInterval(interval);
-                    document.getElementById('loading-screen').style.display = 'none';
-                    document.getElementById('game-screen').style.display = 'flex';
-                    initGame();
+                    setTimeout(async () => {
+                        await syncWorldTime();
+                        loadGame();
+                        document.getElementById('loading-screen').style.display = 'none';
+                        document.getElementById('game-screen').style.display = 'flex';
+                        requestAnimationFrame(gameLoop);
+                    }, 300);
                 }
-            }, 50);
-        });
-
-        async function initGame() {
-            await syncWorldTime();
-            loadGame();
-            renderPassiveUpgrades();
-            setupMultiTouch();
-
-            if (!state.nickname) {
-                openNicknameModal();
-            } else {
-                calculateOfflineProgress();
-                displayOfflineModalIfAvailable();
-            }
-
-            updateUI();
-            renderStatuesTabUI();
-
-            let lastTick = Date.now();
-            setInterval(() => {
-                const now = Date.now();
-                const dt = (now - lastTick) / 1000;
-                lastTick = now;
-
-                const cps = getTotalCps();
-                if (cps > 0) {
-                    state.aura += cps * dt;
-                    state.totalAura = (state.totalAura || 0) + cps * dt;
-                }
-
-                const maxE = getMaxEnergy();
-                if (state.energy < maxE) {
-                    const regenPerSec = maxE / 1800;
-                    state.energy = Math.min(maxE, state.energy + regenPerSec * dt);
-                }
-
-                if (typeof updateEventLogic === 'function') {
-                    updateEventLogic(dt);
-                }
-
-                updateUI();
             }, 100);
-
-            setInterval(() => {
-                saveGame();
-            }, 10000);
-        }
-
-        window.addEventListener('beforeunload', () => {
-            saveGame();
         });
+
+        window.addEventListener('beforeunload', saveGame);
     </script>
 </body>
 </html>
