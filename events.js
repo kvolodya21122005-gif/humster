@@ -496,40 +496,40 @@ function renderLabButtonUI() {
             subText = "Не натискай! Чекай...";
         } else if (labGame.reqType === 'shape_instruction') {
             titleText = `натискай коли бачиш ${labGame.targetShape}`;
-            subText = "Запам'ятай! Не натискай зараз...";
+            subText = " ";
         } else if (labGame.reqType === 'shape_check') {
             titleText = `Фігура: ${labGame.shownShape}`;
             if (labGame.reqCount === 1) {
-                subText = labGame.currentClicks >= 1 ? "✓ Виконано! Чекай..." : "Натисни 1 раз!";
+                subText = labGame.currentClicks >= 1 ? " ";
             } else {
-                subText = "Не натискай! Чекай...";
+                subText = " ";
             }
         } else if (labGame.reqType === 'remember_check') {
             titleText = `Натисни якщо це число то яке ти мав запам'ятати ${labGame.shownNumber}`;
             if (labGame.rememberCheckMatch) {
-                subText = labGame.currentClicks >= 1 ? "✓ Виконано! Чекай..." : "Натисни 1 раз!";
+                subText = labGame.currentClicks >= 1 ? " ";
             } else {
-                subText = "Не натискай! Чекай...";
+                subText = " ";
             }
         } else if (labGame.reqType === 'blue_instruction') {
             titleText = labGame.blueShouldClick ? "натискай якщо кнопка синя" : "не натискай якщо кнопка синя";
-            subText = "Запам'ятай! Не натискай зараз...";
+            subText = " ";
         } else if (labGame.reqType === 'blue_check') {
             titleText = "Синя кнопка";
             if (labGame.reqCount === 1) {
-                subText = labGame.currentClicks >= 1 ? "✓ Виконано! Чекай..." : "Натисни 1 раз!";
+                subText = labGame.currentClicks >= 1 ? " ";
             } else {
-                subText = "Не натискай! Чекай...";
+                subText = " ";
             }
         } else if (labGame.reqType === 'spider_instruction') {
             titleText = "не натискай коли бачиш павука 🕷️";
-            subText = "Запам'ятай! Не натискай зараз...";
+            subText = " ";
         } else if (labGame.reqType === 'click_n') {
             titleText = `натисни ${labGame.reqCount} разів`;
             subText = `Прогрес: ${labGame.currentClicks}/${labGame.reqCount} ${labGame.currentClicks >= labGame.reqCount ? '✓' : ''}`;
         } else if (labGame.reqType === 'dont_click') {
             titleText = "НЕ натискай";
-            subText = "Зачекай вичерпання часу!";
+            subText = " ";
         } else if (labGame.reqType === 'click_gt4') {
             titleText = "натисни більше 4-х разів";
             subText = `Прогрес: ${labGame.currentClicks}/5 ${labGame.currentClicks >= 5 ? '✓' : ''}`;
@@ -537,7 +537,7 @@ function renderLabButtonUI() {
 
         if (labGame.hasSpider) {
             titleText += " 🕷️";
-            subText = "Бачиш павука? НЕ НАТИСКАЙ!";
+            subText = " ";
         }
 
         const pct = Math.max(0, Math.min(100, (labGame.timer / labGame.maxTimer) * 100));
