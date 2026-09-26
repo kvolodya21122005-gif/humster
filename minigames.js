@@ -6,7 +6,7 @@ function initMinigamesState() {
     if (!state.pigletGame) {
         state.pigletGame = {
             energy: 3,
-            lastEnergyRegen: Date.now(),
+            lastEnergyRegen: (typeof getServerTime === 'function') ? getServerTime() : Date.now(),
             totalFound: 0,
             foundSinceLastCardUpgrade: 0,
             roundActive: false,
@@ -18,7 +18,7 @@ function initMinigamesState() {
         };
     }
     if (state.pigletGame.energy === undefined) state.pigletGame.energy = 3;
-    if (!state.pigletGame.lastEnergyRegen) state.pigletGame.lastEnergyRegen = Date.now();
+    if (!state.pigletGame.lastEnergyRegen) state.pigletGame.lastEnergyRegen = (typeof getServerTime === 'function') ? getServerTime() : Date.now();
     if (state.pigletGame.totalFound === undefined) state.pigletGame.totalFound = 0;
     if (state.pigletGame.foundSinceLastCardUpgrade === undefined) state.pigletGame.foundSinceLastCardUpgrade = 0;
     if (state.pigletGame.extraAttemptsBought === undefined) state.pigletGame.extraAttemptsBought = 0;
@@ -30,7 +30,7 @@ function updateMinigamesLogic(dt) {
     initMinigamesState();
 
     const MAX_MINI_ENERGY = 3;
-    const REGEN_TIME_MS = 4 * 60 * 60 * 1000; // 4 години = 14400 секунд
+    const REGEN_TIME_MS = 4 * 60 * 60 * 1000; // 4 години (14400 секунд)
 
     if (state.pigletGame.energy < MAX_MINI_ENERGY) {
         const now = (typeof getServerTime === 'function') ? getServerTime() : Date.now();
@@ -52,12 +52,27 @@ function updateMinigamesLogic(dt) {
 }
 
 function updateMinigamesEnergyUI() {
-    const energyEl = document.getElementById('piglet-energy-val');
-    const timerEl = document.getElementById('piglet-energy-timer');
-    if (!state.pigletGame) return;
+    initMinigamesState();
 
     const MAX_MINI_ENERGY = 3;
     const REGEN_TIME_MS = 4 * 60 * 60 * 1000;
+    const now = (typeof getServerTime === 'function') ? getServerTime() : Date.now();
+
+    // Автоматично нараховуємо енергію, якщо час минув
+    if (state.pigletGame.energy < MAX_MINI_ENERGY) {
+        const elapsed = now - state.pigletGame.lastEnergyRegen;
+        if (elapsed >= REGEN_TIME_MS) {
+            const added = Math.floor(elapsed / REGEN_TIME_MS);
+            state.pigletGame.energy = Math.min(MAX_MINI_ENERGY, state.pigletGame.energy + added);
+            state.pigletGame.lastEnergyRegen += added * REGEN_TIME_MS;
+            if (state.pigletGame.energy >= MAX_MINI_ENERGY) {
+                state.pigletGame.lastEnergyRegen = now;
+            }
+        }
+    }
+
+    const energyEl = document.getElementById('piglet-energy-val');
+    const timerEl = document.getElementById('piglet-energy-timer');
 
     if (energyEl) {
         energyEl.innerText = `${state.pigletGame.energy} / ${MAX_MINI_ENERGY}`;
@@ -65,11 +80,10 @@ function updateMinigamesEnergyUI() {
 
     if (timerEl) {
         if (state.pigletGame.energy < MAX_MINI_ENERGY) {
-            const now = (typeof getServerTime === 'function') ? getServerTime() : Date.now();
-            const elapsed = now - state.pigletGame.lastEnergyRegen;
+            const elapsed = Math.max(0, now - state.pigletGame.lastEnergyRegen);
             const leftMs = Math.max(0, REGEN_TIME_MS - elapsed);
             const secLeft = Math.ceil(leftMs / 1000);
-            timerEl.innerText = `⏳ Відновлення +1 енергії через: ${formatTime(secLeft)}`;
+            timerEl.innerText = `⏳ Відновлення +1 енергії через: ${typeof formatTime === 'function' ? formatTime(secLeft) : secLeft + ' сек'}`;
         } else {
             timerEl.innerText = `⚡ Енергія повна!`;
         }
@@ -143,13 +157,12 @@ function clickPigletCell(idx) {
         state.pigletGame.totalFound = (state.pigletGame.totalFound || 0) + 1;
 
         const cps = typeof getTotalCps === 'function' ? getTotalCps() : 0;
-        // Нагорода: 5b + дохід в секунду * 1000
         const reward = 5000000000 + Math.floor(cps * 1000);
 
         state.aura = (state.aura || 0) + reward;
         state.totalAura = (state.totalAura || 0) + reward;
 
-        state.pigletGame.lastMessage = `🎉 Знайдено хрюнделя! Нагорода: +${formatNum(reward)} аури!`;
+        state.pigletGame.lastMessage = `🎉 Знайдено хрюнделя! Нагорода: +${typeof formatNum === 'function' ? formatNum(reward) : reward} аури!`;
         if (typeof playClickSound === 'function') playClickSound();
     } else {
         state.pigletGame.lastMessage = `🍃 У цьому кущику нікого немає... Спроб залишилось: ${state.pigletGame.attemptsLeft}`;
@@ -164,19 +177,19 @@ function buyExtraAttempt() {
     if (!state.pigletGame.roundActive) return;
 
     const extraCount = state.pigletGame.extraAttemptsBought || 0;
-    const nextAttemptNum = 11 + extraCount; // 11-та, 12-та, 13-та...
-    const cost = (2 + extraCount) * 1000000000; // 11-та = 2b, 12-та = 3b, 13-та = 4b і т.д.
+    const nextAttemptNum = 11 + extraCount;
+    const cost = (2 + extraCount) * 1000000000;
 
     if (state.aura >= cost) {
         state.aura -= cost;
         state.pigletGame.extraAttemptsBought += 1;
         state.pigletGame.attemptsLeft += 1;
-        state.pigletGame.lastMessage = `Куплено ${nextAttemptNum}-ту спробу за ${formatNum(cost)} аури!`;
+        state.pigletGame.lastMessage = `Куплено ${nextAttemptNum}-ту спробу за ${typeof formatNum === 'function' ? formatNum(cost) : cost} аури!`;
 
         if (typeof saveGame === 'function') saveGame();
         renderMinigamesUI();
     } else {
-        alert(`Недостатньо аури! Потрібно ${formatNum(cost)} аури.`);
+        alert(`Недостатньо аури! Потрібно ${typeof formatNum === 'function' ? formatNum(cost) : cost} аури.`);
     }
 }
 
@@ -185,7 +198,6 @@ function finishPigletGame() {
     if (!state.pigletGame) return;
 
     state.pigletGame.roundActive = false;
-    // Відкриваємо всі залишки кущів, щоб було видно де ховалися хрюнделі
     if (state.pigletGame.grid) {
         state.pigletGame.grid.forEach(cell => cell.opened = true);
     }
@@ -215,10 +227,7 @@ function renderMinigamesUI() {
     }
 
     initMinigamesState();
-
-    const pigsForCard = state.pigletGame.foundSinceLastCardUpgrade || 0;
-    const cardLvl = state.passives ? (state.passives[45] || 0) : 0;
-    const nextReqPigs = cardLvl + 1;
+    updateMinigamesEnergyUI();
 
     let html = `
         <div style="width: 100%; text-align: center; background: var(--card-bg); padding: 15px; border-radius: 16px; border: 2px solid var(--accent-gold); margin-bottom: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.4);">
@@ -239,7 +248,7 @@ function renderMinigamesUI() {
                 <p style="font-size: 0.95rem; color: #ccc; line-height: 1.4; max-width: 450px; margin: 0 auto;">
                     У 72 кущиках сховалось <b>10 хрюнделів</b>.<br>
                     У вас є <b>10 спроб</b>, щоб їх знайти!<br>
-                    Нагорода за кожного знайденого хрюнделя: <b style="color: #2ecc71;">5b + (дохід/сек * 1000)</b> = <b style="color: var(--accent-gold);">${formatNum(rewardCalc)} ✨</b>
+                    Нагорода за кожного знайденого хрюнделя: <b style="color: #2ecc71;">5b + (дохід/сек * 1000)</b> = <b style="color: var(--accent-gold);">${typeof formatNum === 'function' ? formatNum(rewardCalc) : rewardCalc} ✨</b>
                 </p>
                 ${state.pigletGame.lastMessage ? `<div style="margin-top: 15px; padding: 10px; background: rgba(0,0,0,0.3); border-radius: 10px; color: var(--accent-gold); font-weight: bold;">${state.pigletGame.lastMessage}</div>` : ''}
                 <hr style="width: 100%; border: 1px solid rgba(255,255,255,0.1); margin: 18px 0;">
@@ -292,7 +301,7 @@ function renderMinigamesUI() {
                     <div style="color: #e74c3c; font-weight: bold; font-size: 1.1rem; margin-bottom: 10px;">⚠️ Спроби закінчилися!</div>
                     <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
                         <button class="upgrade-btn" style="background: linear-gradient(180deg, #e67e22, #d35400); padding: 10px 16px;" onclick="buyExtraAttempt()">
-                            ➕ Докупити ${nextAttemptNum}-ту спробу (${formatNum(nextAttemptCost)} аури)
+                            ➕ Докупити ${nextAttemptNum}-ту спробу (${typeof formatNum === 'function' ? formatNum(nextAttemptCost) : nextAttemptCost} аури)
                         </button>
                         <button class="upgrade-btn" style="background: #7f8c8d; padding: 10px 16px;" onclick="finishPigletGame()">
                             🚪 Завершити ігру
