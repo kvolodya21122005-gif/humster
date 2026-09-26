@@ -77,11 +77,10 @@ const LAB_LEVELS = [
 
 let eventSubTab = 'game'; // 'game', 'upgrades', 'lab', 'leaderboard'
 
-// Стан міні-гри "Зелена Кнопка"
 let labGame = {
     state: 'idle', // 'idle', 'playing', 'ended'
     step: 1,
-    reqType: '', // 'click_1', 'click_n', 'dont_click', 'click_gt4', 'remember', 'remember_check'
+    reqType: '',
     reqCount: 1,
     currentClicks: 0,
     timer: 1.0,
@@ -120,7 +119,7 @@ function initEventState() {
 
 function getEnergyRegenInterval() {
     if (!state.event || !state.event.regenUpgLvl || state.event.regenUpgLvl === 0) {
-        return 120; // За замовчуванням: 2 хв на 1 енергію
+        return 120; // 2 хв на 1 енергію за замовчуванням
     }
     const upg = REGEN_UPGRADES[state.event.regenUpgLvl - 1];
     return upg ? upg.intervalSec : 120;
@@ -151,7 +150,6 @@ function getLabAuraIncome() {
 function updateEventLogic(dt) {
     initEventState();
 
-    // Відновлення енергії кнопки (до 20)
     if (state.event.energy < 20) {
         const interval = getEnergyRegenInterval();
         const now = getCurrentTime();
@@ -166,20 +164,17 @@ function updateEventLogic(dt) {
         state.event.lastEnergyTime = getCurrentTime();
     }
 
-    // Оновлення таймера гри
     if (labGame.state === 'playing') {
         labGame.timer -= dt;
 
         if (labGame.timer <= 0) {
             labGame.timer = 0;
 
-            // Перевірка результату виконання умови після завершення таймера
             let isStepSuccess = false;
 
             if (labGame.reqType === 'click_1') {
                 isStepSuccess = (labGame.currentClicks === 1);
             } else if (labGame.reqType === 'remember') {
-                // На умовах "Запам'ятай число" не потрібно натискати
                 isStepSuccess = (labGame.currentClicks === 0);
             } else if (labGame.reqType === 'click_n') {
                 isStepSuccess = (labGame.currentClicks === labGame.reqCount);
@@ -197,7 +192,6 @@ function updateEventLogic(dt) {
 
             if (isStepSuccess) {
                 if (labGame.step >= 100) {
-                    // 100-ий крок є останнім
                     endLabGame(true);
                 } else {
                     completeStep();
@@ -218,7 +212,7 @@ function updateEventCountersUI() {
     const timerEl = document.getElementById('lab-event-timer');
 
     if (energyEl) energyEl.textContent = `⚡ Енергія кнопки: ${Math.floor(state.event.energy)}/20`;
-    if (chemEl) chemEl.textContent = `🧪 Хімікати: ${formatNum(state.event.chemicals)}`;
+    if (chemEl) chemEl.textContent = `🧪 Хімікати: ${typeof formatNum === 'function' ? formatNum(state.event.chemicals) : state.event.chemicals}`;
 
     if (timerEl) {
         const now = getCurrentTime();
@@ -245,11 +239,11 @@ function setupNextStep() {
         labGame.reqCount = 1;
     } else if (labGame.step === 2) {
         labGame.reqType = 'remember';
-        labGame.rememberNumber = Math.floor(Math.random() * 90) + 10; // Рандомне двоцифрове число (10-99)
-        labGame.reqCount = 0; // Натискати НЕ потрібно!
+        labGame.rememberNumber = Math.floor(Math.random() * 90) + 10;
+        labGame.reqCount = 0;
     } else if (labGame.step === labGame.checkStep) {
         labGame.reqType = 'remember_check';
-        const isMatch = Math.random() < 0.5; // 50% шанс того самого числа
+        const isMatch = Math.random() < 0.5;
         labGame.rememberCheckMatch = isMatch;
         if (isMatch) {
             labGame.shownNumber = labGame.rememberNumber;
@@ -260,23 +254,22 @@ function setupNextStep() {
                 fakeNum = Math.floor(Math.random() * 90) + 10;
             } while (fakeNum === labGame.rememberNumber);
             labGame.shownNumber = fakeNum;
-            labGame.reqCount = 0; // Не те число -> натискати НЕ потрібно
+            labGame.reqCount = 0;
         }
     } else {
-        // Рандомний патерн
         const patternType = Math.floor(Math.random() * 4);
         if (patternType === 0) {
             labGame.reqType = 'click_1';
             labGame.reqCount = 1;
         } else if (patternType === 1) {
             labGame.reqType = 'click_n';
-            labGame.reqCount = Math.floor(Math.random() * 3) + 2; // 2, 3, або 4
+            labGame.reqCount = Math.floor(Math.random() * 3) + 2;
         } else if (patternType === 2) {
             labGame.reqType = 'dont_click';
             labGame.reqCount = 0;
         } else {
             labGame.reqType = 'click_gt4';
-            labGame.reqCount = 5; // Більше 4-х разів
+            labGame.reqCount = 5;
         }
     }
 }
@@ -294,7 +287,6 @@ function handleLabButtonClick() {
         labGame.state = 'playing';
         labGame.step = 1;
         labGame.completed100 = false;
-        // Випадковий крок для перевірки пам'яті (40-60)
         labGame.checkStep = Math.floor(Math.random() * 21) + 40;
         setupNextStep();
         if (typeof playClickSound === 'function') playClickSound();
@@ -305,7 +297,6 @@ function handleLabButtonClick() {
     if (labGame.state === 'playing') {
         if (typeof playClickSound === 'function') playClickSound();
 
-        // Якщо за умовами кликати заборонено:
         if (labGame.reqType === 'dont_click' || labGame.reqType === 'remember' || (labGame.reqType === 'remember_check' && !labGame.rememberCheckMatch)) {
             endLabGame(false);
             return;
@@ -313,7 +304,6 @@ function handleLabButtonClick() {
 
         labGame.currentClicks += 1;
 
-        // Поразка при перевищенні кількості кліків:
         if (labGame.reqType === 'click_1' || (labGame.reqType === 'remember_check' && labGame.rememberCheckMatch)) {
             if (labGame.currentClicks > 1) {
                 endLabGame(false);
@@ -326,7 +316,6 @@ function handleLabButtonClick() {
             }
         }
 
-        // Кнопка НЕ переходить далі до закінчення таймера
         renderLabButtonUI();
     }
 }
@@ -343,7 +332,7 @@ function endLabGame(isSuccess) {
     state.event.totalChemicals += earnedTotal;
     labGame.lastEarned = earnedTotal;
 
-    saveGame();
+    if (typeof saveGame === 'function') saveGame();
     syncChemicalsLeaderboardThrottled();
     renderLabButtonUI();
 }
@@ -364,16 +353,16 @@ function renderLabButtonUI() {
     } else if (labGame.state === 'ended') {
         if (labGame.completed100) {
             btn.innerHTML = `
-                <div class="lab-btn-title" style="color: #f1c40f; font-size: 1.15rem; line-height: 1.3;">100-ий крок є останнім на перший день івенту.</div>
+                <div class="lab-btn-title" style="color: #f1c40f; font-size: 1.15rem; line-height: 1.3;">100-ий крок пройдено!</div>
                 <div class="lab-btn-sub" style="color: #2ecc71; margin-top: 4px;">Вітаємо!</div>
-                <div class="lab-btn-timer" style="color: #2ecc71;">+${formatNum(labGame.lastEarned)} 🧪</div>
+                <div class="lab-btn-timer" style="color: #2ecc71;">+${typeof formatNum === 'function' ? formatNum(labGame.lastEarned) : labGame.lastEarned} 🧪</div>
                 <div style="font-size: 0.8rem; margin-top: 6px;">Натисни, щоб зіграти знов</div>
             `;
         } else {
             btn.innerHTML = `
                 <div class="lab-btn-title" style="color: #e74c3c;">ГРУ ЗАВЕРШЕНО!</div>
                 <div class="lab-btn-sub">Пройдено кроків: ${Math.max(0, labGame.step - 1)}</div>
-                <div class="lab-btn-timer" style="color: #2ecc71;">+${formatNum(labGame.lastEarned)} 🧪</div>
+                <div class="lab-btn-timer" style="color: #2ecc71;">+${typeof formatNum === 'function' ? formatNum(labGame.lastEarned) : labGame.lastEarned} 🧪</div>
                 <div style="font-size: 0.8rem; margin-top: 6px;">Натисни, щоб зіграти знов</div>
             `;
         }
@@ -427,7 +416,7 @@ function syncChemicalsLeaderboardThrottled() {
 }
 
 function syncChemicalsLeaderboard() {
-    if (!dbAvailable || !state.playerId || !state.nickname) return;
+    if (typeof dbAvailable === 'undefined' || !dbAvailable || !state.playerId || !state.nickname) return;
     if (!state.event) initEventState();
     firebase.database().ref('leaderboard_lab/' + state.playerId).set({
         name: state.nickname,
@@ -445,7 +434,7 @@ function buyLabTimeUpg(targetLvl) {
     if (state.event.chemicals >= upg.costChem) {
         state.event.chemicals -= upg.costChem;
         state.event.timeUpgLvl = targetLvl;
-        saveGame();
+        if (typeof saveGame === 'function') saveGame();
         renderEventUI();
     }
 }
@@ -459,7 +448,7 @@ function buyLabMultUpg(targetLvl) {
     if (state.event.chemicals >= upg.costChem) {
         state.event.chemicals -= upg.costChem;
         state.event.multUpgLvl = targetLvl;
-        saveGame();
+        if (typeof saveGame === 'function') saveGame();
         renderEventUI();
     }
 }
@@ -473,7 +462,7 @@ function buyLabRegenUpg(targetLvl) {
     if (state.aura >= upg.costAura) {
         state.aura -= upg.costAura;
         state.event.regenUpgLvl = targetLvl;
-        saveGame();
+        if (typeof saveGame === 'function') saveGame();
         renderEventUI();
     }
 }
@@ -487,7 +476,7 @@ function buyLabBuilding(targetLvl) {
     if (state.event.chemicals >= lab.costChem) {
         state.event.chemicals -= lab.costChem;
         state.event.labLvl = targetLvl;
-        saveGame();
+        if (typeof saveGame === 'function') saveGame();
         renderEventUI();
     }
 }
@@ -519,8 +508,8 @@ function renderEventUI() {
                 ${timerText}
             </div>
             <div style="display: flex; justify-content: space-around; margin-top: 10px; font-weight: bold; font-size: 0.95rem;">
-                <span id="lab-energy-val" style="color: #3498db;">⚡ Енергія кнопки: ${Math.floor(state.event.energy)}/100</span>
-                <span id="lab-chem-val" style="color: #2ecc71;">🧪 Хімікати: ${formatNum(state.event.chemicals)}</span>
+                <span id="lab-energy-val" style="color: #3498db;">⚡ Енергія кнопки: ${Math.floor(state.event.energy)}/20</span>
+                <span id="lab-chem-val" style="color: #2ecc71;">🧪 Хімікати: ${typeof formatNum === 'function' ? formatNum(state.event.chemicals) : state.event.chemicals}</span>
             </div>
         </div>
 
@@ -536,14 +525,12 @@ function renderEventUI() {
         html += `
             <div class="lab-btn-container">
                 <div id="lab-main-interactive-btn" class="lab-main-btn" onclick="handleLabButtonClick()">
-                    <!-- Вміст генерується через renderLabButtonUI() -->
                 </div>
             </div>
         `;
     } else if (eventSubTab === 'upgrades') {
         html += `<div class="upgrades-list">`;
 
-        // Категорія 1: Час на крок
         html += `<div class="category-title">⏱️ Кількість часу на крок</div>`;
         TIME_UPGRADES.forEach(u => {
             const isOwned = state.event.timeUpgLvl >= u.level;
@@ -554,7 +541,7 @@ function renderEventUI() {
                     <div class="upgrade-img-wrap"><span style="font-size: 2rem;">⏱️</span></div>
                     <div class="upgrade-info">
                         <div class="upgrade-title">${u.timeSec} секунд</div>
-                        <div class="upgrade-desc" style="color: var(--accent-gold);">Ціна: ${formatNum(u.costChem)} хімікатів</div>
+                        <div class="upgrade-desc" style="color: var(--accent-gold);">Ціна: ${typeof formatNum === 'function' ? formatNum(u.costChem) : u.costChem} хімікатів</div>
                     </div>
                     <button class="upgrade-btn" ${isOwned ? 'disabled' : (canBuy ? '' : 'disabled')} onclick="buyLabTimeUpg(${u.level})">
                         ${isOwned ? 'Куплено' : 'Купити'}
@@ -562,7 +549,6 @@ function renderEventUI() {
                 </div>`;
         });
 
-        // Категорія 2: Множник хімікатів
         html += `<div class="category-title" style="margin-top: 20px;">🧪 Множник Хімікатів</div>`;
         MULT_UPGRADES.forEach(u => {
             const isOwned = state.event.multUpgLvl >= u.level;
@@ -573,7 +559,7 @@ function renderEventUI() {
                     <div class="upgrade-img-wrap"><span style="font-size: 2rem;">⚗️</span></div>
                     <div class="upgrade-info">
                         <div class="upgrade-title">х${u.mult} хімікати</div>
-                        <div class="upgrade-desc" style="color: var(--accent-gold);">Ціна: ${formatNum(u.costChem)} хімікатів</div>
+                        <div class="upgrade-desc" style="color: var(--accent-gold);">Ціна: ${typeof formatNum === 'function' ? formatNum(u.costChem) : u.costChem} хімікатів</div>
                     </div>
                     <button class="upgrade-btn" ${isOwned ? 'disabled' : (canBuy ? '' : 'disabled')} onclick="buyLabMultUpg(${u.level})">
                         ${isOwned ? 'Куплено' : 'Купити'}
@@ -581,7 +567,6 @@ function renderEventUI() {
                 </div>`;
         });
 
-        // Категорія 3: Швидкість відновлення енергії
         html += `<div class="category-title" style="margin-top: 20px;">⚡ Швидкість відновлення енергії</div>`;
         REGEN_UPGRADES.forEach(u => {
             const isOwned = state.event.regenUpgLvl >= u.level;
@@ -592,7 +577,7 @@ function renderEventUI() {
                     <div class="upgrade-img-wrap"><span style="font-size: 2rem;">⚡</span></div>
                     <div class="upgrade-info">
                         <div class="upgrade-title">Час відновлення: ${u.label}</div>
-                        <div class="upgrade-desc" style="color: var(--accent-gold);">Ціна: ${formatNum(u.costAura)} аури</div>
+                        <div class="upgrade-desc" style="color: var(--accent-gold);">Ціна: ${typeof formatNum === 'function' ? formatNum(u.costAura) : u.costAura} аури</div>
                     </div>
                     <button class="upgrade-btn" ${isOwned ? 'disabled' : (canBuy ? '' : 'disabled')} onclick="buyLabRegenUpg(${u.level})">
                         ${isOwned ? 'Куплено' : 'Купити'}
@@ -614,8 +599,8 @@ function renderEventUI() {
                     <div class="upgrade-img-wrap"><span style="font-size: 2rem;">🧪</span></div>
                     <div class="upgrade-info">
                         <div class="upgrade-title">Лабораторія Рівень ${lab.level}</div>
-                        <div class="upgrade-desc">Пасивний пасивний дохід: +${formatNum(lab.auraIncome)} аури/сек</div>
-                        <div class="upgrade-desc" style="color: var(--accent-gold);">Ціна: ${formatNum(lab.costChem)} хімікатів</div>
+                        <div class="upgrade-desc">Пасивний дохід: +${typeof formatNum === 'function' ? formatNum(lab.auraIncome) : lab.auraIncome} аури/сек</div>
+                        <div class="upgrade-desc" style="color: var(--accent-gold);">Ціна: ${typeof formatNum === 'function' ? formatNum(lab.costChem) : lab.costChem} хімікатів</div>
                     </div>
                     <button class="upgrade-btn" ${isOwned ? 'disabled' : (canBuy ? '' : 'disabled')} onclick="buyLabBuilding(${lab.level})">
                         ${isOwned ? 'Куплено' : 'Купити'}
@@ -642,14 +627,14 @@ function renderLabLeaderboard() {
     const list = document.getElementById('lab-leaderboard-list');
     if (!list) return;
 
-    if (!dbAvailable) {
+    if (typeof dbAvailable === 'undefined' || !dbAvailable) {
         list.innerHTML = `
             <div class="empty-leaderboard">
                 <p style="color: var(--accent-gold); font-size: 1.1rem; margin-bottom: 10px;">⚠️ Firebase не підключено!</p>
                 <div class="leaderboard-item is-player">
                     <div class="leaderboard-rank">🥇</div>
                     <div class="leaderboard-name">${state.nickname || "Ви"} (Локально)</div>
-                    <div class="leaderboard-cps">${formatNum(state.event.totalChemicals)} 🧪</div>
+                    <div class="leaderboard-cps">${typeof formatNum === 'function' ? formatNum(state.event.totalChemicals) : state.event.totalChemicals} 🧪</div>
                 </div>
             </div>`;
         return;
@@ -690,7 +675,7 @@ function renderLabLeaderboard() {
             item.innerHTML = `
                 <div class="leaderboard-rank">${rankIcon}</div>
                 <div class="leaderboard-name">${p.name}${p.isPlayer ? ' (Ви)' : ''}</div>
-                <div class="leaderboard-cps">${formatNum(p.totalChemicals)} 🧪</div>
+                <div class="leaderboard-cps">${typeof formatNum === 'function' ? formatNum(p.totalChemicals) : p.totalChemicals} 🧪</div>
             `;
             list.appendChild(item);
         });
