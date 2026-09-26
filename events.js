@@ -499,16 +499,28 @@ function renderLabButtonUI() {
             subText = "Запам'ятай! Не натискай зараз...";
         } else if (labGame.reqType === 'shape_check') {
             titleText = `Фігура: ${labGame.shownShape}`;
-            subText = labGame.currentClicks >= 1 ? "✓ Чекай..." : "";
+            if (labGame.reqCount === 1) {
+                subText = labGame.currentClicks >= 1 ? "✓ Виконано! Чекай..." : "Натисни 1 раз!";
+            } else {
+                subText = "Не натискай! Чекай...";
+            }
         } else if (labGame.reqType === 'remember_check') {
-            titleText = `Чи це твоє число? ${labGame.shownNumber}`;
-            subText = labGame.currentClicks >= 1 ? "✓ Чекай..." : "";
+            titleText = `Натисни якщо це число то яке ти мав запам'ятати ${labGame.shownNumber}`;
+            if (labGame.rememberCheckMatch) {
+                subText = labGame.currentClicks >= 1 ? "✓ Виконано! Чекай..." : "Натисни 1 раз!";
+            } else {
+                subText = "Не натискай! Чекай...";
+            }
         } else if (labGame.reqType === 'blue_instruction') {
             titleText = labGame.blueShouldClick ? "натискай якщо кнопка синя" : "не натискай якщо кнопка синя";
             subText = "Запам'ятай! Не натискай зараз...";
         } else if (labGame.reqType === 'blue_check') {
             titleText = "Синя кнопка";
-            subText = labGame.currentClicks >= 1 ? "✓ Чекай..." : "";
+            if (labGame.reqCount === 1) {
+                subText = labGame.currentClicks >= 1 ? "✓ Виконано! Чекай..." : "Натисни 1 раз!";
+            } else {
+                subText = "Не натискай! Чекай...";
+            }
         } else if (labGame.reqType === 'spider_instruction') {
             titleText = "не натискай коли бачиш павука 🕷️";
             subText = "Запам'ятай! Не натискай зараз...";
@@ -525,11 +537,10 @@ function renderLabButtonUI() {
 
         if (labGame.hasSpider) {
             titleText += " 🕷️";
-            if (labGame.currentClicks >= 1) {
-                subText = "✓ Чекай...";
-            }
+            subText = "Бачиш павука? НЕ НАТИСКАЙ!";
         }
 
+        subText = "";
         const pct = Math.max(0, Math.min(100, (labGame.timer / labGame.maxTimer) * 100));
 
         btn.innerHTML = `
