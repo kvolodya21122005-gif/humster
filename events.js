@@ -93,6 +93,7 @@ let eventSubTab = 'game';
 let labGame = {
     state: 'idle', // 'idle', 'playing', 'ended'
     step: 1,
+    buttonLvl: 1, // 1 або 2
     reqType: '', 
     reqCount: 1,
     currentClicks: 0,
@@ -102,19 +103,35 @@ let labGame = {
     checkStep: 45,
     shownNumber: 0,
     rememberCheckMatch: false,
+    energyDeducted: false,
     
-    // Спеціальні кроки та умови
-    shapeStep: 30,         // 26-35
-    targetShape: '▲',     // '▲', '■', '●'
+    // Спеціальні кроки та умови (Кнопка 1 рівня)
+    shapeStep: 30,         
+    targetShape: '▲',     
     shownShape: '',
-    blueStep: 70,          // 65-79
-    blueShouldClick: true, // чи натискати при синій кнопці
+    blueStep: 70,          
+    blueShouldClick: true, 
     isBlueButton: false,
-    spiderStep: 95,        // 90-99
+    spiderStep: 95,        
     hasSpider: false,
 
+    // Спеціальні кроки (Кнопка 2 рівня)
+    blueStep2: 4,
+    redStep2: 10,
+    purpleStep2: 18,
+    leavesStep2: 26,
+    spiderStep2: 32,
+    shapeStep2: 42,
+
+    targetShape2: '●',
+    leavesCount: 0,
+    isRedButton: false,
+    isPurpleButton: false,
+    purpleShouldClick: true,
+    leavesShouldClick: true,
+
     lastEarned: 0,
-    completed140: false
+    completedMax: false
 };
 
 function initEventState() {
@@ -128,7 +145,9 @@ function initEventState() {
             timeUpgLvl: 0,
             multUpgLvl: 0,
             regenUpgLvl: 0,
-            labLvl: 0
+            labLvl: 0,
+            unlockedButton2: false,
+            selectedButton: 1
         };
     }
     if (state.event.energy === undefined || state.event.energy > 10) state.event.energy = 10;
@@ -139,6 +158,8 @@ function initEventState() {
     if (state.event.multUpgLvl === undefined) state.event.multUpgLvl = 0;
     if (state.event.regenUpgLvl === undefined) state.event.regenUpgLvl = 0;
     if (state.event.labLvl === undefined) state.event.labLvl = 0;
+    if (state.event.unlockedButton2 === undefined) state.event.unlockedButton2 = false;
+    if (state.event.selectedButton === undefined) state.event.selectedButton = 1;
 }
 
 function getEnergyRegenInterval() {
@@ -198,37 +219,44 @@ function updateEventLogic(dt) {
             let isStepSuccess = false;
 
             if (labGame.hasSpider) {
-                // Якщо присутній павук - суворо 0 кліків!
                 isStepSuccess = (labGame.currentClicks === 0);
             } else if (labGame.reqType === 'click_1' || labGame.reqType === 'blue_check' || labGame.reqType === 'shape_check') {
-                if (labGame.reqCount === 1) {
-                    isStepSuccess = (labGame.currentClicks === 1);
-                } else {
-                    isStepSuccess = (labGame.currentClicks === 0);
-                }
+                isStepSuccess = (labGame.currentClicks === labGame.reqCount);
             } else if (
                 labGame.reqType === 'remember' || 
                 labGame.reqType === 'shape_instruction' || 
                 labGame.reqType === 'blue_instruction' || 
-                labGame.reqType === 'spider_instruction'
+                labGame.reqType === 'spider_instruction' ||
+                labGame.reqType.includes('instruction2')
             ) {
                 isStepSuccess = (labGame.currentClicks === 0);
-            } else if (labGame.reqType === 'click_n') {
+            } else if (labGame.reqType === 'click_n' || labGame.reqType === 'click_2') {
                 isStepSuccess = (labGame.currentClicks === labGame.reqCount);
-            } else if (labGame.reqType === 'dont_click') {
+            } else if (labGame.reqType === 'dont_click' || labGame.reqType === 'click_0' || labGame.reqType === 'red_check2') {
                 isStepSuccess = (labGame.currentClicks === 0);
-            } else if (labGame.reqType === 'click_gt4') {
-                isStepSuccess = (labGame.currentClicks >= 5);
+            } else if (labGame.reqType === 'click_gt4' || labGame.reqType === 'click_gt5') {
+                isStepSuccess = (labGame.currentClicks >= labGame.reqCount);
             } else if (labGame.reqType === 'remember_check') {
                 if (labGame.rememberCheckMatch) {
                     isStepSuccess = (labGame.currentClicks === 1);
                 } else {
                     isStepSuccess = (labGame.currentClicks === 0);
                 }
+            } else if (labGame.reqType === 'blue_check2' || labGame.reqType === 'purple_check2' || labGame.reqType === 'leaves_check2') {
+                isStepSuccess = (labGame.currentClicks === labGame.reqCount);
+            } else if (labGame.reqType === 'shape_check2') {
+                isStepSuccess = (labGame.currentClicks === labGame.reqCount);
             }
 
             if (isStepSuccess) {
-                if (labGame.step >= 140) {
+                const maxSteps = labGame.buttonLvl === 2 ? 75 : 140;
+                
+                if (labGame.buttonLvl === 2 && labGame.step === 2 && !labGame.energyDeducted) {
+                    state.event.energy -= 2;
+                    labGame.energyDeducted = true;
+                }
+
+                if (labGame.step >= maxSteps) {
                     endLabGame(true);
                 } else {
                     completeStep();
@@ -267,13 +295,30 @@ function updateEventCountersUI() {
 }
 
 function setupNextStep() {
-    labGame.maxTimer = getStepTime();
+    let baseTime = getStepTime();
+    if (labGame.buttonLvl === 2) {
+        baseTime -= 0.5;
+        if (baseTime < 0.2) baseTime = 0.2;
+    }
+    
+    labGame.maxTimer = baseTime;
     labGame.timer = labGame.maxTimer;
     labGame.currentClicks = 0;
     labGame.hasSpider = false;
     labGame.isBlueButton = false;
+    labGame.isRedButton = false;
+    labGame.isPurpleButton = false;
+    labGame.leavesCount = 0;
     labGame.shownShape = '';
 
+    if (labGame.buttonLvl === 1) {
+        setupStepLvl1();
+    } else {
+        setupStepLvl2();
+    }
+}
+
+function setupStepLvl1() {
     if (labGame.step === 1) {
         labGame.reqType = 'click_1';
         labGame.reqCount = 1;
@@ -282,7 +327,6 @@ function setupNextStep() {
         labGame.rememberNumber = Math.floor(Math.random() * 90) + 10;
         labGame.reqCount = 0;
     } else if (labGame.step === labGame.shapeStep) {
-        // Інструкція для фігур на 26-35 кроці
         labGame.reqType = 'shape_instruction';
         labGame.reqCount = 0;
     } else if (labGame.step === labGame.checkStep) {
@@ -301,17 +345,14 @@ function setupNextStep() {
             labGame.reqCount = 0;
         }
     } else if (labGame.step === labGame.blueStep) {
-        // Інструкція синьої кнопки на 65-79 кроці
         labGame.reqType = 'blue_instruction';
         labGame.reqCount = 0;
     } else if (labGame.step === labGame.spiderStep) {
-        // Інструкція павука на 90-99 кроці
         labGame.reqType = 'spider_instruction';
         labGame.reqCount = 0;
     } else {
         let specialTriggered = false;
 
-        // Після shapeStep: шанс 1/20 (5%) випадіння фігури
         if (labGame.step > labGame.shapeStep && Math.random() < 0.05) {
             labGame.reqType = 'shape_check';
             const shapes = ['▲', '■', '●'];
@@ -320,7 +361,6 @@ function setupNextStep() {
             specialTriggered = true;
         }
 
-        // Після blueStep: шанс 1/25 (4%) випадіння синьої кнопки
         if (!specialTriggered && labGame.step > labGame.blueStep && Math.random() < 0.04) {
             labGame.reqType = 'blue_check';
             labGame.isBlueButton = true;
@@ -345,11 +385,106 @@ function setupNextStep() {
             }
         }
 
-        // Після spiderStep: шанс 1/25 (4%) поява павука в кінці
         if (labGame.step > labGame.spiderStep && Math.random() < 0.04) {
             labGame.hasSpider = true;
-            labGame.reqCount = 0; // Незалежно від інструкції, не натискати!
+            labGame.reqCount = 0; 
         }
+    }
+}
+
+function setupStepLvl2() {
+    let specialTriggered = false;
+
+    if (labGame.step === labGame.blueStep2) {
+        labGame.reqType = 'blue_instruction2';
+        labGame.reqCount = 0;
+        specialTriggered = true;
+    } else if (labGame.step === labGame.redStep2) {
+        labGame.reqType = 'red_instruction2';
+        labGame.reqCount = 0;
+        specialTriggered = true;
+    } else if (labGame.step === labGame.purpleStep2) {
+        labGame.reqType = 'purple_instruction2';
+        labGame.reqCount = 0;
+        specialTriggered = true;
+    } else if (labGame.step === labGame.leavesStep2) {
+        labGame.reqType = 'leaves_instruction2';
+        labGame.reqCount = 0;
+        specialTriggered = true;
+    } else if (labGame.step === labGame.spiderStep2) {
+        labGame.reqType = 'spider_instruction2';
+        labGame.reqCount = 0;
+        specialTriggered = true;
+    } else if (labGame.step === labGame.shapeStep2) {
+        labGame.reqType = 'shape_instruction2';
+        labGame.reqCount = 0;
+        specialTriggered = true;
+    }
+
+    if (!specialTriggered && labGame.step > labGame.blueStep2 && Math.random() < 0.1) {
+        labGame.reqType = 'blue_check2';
+        labGame.isBlueButton = true;
+        labGame.reqCount = labGame.blueShouldClick ? 1 : 0;
+        specialTriggered = true;
+    }
+    
+    if (!specialTriggered && labGame.step > labGame.redStep2 && Math.random() < 0.1) {
+        labGame.reqType = 'red_check2';
+        labGame.isRedButton = true;
+        labGame.reqCount = 0; 
+        specialTriggered = true;
+    }
+
+    if (!specialTriggered && labGame.step > labGame.purpleStep2 && Math.random() < 0.1) {
+        labGame.reqType = 'purple_check2';
+        labGame.isPurpleButton = true;
+        labGame.reqCount = labGame.purpleShouldClick ? 1 : 0;
+        specialTriggered = true;
+    }
+
+    if (!specialTriggered && labGame.step > labGame.leavesStep2 && Math.random() < 0.1) {
+        labGame.reqType = 'leaves_check2';
+        labGame.leavesCount = Math.floor(Math.random() * 4) + 3; // 3,4,5,6
+        const isEven = labGame.leavesCount % 2 === 0;
+        if (labGame.leavesShouldClick) {
+            labGame.reqCount = isEven ? 1 : 0;
+        } else {
+            labGame.reqCount = isEven ? 0 : 1;
+        }
+        specialTriggered = true;
+    }
+
+    if (!specialTriggered && labGame.step > labGame.shapeStep2 && Math.random() < 0.1) {
+        labGame.reqType = 'shape_check2';
+        const shapes = ['●', '▲', '■'];
+        labGame.shownShape = shapes[Math.floor(Math.random() * 3)];
+        labGame.reqCount = (labGame.shownShape === labGame.targetShape2) ? 1 : 0;
+        specialTriggered = true;
+    }
+
+    if (!specialTriggered) {
+        const patternType = Math.floor(Math.random() * 5);
+        if (patternType === 0) {
+            labGame.reqType = 'click_1';
+            labGame.reqCount = 1;
+        } else if (patternType === 1) {
+            labGame.reqType = 'dont_click';
+            labGame.reqCount = 0;
+        } else if (patternType === 2) {
+            labGame.reqType = 'click_gt5';
+            labGame.reqCount = 6;
+        } else if (patternType === 3) {
+            labGame.reqType = 'click_0';
+            labGame.reqCount = 0;
+        } else {
+            labGame.reqType = 'click_2';
+            labGame.reqCount = 2;
+        }
+    }
+
+    if (labGame.step > labGame.spiderStep2 && Math.random() < 0.1) {
+        labGame.hasSpider = true;
+        labGame.reqCount = 0; 
     }
 }
 
@@ -360,22 +495,44 @@ function completeStep() {
 }
 
 function handleLabButtonClick() {
+    initEventState();
+
     if (labGame.state === 'idle' || labGame.state === 'ended') {
-        if (state.event.energy < 1) return;
-        state.event.energy -= 1;
+        const btnLvl = state.event.selectedButton;
+        
+        if (btnLvl === 1 && state.event.energy < 1) return;
+        if (btnLvl === 2 && state.event.energy < 2) return;
+
+        labGame.buttonLvl = btnLvl;
         labGame.state = 'playing';
         labGame.step = 1;
-        labGame.completed140 = false;
-        
-        // Генерація випадкових кроків івенту для нової сесії
-        labGame.checkStep = Math.floor(Math.random() * 21) + 40;  // 40-60
-        labGame.shapeStep = Math.floor(Math.random() * 10) + 26;  // 26-35
-        labGame.blueStep = Math.floor(Math.random() * 15) + 65;   // 65-79
-        labGame.spiderStep = Math.floor(Math.random() * 10) + 90; // 90-99
+        labGame.completedMax = false;
+        labGame.energyDeducted = false;
 
-        const shapes = ['▲', '■', '●'];
-        labGame.targetShape = shapes[Math.floor(Math.random() * 3)];
-        labGame.blueShouldClick = Math.random() < 0.5;
+        if (btnLvl === 1) {
+            state.event.energy -= 1;
+            labGame.energyDeducted = true;
+            labGame.checkStep = Math.floor(Math.random() * 21) + 40;  
+            labGame.shapeStep = Math.floor(Math.random() * 10) + 26;  
+            labGame.blueStep = Math.floor(Math.random() * 15) + 65;   
+            labGame.spiderStep = Math.floor(Math.random() * 10) + 90; 
+            const shapes = ['▲', '■', '●'];
+            labGame.targetShape = shapes[Math.floor(Math.random() * 3)];
+            labGame.blueShouldClick = Math.random() < 0.5;
+        } else {
+            labGame.blueStep2 = 4;
+            labGame.redStep2 = Math.floor(Math.random() * 3) + 10; // 10-12
+            labGame.purpleStep2 = Math.floor(Math.random() * 7) + 18; // 18-24
+            labGame.leavesStep2 = Math.floor(Math.random() * 5) + 26; // 26-30
+            labGame.spiderStep2 = Math.floor(Math.random() * 5) + 32; // 32-36
+            labGame.shapeStep2 = Math.floor(Math.random() * 8) + 42; // 42-49
+
+            labGame.blueShouldClick = Math.random() < 0.5;
+            labGame.purpleShouldClick = Math.random() < 0.5;
+            labGame.leavesShouldClick = Math.random() < 0.5;
+            const shapes = ['●', '▲', '■'];
+            labGame.targetShape2 = shapes[Math.floor(Math.random() * 3)];
+        }
 
         setupNextStep();
         if (typeof playClickSound === 'function') playClickSound();
@@ -386,17 +543,23 @@ function handleLabButtonClick() {
     if (labGame.state === 'playing') {
         if (typeof playClickSound === 'function') playClickSound();
 
-        // Негайна поразка при кліку, коли натискати заборонено
         const isForbiddenClick = (
             labGame.hasSpider ||
             labGame.reqType === 'dont_click' ||
+            labGame.reqType === 'click_0' ||
             labGame.reqType === 'remember' ||
             labGame.reqType === 'shape_instruction' ||
             labGame.reqType === 'blue_instruction' ||
             labGame.reqType === 'spider_instruction' ||
+            labGame.reqType.includes('instruction2') ||
             (labGame.reqType === 'remember_check' && !labGame.rememberCheckMatch) ||
             (labGame.reqType === 'shape_check' && labGame.reqCount === 0) ||
-            (labGame.reqType === 'blue_check' && labGame.reqCount === 0)
+            (labGame.reqType === 'blue_check' && labGame.reqCount === 0) ||
+            labGame.reqType === 'red_check2' ||
+            (labGame.reqType === 'blue_check2' && labGame.reqCount === 0) ||
+            (labGame.reqType === 'purple_check2' && labGame.reqCount === 0) ||
+            (labGame.reqType === 'leaves_check2' && labGame.reqCount === 0) ||
+            (labGame.reqType === 'shape_check2' && labGame.reqCount === 0)
         );
 
         if (isForbiddenClick) {
@@ -406,12 +569,15 @@ function handleLabButtonClick() {
 
         labGame.currentClicks += 1;
 
-        // Поразка при перевищенні ліміту кліків:
         if (
             labGame.reqType === 'click_1' ||
             (labGame.reqType === 'remember_check' && labGame.rememberCheckMatch) ||
             (labGame.reqType === 'shape_check' && labGame.reqCount === 1) ||
-            (labGame.reqType === 'blue_check' && labGame.reqCount === 1)
+            (labGame.reqType === 'blue_check' && labGame.reqCount === 1) ||
+            (labGame.reqType === 'blue_check2' && labGame.reqCount === 1) ||
+            (labGame.reqType === 'purple_check2' && labGame.reqCount === 1) ||
+            (labGame.reqType === 'leaves_check2' && labGame.reqCount === 1) ||
+            (labGame.reqType === 'shape_check2' && labGame.reqCount === 1)
         ) {
             if (labGame.currentClicks > 1) {
                 endLabGame(false);
@@ -419,6 +585,11 @@ function handleLabButtonClick() {
             }
         } else if (labGame.reqType === 'click_n') {
             if (labGame.currentClicks > labGame.reqCount) {
+                endLabGame(false);
+                return;
+            }
+        } else if (labGame.reqType === 'click_2') {
+            if (labGame.currentClicks > 2) {
                 endLabGame(false);
                 return;
             }
@@ -430,11 +601,19 @@ function handleLabButtonClick() {
 
 function endLabGame(isSuccess) {
     labGame.state = 'ended';
-    labGame.completed140 = isSuccess && (labGame.step >= 140);
+    const maxSteps = labGame.buttonLvl === 2 ? 75 : 140;
+    labGame.completedMax = isSuccess && (labGame.step >= maxSteps);
 
-    const reachedStep = labGame.completed140 ? 140 : Math.max(1, labGame.step - 1);
-    const earnedRaw = Math.pow(reachedStep, 2);
-    const earnedTotal = earnedRaw * getChemMultiplier();
+    const reachedStep = labGame.completedMax ? maxSteps : Math.max(1, labGame.step - 1);
+    
+    let earnedRaw = 0;
+    if (labGame.buttonLvl === 1) {
+        earnedRaw = 15 * Math.pow(reachedStep, 1.4);
+    } else {
+        earnedRaw = 60 * Math.pow(reachedStep, 1.4);
+    }
+    
+    const earnedTotal = Math.floor(earnedRaw * getChemMultiplier());
 
     state.event.chemicals += earnedTotal;
     state.event.totalChemicals += earnedTotal;
@@ -451,26 +630,38 @@ function renderLabButtonUI() {
 
     const ring = document.getElementById('lab-ring-bar');
 
-    // Стилізація синьої кнопки
-    if (labGame.state === 'playing' && labGame.isBlueButton) {
-        btn.style.background = 'linear-gradient(135deg, #1e3c72, #2a5298)';
-        btn.style.borderColor = '#3498db';
+    if (labGame.state === 'playing') {
+        if (labGame.isBlueButton) {
+            btn.style.background = 'linear-gradient(135deg, #1e3c72, #2a5298)';
+            btn.style.borderColor = '#3498db';
+        } else if (labGame.isRedButton) {
+            btn.style.background = 'linear-gradient(135deg, #7b1fa2, #e53935)';
+            btn.style.borderColor = '#e74c3c';
+        } else if (labGame.isPurpleButton) {
+            btn.style.background = 'linear-gradient(135deg, #4a148c, #8e24aa)';
+            btn.style.borderColor = '#9b59b6';
+        } else {
+            btn.style.background = '';
+            btn.style.borderColor = '';
+        }
     } else {
         btn.style.background = '';
         btn.style.borderColor = '';
     }
 
     if (labGame.state === 'idle') {
+        const requiredEnergy = state.event.selectedButton === 2 ? 2 : 1;
         btn.innerHTML = `
             <div class="lab-btn-title">ПОЧАТИ ГРУ</div>
-            <div class="lab-btn-sub">Витрачає: 1 ⚡</div>
+            <div class="lab-btn-sub">Витрачає: ${requiredEnergy} ⚡</div>
             <div style="font-size: 0.85rem; margin-top: 8px; color: #aaa;">Натисни, щоб розпочати</div>
         `;
         if (ring) ring.style.width = '0%';
     } else if (labGame.state === 'ended') {
-        if (labGame.completed140) {
+        const maxSteps = labGame.buttonLvl === 2 ? 75 : 140;
+        if (labGame.completedMax) {
             btn.innerHTML = `
-                <div class="lab-btn-title" style="color: #f1c40f; font-size: 1.15rem; line-height: 1.3;">140-ий крок є останнім на другий день івенту.</div>
+                <div class="lab-btn-title" style="color: #f1c40f; font-size: 1.15rem; line-height: 1.3;">${maxSteps}-ий крок пройдено!</div>
                 <div class="lab-btn-sub" style="color: #2ecc71; margin-top: 4px;">Вітаємо!</div>
                 <div class="lab-btn-timer" style="color: #2ecc71;">+${formatNum(labGame.lastEarned)} 🧪</div>
                 <div style="font-size: 0.8rem; margin-top: 6px;">Натисни, щоб зіграти знов</div>
@@ -491,13 +682,25 @@ function renderLabButtonUI() {
         if (labGame.reqType === 'click_1') {
             titleText = "натисни";
             subText = labGame.currentClicks >= 1 ? "✓ Виконано! Чекай..." : "Натисни 1 раз";
+        } else if (labGame.reqType === 'click_2') {
+            titleText = "натисни 2 рази";
+            subText = `Прогрес: ${labGame.currentClicks}/2 ${labGame.currentClicks >= 2 ? '✓' : ''}`;
+        } else if (labGame.reqType === 'click_0' || labGame.reqType === 'dont_click') {
+            titleText = labGame.reqType === 'click_0' ? "натисни 0 разів" : "не натискай";
+            subText = "Зачекай вичерпання часу!";
+        } else if (labGame.reqType === 'click_gt5') {
+            titleText = "натисни більше 5 разів";
+            subText = `Прогрес: ${labGame.currentClicks}/6 ${labGame.currentClicks >= 6 ? '✓' : ''}`;
         } else if (labGame.reqType === 'remember') {
             titleText = `Запам'ятай число ${labGame.rememberNumber}`;
             subText = "Не натискай! Чекай...";
         } else if (labGame.reqType === 'shape_instruction') {
             titleText = `натискай коли бачиш ${labGame.targetShape}`;
             subText = "Запам'ятай! Не натискай зараз...";
-        } else if (labGame.reqType === 'shape_check') {
+        } else if (labGame.reqType === 'shape_instruction2') {
+            titleText = `натискай коли бачиш кружечок/трикутник/квадрат`;
+            subText = `Потрібно: ${labGame.targetShape2}. Не натискай зараз...`;
+        } else if (labGame.reqType === 'shape_check' || labGame.reqType === 'shape_check2') {
             titleText = `Фігура: ${labGame.shownShape}`;
             if (labGame.reqCount === 1) {
                 subText = labGame.currentClicks >= 1 ? "✓ Виконано! Чекай..." : "Натисни 1 раз!";
@@ -511,25 +714,50 @@ function renderLabButtonUI() {
             } else {
                 subText = "Не натискай! Чекай...";
             }
-        } else if (labGame.reqType === 'blue_instruction') {
-            titleText = labGame.blueShouldClick ? "натискай якщо кнопка синя" : "не натискай якщо кнопка синя";
+        } else if (labGame.reqType === 'blue_instruction' || labGame.reqType === 'blue_instruction2') {
+            titleText = labGame.blueShouldClick ? "якщо кнопка синя натискай" : "якщо кнопка синя не натискай";
             subText = "Запам'ятай! Не натискай зараз...";
-        } else if (labGame.reqType === 'blue_check') {
+        } else if (labGame.reqType === 'red_instruction2') {
+            titleText = "якщо кнопка червона не натискай";
+            subText = "Запам'ятай! Не натискай зараз...";
+        } else if (labGame.reqType === 'purple_instruction2') {
+            titleText = labGame.purpleShouldClick ? "якщо кнопка фіолетова натискай" : "якщо кнопка фіолетова не натискай";
+            subText = "Запам'ятай! Не натискай зараз...";
+        } else if (labGame.reqType === 'leaves_instruction2') {
+            titleText = labGame.leavesShouldClick ? "якщо парна кількість листків натискай" : "якщо парна кількість листків не натискай";
+            subText = "Запам'ятай! Не натискай зараз...";
+        } else if (labGame.reqType === 'spider_instruction' || labGame.reqType === 'spider_instruction2') {
+            titleText = "не натискай коли бачиш павука 🕷️";
+            subText = "Запам'ятай! Не натискай зараз...";
+        } else if (labGame.reqType === 'blue_check' || labGame.reqType === 'blue_check2') {
             titleText = "Синя кнопка";
             if (labGame.reqCount === 1) {
                 subText = labGame.currentClicks >= 1 ? "✓ Виконано! Чекай..." : "Натисни 1 раз!";
             } else {
                 subText = "Не натискай! Чекай...";
             }
-        } else if (labGame.reqType === 'spider_instruction') {
-            titleText = "не натискай коли бачиш павука 🕷️";
-            subText = "Запам'ятай! Не натискай зараз...";
+        } else if (labGame.reqType === 'red_check2') {
+            titleText = "Червона кнопка";
+            subText = "Не натискай! Чекай...";
+        } else if (labGame.reqType === 'purple_check2') {
+            titleText = "Фіолетова кнопка";
+            if (labGame.reqCount === 1) {
+                subText = labGame.currentClicks >= 1 ? "✓ Виконано! Чекай..." : "Натисни 1 раз!";
+            } else {
+                subText = "Не натискай! Чекай...";
+            }
+        } else if (labGame.reqType === 'leaves_check2') {
+            let leavesStr = "";
+            for (let i = 0; i < labGame.leavesCount; i++) leavesStr += "🍃";
+            titleText = leavesStr;
+            if (labGame.reqCount === 1) {
+                subText = labGame.currentClicks >= 1 ? "✓ Виконано! Чекай..." : "Натисни 1 раз!";
+            } else {
+                subText = "Не натискай! Чекай...";
+            }
         } else if (labGame.reqType === 'click_n') {
             titleText = `натисни ${labGame.reqCount} разів`;
             subText = `Прогрес: ${labGame.currentClicks}/${labGame.reqCount} ${labGame.currentClicks >= labGame.reqCount ? '✓' : ''}`;
-        } else if (labGame.reqType === 'dont_click') {
-            titleText = "НЕ натискай";
-            subText = "Зачекай вичерпання часу!";
         } else if (labGame.reqType === 'click_gt4') {
             titleText = "натисни більше 4-х разів";
             subText = `Прогрес: ${labGame.currentClicks}/5 ${labGame.currentClicks >= 5 ? '✓' : ''}`;
@@ -540,11 +768,11 @@ function renderLabButtonUI() {
             subText = "Бачиш павука? НЕ НАТИСКАЙ!";
         }
 
-        subText = "";
+        const maxSteps = labGame.buttonLvl === 2 ? 75 : 140;
         const pct = Math.max(0, Math.min(100, (labGame.timer / labGame.maxTimer) * 100));
 
         btn.innerHTML = `
-            <div style="font-size: 0.85rem; color: #f1c40f; font-weight: bold;">Крок ${labGame.step}/140</div>
+            <div style="font-size: 0.85rem; color: #f1c40f; font-weight: bold;">Крок ${labGame.step}/${maxSteps} (Рівень ${labGame.buttonLvl})</div>
             <div class="lab-btn-title" style="font-size: ${labGame.reqType.includes('check') || labGame.reqType.includes('instruction') ? '1.05rem' : '1.35rem'}; margin: 4px 0; line-height: 1.2;">${titleText}</div>
             ${subText ? `<div class="lab-btn-sub" style="font-size: 0.9rem;">${subText}</div>` : ''}
             <div class="lab-btn-timer">${labGame.timer.toFixed(1)}s</div>
@@ -627,6 +855,28 @@ function buyLabBuilding(targetLvl) {
     }
 }
 
+function buyButtonLvl2() {
+    initEventState();
+    if (state.event.unlockedButton2) return;
+    if (state.event.chemicals >= 500000) {
+        state.event.chemicals -= 500000;
+        state.event.unlockedButton2 = true;
+        state.event.selectedButton = 2;
+        saveGame();
+        renderEventUI();
+    }
+}
+
+function selectButton(lvl) {
+    initEventState();
+    if (lvl === 2 && !state.event.unlockedButton2) return;
+    state.event.selectedButton = lvl;
+    if (labGame.state === 'idle') {
+        renderLabButtonUI();
+    }
+    renderEventUI();
+}
+
 function switchEventSubTab(tab) {
     eventSubTab = tab;
     renderEventUI();
@@ -669,17 +919,41 @@ function renderEventUI() {
 
     if (eventSubTab === 'game') {
         html += `
+            <div style="display: flex; gap: 10px; justify-content: center; margin-bottom: 15px;">
+                <button class="sub-tab-btn ${state.event.selectedButton === 1 ? 'active' : ''}" onclick="selectButton(1)">Кнопка 1 рівня</button>
+                <button class="sub-tab-btn ${state.event.selectedButton === 2 ? 'active' : ''}" ${state.event.unlockedButton2 ? '' : 'style="opacity: 0.5; border-color: #e74c3c;"'} onclick="${state.event.unlockedButton2 ? 'selectButton(2)' : 'alert(\'Спочатку прокачайте кнопку!\')'}">
+                    ${state.event.unlockedButton2 ? 'Кнопка 2 рівня' : '🔒 Кнопка 2 рівня'}
+                </button>
+            </div>
+            
             <div class="lab-btn-container">
                 <div id="lab-main-interactive-btn" class="lab-main-btn" onclick="handleLabButtonClick()">
-                    <!-- Вміст генерується через renderLabButtonUI() -->
                 </div>
             </div>
         `;
     } else if (eventSubTab === 'upgrades') {
         html += `<div class="upgrades-list">`;
 
+        // Прокачка кнопки 2 рівня
+        html += `<div class="category-title">🟢 Прокачка кнопки</div>`;
+        const btn2Owned = state.event.unlockedButton2;
+        const canBuyBtn2 = !btn2Owned && state.event.chemicals >= 500000;
+        
+        html += `
+            <div class="upgrade-card ${btn2Owned ? 'evo-card' : ''}">
+                <div class="upgrade-img-wrap"><span style="font-size: 2rem;">🌟</span></div>
+                <div class="upgrade-info">
+                    <div class="upgrade-title">Кнопка 2 Рівня</div>
+                    <div class="upgrade-desc">Менше часу, більші нагороди (х4), нові завдання! Витрата: 2⚡</div>
+                    <div class="upgrade-desc" style="color: var(--accent-gold);">Ціна: 500k хімікатів</div>
+                </div>
+                <button class="upgrade-btn" ${btn2Owned ? 'disabled' : (canBuyBtn2 ? '' : 'disabled')} onclick="buyButtonLvl2()">
+                    ${btn2Owned ? 'Куплено' : 'Купити'}
+                </button>
+            </div>`;
+
         // Категорія 1: Час на крок
-        html += `<div class="category-title">⏱️ Кількість часу на крок</div>`;
+        html += `<div class="category-title" style="margin-top: 20px;">⏱️ Кількість часу на крок</div>`;
         TIME_UPGRADES.forEach(u => {
             const isOwned = state.event.timeUpgLvl >= u.level;
             const canBuy = state.event.timeUpgLvl === u.level - 1 && state.event.chemicals >= u.costChem;
