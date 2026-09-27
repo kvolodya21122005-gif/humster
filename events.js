@@ -51,7 +51,14 @@ const MULT_UPGRADES = [
     { level: 12, mult: 13, costChem: 100000 },
     { level: 13, mult: 14, costChem: 125000 },
     { level: 14, mult: 15, costChem: 160000 },
-    { level: 15, mult: 16, costChem: 200000 }
+    { level: 15, mult: 16, costChem: 200000 },
+    { level: 16, mult: 18, costChem: 250000 },
+    { level: 17, mult: 20, costChem: 300000 },
+    { level: 18, mult: 22, costChem: 400000 },
+    { level: 19, mult: 24, costChem: 500000 },
+    { level: 20, mult: 26, costChem: 700000 },
+    { level: 21, mult: 28, costChem: 900000 },
+    { level: 22, mult: 30, costChem: 1200000 }
 ];
 
 // Покращення швидкості відновлення енергії для гри (Energy Regen Upgrades)
