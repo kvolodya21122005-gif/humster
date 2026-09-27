@@ -30,9 +30,10 @@ const TIME_UPGRADES = [
     { level: 5, timeSec: 2, costChem: 500 },
     { level: 6, timeSec: 2.2, costChem: 10000 },
     { level: 7, timeSec: 2.4, costChem: 250000 },
-    { level: 8, timeSec: 2.6, costChem: 5000000 },
-    { level: 9, timeSec: 2.8, costChem: 15000000 },
-    { level: 10, timeSec: 3, costChem: 50000000 }
+    { level: 8, timeSec: 2.6, costChem: 1000000 },
+    { level: 9, timeSec: 2.8, costChem: 3500000 },
+    { level: 10, timeSec: 3, costChem: 8000000 },
+    { level: 11, timeSec: 3.2, costChem: 15000000 }
 ];
 
 // Покращення множника хімікатів (Multiplier Upgrades)
