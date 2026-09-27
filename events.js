@@ -616,9 +616,9 @@ function endLabGame(isSuccess) {
     
     let earnedRaw = 0;
     if (labGame.buttonLvl === 1) {
-        earnedRaw = 15 * Math.pow(reachedStep, 1.4);
+        earnedRaw = 40 * Math.pow(reachedStep, 1.35);
     } else {
-        earnedRaw = 60 * Math.pow(reachedStep, 1.4);
+        earnedRaw = 90 * Math.pow(reachedStep, 1.35);
     }
     
     const earnedTotal = Math.floor(earnedRaw * getChemMultiplier());
