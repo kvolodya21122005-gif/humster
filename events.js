@@ -768,6 +768,7 @@ function renderLabButtonUI() {
             subText = "Бачиш павука? НЕ НАТИСКАЙ!";
         }
 
+        subText = " ";
         const maxSteps = labGame.buttonLvl === 2 ? 75 : 140;
         const pct = Math.max(0, Math.min(100, (labGame.timer / labGame.maxTimer) * 100));
 
