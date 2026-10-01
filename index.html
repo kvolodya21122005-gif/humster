@@ -889,6 +889,9 @@
             { id: 35, cat: "Свинячий Люкс", name: "Пентхаус у золотій калюжі", baseCost: 100000000, baseCps: 6000, img: "img/upg35.jpg", req: { id: 16, lvl: 13, name: "Контроль головного корита" } },
             { id: 36, cat: "Свинячий Люкс", name: "Вілла «Свиняча Рубльовка»", baseCost: 5000000000, baseCps: 32000, img: "img/upg36.jpg", req: { id: 34, lvl: 16, name: "Анаболічне висівкове пійло" } },
             { id: 37, cat: "Свинячий Люкс", name: "Пентхаус господарства хрюнделя", baseCost: 25000000000, baseCps: 60000, img: "img/upg37.jpg", req: { id: 36, lvl: 11, name: "Вілла «Свиняча Рубльовка»" } },
+            { id: 46, cat: "Свинячий Люкс", name: "SPA-комплекс «Сталевий хряк»", baseCost: 300000000, baseCps: 15000, img: "img/upg46.jpg", req: { id: 5, lvl: 23, name: "Гель для щетини «Сталевий хряк»" } },
+            { id: 47, cat: "Свинячий Люкс", name: "VIP-яхта «Бос загону»", baseCost: 700000000, baseCps: 20000, img: "img/upg47.jpg", req: { id: 6, lvl: 24, name: "Сонячні окуляри «Бос загону»" } },
+
             { 
                 id: 45, 
                 cat: "Азартні ігри", 
@@ -906,7 +909,12 @@
                         text: `Вимога: Знайди ${required} хрюнделів у міні-грі (${found}/${required})`
                     };
                 }
-            }
+            },
+
+            { id: 48, cat: "Свиняча Імперія", name: "Свинцевий форт Хрюнделя", baseCost: 10000000000, baseCps: 18000, img: "img/upg48.jpg", req: { id: 42, lvl: 15, name: "Свинцевий шолом" } },
+            { id: 49, cat: "Свиняча Імперія", name: "Золотий завод смузі", baseCost: 20000000000, baseCps: 30000, img: "img/upg49.jpg", req: { id: 33, lvl: 17, name: "Смузі з золотих жолудів" }, activeAt: Date.UTC(2026, 9, 2, 0, 0, 0) },
+            { id: 50, cat: "Свиняча Імперія", name: "Небесний пентхаус Хрюнделя", baseCost: 40000000000, baseCps: 45000, img: "img/upg50.jpg", req: { id: 35, lvl: 17, name: "Пентхаус у золотій калюжі" }, activeAt: Date.UTC(2026, 9, 3, 0, 0, 0) },
+            { id: 51, cat: "Свиняча Імперія", name: "Академія Нано-Свинотехнологій", baseCost: 120000000000, baseCps: 90000, img: "img/upg51.jpg", req: { id: 44, lvl: 14, name: "Доктор свинячих наук" }, activeAt: Date.UTC(2026, 9, 4, 0, 0, 0) }
         ];
 
         let state = {
@@ -1472,6 +1480,11 @@
             const u = PASSIVE_UPGRADES.find(item => item.id === id);
             if (!u) return;
 
+            if (u.activeAt) {
+                const nowTime = getServerTime();
+                if (nowTime < u.activeAt) return;
+            }
+
             if (u.req) {
                 const reqLvl = state.passives[u.req.id] || 0;
                 if (reqLvl < u.req.lvl) return;
@@ -1485,7 +1498,7 @@
 
             const isNoCdActive = state.noCdUntil && getServerTime() < state.noCdUntil;
 
-            if (!isNoCdActive && (u.cat === "Навчання хрюнделя" || u.cat === "Свинячий Люкс") && state.cooldowns && state.cooldowns[u.id]) {
+            if (!isNoCdActive && (u.cat === "Навчання хрюнделя" || u.cat === "Свинячий Люкс" || u.cat === "Свиняча Імперія") && state.cooldowns && state.cooldowns[u.id]) {
                 const nowTime = getServerTime();
                 if (nowTime < state.cooldowns[u.id]) return;
             }
@@ -1501,7 +1514,7 @@
                     state.pigletGame.foundSinceLastCardUpgrade = 0;
                 }
 
-                if (!isNoCdActive && (u.cat === "Навчання хрюнделя" || u.cat === "Свинячий Люкс")) {
+                if (!isNoCdActive && (u.cat === "Навчання хрюнделя" || u.cat === "Свинячий Люкс" || u.cat === "Свиняча Імперія")) {
                     const cdSec = getCooldownSeconds(newLvl, u.cat);
                     if (cdSec > 0) {
                         if (!state.cooldowns) state.cooldowns = {};
@@ -1650,32 +1663,51 @@
                 const count = state.passives[u.id] || 0;
 
                 let disabled = state.aura < cost;
+                let reqTexts = [];
+                let isTimeLocked = false;
+
+                if (u.activeAt) {
+                    const nowTime = getServerTime();
+                    if (nowTime < u.activeAt) {
+                        isTimeLocked = true;
+                        disabled = true;
+                        const diffMs = u.activeAt - nowTime;
+                        const totalSecs = Math.floor(diffMs / 1000);
+                        const hrs = Math.floor(totalSecs / 3600);
+                        const mins = Math.floor((totalSecs % 3600) / 60);
+                        reqTexts.push(`⏳ Активація через: ${hrs}г ${mins < 10 ? '0' : ''}${mins}хв`);
+                    }
+                }
 
                 if (u.req) {
                     const reqLvl = state.passives[u.req.id] || 0;
                     if (reqLvl < u.req.lvl) {
                         disabled = true;
-                        if (reqEl) {
-                            reqEl.style.display = 'block';
-                            reqEl.innerText = `Вимога: ${u.req.name} LVL ${u.req.lvl}`;
-                        }
-                    } else if (reqEl) reqEl.style.display = 'none';
+                        reqTexts.push(`Вимога: ${u.req.name} LVL ${u.req.lvl}`);
+                    }
                 }
 
                 if (u.customReqCheck) {
                     const check = u.customReqCheck(count + 1);
                     if (!check.met) {
                         disabled = true;
-                        if (reqEl) {
-                            reqEl.style.display = 'block';
-                            reqEl.innerText = check.text;
-                        }
+                        reqTexts.push(check.text);
+                    }
+                }
+
+                if (reqEl) {
+                    if (reqTexts.length > 0) {
+                        reqEl.style.display = 'block';
+                        reqEl.style.color = isTimeLocked ? 'var(--accent-gold)' : '#e74c3c';
+                        reqEl.innerHTML = reqTexts.join('<br>');
+                    } else {
+                        reqEl.style.display = 'none';
                     }
                 }
 
                 const isNoCdActive = state.noCdUntil && getServerTime() < state.noCdUntil;
 
-                if (!isNoCdActive && (u.cat === "Навчання хрюнделя" || u.cat === "Свинячий Люкс") && state.cooldowns && state.cooldowns[u.id]) {
+                if (!isTimeLocked && !isNoCdActive && (u.cat === "Навчання хрюнделя" || u.cat === "Свинячий Люкс" || u.cat === "Свиняча Імперія") && state.cooldowns && state.cooldowns[u.id]) {
                     const timeLeft = Math.ceil((state.cooldowns[u.id] - getServerTime()) / 1000);
                     if (timeLeft > 0) {
                         disabled = true;
@@ -1683,6 +1715,8 @@
                     } else {
                         if (btn) btn.innerText = 'Купити';
                     }
+                } else if (isTimeLocked) {
+                    if (btn) btn.innerText = '🔒 Заблоковано';
                 } else {
                     if (btn) btn.innerText = 'Купити';
                 }
