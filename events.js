@@ -32,8 +32,8 @@ const BLOOD_UPGRADES = [
 const DAMAGE_UPGRADES = [
     { level: 1, mult: 2, cost: 3 },
     { level: 2, mult: 4, cost: 500 },
-    { level: 3, mult: 8, cost: 15000 },
-    { level: 4, mult: 16, cost: 250000 }
+    { level: 3, mult: 8, cost: 5000 },
+    { level: 4, mult: 16, cost: 25000 }
 ];
 
 // 3. Прокачка Часу появи
