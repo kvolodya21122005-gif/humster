@@ -33,32 +33,42 @@ function initMinigamesState() {
     if (!state.buttonMiniGame.lastEnergyRegen) state.buttonMiniGame.lastEnergyRegen = (typeof getServerTime === 'function') ? getServerTime() : Date.now();
 }
 
-function updateMinigamesLogic(dt) {
+// Функція для перевірки та нарахування відновленої енергії
+function processPigletEnergyRegen() {
     initMinigamesState();
     const now = (typeof getServerTime === 'function') ? getServerTime() : Date.now();
-
-    // 1. Регенерація енергії Хрюнделів (макс 3, 1⚡ за 4 години)
     const MAX_PIG_ENERGY = 3;
-    const PIG_REGEN_MS = 4 * 60 * 60 * 1000;
+    const PIG_REGEN_MS = 4 * 60 * 60 * 1000; // 1⚡ за 4 години
+
     if (state.pigletGame.energy < MAX_PIG_ENERGY) {
-        if (!state.pigletGame.lastEnergyRegen) state.pigletGame.lastEnergyRegen = now;
+        if (!state.pigletGame.lastEnergyRegen || typeof state.pigletGame.lastEnergyRegen !== 'number' || state.pigletGame.lastEnergyRegen > now) {
+            state.pigletGame.lastEnergyRegen = now;
+        }
+
         const elapsed = now - state.pigletGame.lastEnergyRegen;
         if (elapsed >= PIG_REGEN_MS) {
             const added = Math.floor(elapsed / PIG_REGEN_MS);
-            const prevEnergy = state.pigletGame.energy;
-            state.pigletGame.energy = Math.min(MAX_PIG_ENERGY, state.pigletGame.energy + added);
-            state.pigletGame.lastEnergyRegen += added * PIG_REGEN_MS;
-            if (state.pigletGame.energy >= MAX_PIG_ENERGY) state.pigletGame.lastEnergyRegen = now;
+            if (added > 0) {
+                const prevEnergy = state.pigletGame.energy;
+                state.pigletGame.energy = Math.min(MAX_PIG_ENERGY, state.pigletGame.energy + added);
+                state.pigletGame.lastEnergyRegen += added * PIG_REGEN_MS;
 
-            // Якщо енергія відновилася з 0 до 1+, оновлюємо UI
-            if (prevEnergy < 1 && state.pigletGame.energy >= 1 && activeMinigablesTab === 'piglet') {
-                renderMinigamesUI();
+                if (state.pigletGame.energy >= MAX_PIG_ENERGY) {
+                    state.pigletGame.lastEnergyRegen = now;
+                }
+
+                if (prevEnergy < 1 && state.pigletGame.energy >= 1 && activeMinigablesTab === 'piglet') {
+                    renderMinigamesUI();
+                }
             }
         }
     } else {
         state.pigletGame.lastEnergyRegen = now;
     }
+}
 
+function updateMinigamesLogic(dt) {
+    processPigletEnergyRegen();
     updateMinigamesEnergyUI();
 }
 
@@ -76,7 +86,8 @@ function formatPigletTimer(secLeft) {
 }
 
 function updateMinigamesEnergyUI() {
-    initMinigamesState();
+    processPigletEnergyRegen();
+
     const pigEnergyEl = document.getElementById('piglet-energy-val');
     const pigTimerEl = document.getElementById('piglet-energy-timer');
     const pigStartBtn = document.getElementById('piglet-start-btn');
@@ -136,13 +147,16 @@ function startPigletGame() {
         alert("Міні-гра заблокована! Купіть картку «Хованки хрюнделя».");
         return;
     }
+
+    processPigletEnergyRegen();
+
     if (state.pigletGame.energy < 1) {
         alert("Недостатньо енергії!");
         return;
     }
 
     const now = (typeof getServerTime === 'function') ? getServerTime() : Date.now();
-    if (state.pigletGame.energy >= 3) {
+    if (state.pigletGame.energy >= 3 || !state.pigletGame.lastEnergyRegen || state.pigletGame.lastEnergyRegen > now) {
         state.pigletGame.lastEnergyRegen = now;
     }
 
@@ -219,6 +233,7 @@ function renderMinigamesUI() {
     if (!container) return;
 
     initMinigamesState();
+    processPigletEnergyRegen();
 
     let html = `
         <div class="leaderboard-toggle" style="margin-bottom: 15px;">
