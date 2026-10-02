@@ -102,7 +102,7 @@ function checkAndConvertLabEvent() {
             name: "Лабораторія (Хімікати)",
             lvl: labLvl,
             maxLvl: 10,
-            cps: labLvl * 50000,
+            cps: labLvl * 30000,
             img: "img/statue_lab.jpg"
         };
 
