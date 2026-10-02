@@ -45,9 +45,15 @@ function updateMinigamesLogic(dt) {
         const elapsed = now - state.pigletGame.lastEnergyRegen;
         if (elapsed >= PIG_REGEN_MS) {
             const added = Math.floor(elapsed / PIG_REGEN_MS);
+            const prevEnergy = state.pigletGame.energy;
             state.pigletGame.energy = Math.min(MAX_PIG_ENERGY, state.pigletGame.energy + added);
             state.pigletGame.lastEnergyRegen += added * PIG_REGEN_MS;
             if (state.pigletGame.energy >= MAX_PIG_ENERGY) state.pigletGame.lastEnergyRegen = now;
+
+            // Якщо енергія відновилася з 0 до 1+, оновлюємо UI
+            if (prevEnergy < 1 && state.pigletGame.energy >= 1 && activeMinigablesTab === 'piglet') {
+                renderMinigamesUI();
+            }
         }
     } else {
         state.pigletGame.lastEnergyRegen = now;
@@ -56,23 +62,57 @@ function updateMinigamesLogic(dt) {
     updateMinigamesEnergyUI();
 }
 
+function formatPigletTimer(secLeft) {
+    secLeft = Math.max(0, Math.floor(secLeft));
+    const hrs = Math.floor(secLeft / 3600);
+    const mins = Math.floor((secLeft % 3600) / 60);
+    const secs = secLeft % 60;
+
+    let parts = [];
+    if (hrs > 0) parts.push(`${hrs} год`);
+    if (mins > 0) parts.push(`${mins} хв`);
+    parts.push(`${secs} сек`);
+    return parts.join(' ');
+}
+
 function updateMinigamesEnergyUI() {
     initMinigamesState();
     const pigEnergyEl = document.getElementById('piglet-energy-val');
     const pigTimerEl = document.getElementById('piglet-energy-timer');
+    const pigStartBtn = document.getElementById('piglet-start-btn');
 
     const now = (typeof getServerTime === 'function') ? getServerTime() : Date.now();
+    const MAX_PIG_ENERGY = 3;
+    const PIG_REGEN_MS = 4 * 60 * 60 * 1000;
 
-    if (pigEnergyEl) pigEnergyEl.innerText = `${state.pigletGame.energy} / 3`;
-    if (pigTimerEl) {
-        if (state.pigletGame.energy < 3) {
-            const elapsed = now - (state.pigletGame.lastEnergyRegen || now);
-            const leftMs = Math.max(0, (4 * 3600 * 1000) - elapsed);
-            const secLeft = Math.ceil(leftMs / 1000);
-            const timeFormatted = (typeof formatTime === 'function') ? formatTime(secLeft) : `${secLeft} сек`;
+    if (pigEnergyEl) pigEnergyEl.innerText = `${state.pigletGame.energy} / ${MAX_PIG_ENERGY}`;
+
+    if (state.pigletGame.energy < MAX_PIG_ENERGY) {
+        const elapsed = now - (state.pigletGame.lastEnergyRegen || now);
+        const leftMs = Math.max(0, PIG_REGEN_MS - elapsed);
+        const secLeft = Math.ceil(leftMs / 1000);
+        const timeFormatted = formatPigletTimer(secLeft);
+
+        if (pigTimerEl) {
             pigTimerEl.innerText = `⏳ Відновлення +1⚡ через: ${timeFormatted}`;
-        } else {
+        }
+
+        if (pigStartBtn && !state.pigletGame.roundActive) {
+            if (state.pigletGame.energy < 1) {
+                pigStartBtn.disabled = true;
+                pigStartBtn.innerText = `🎮 Немає енергії (через ${timeFormatted})`;
+            } else {
+                pigStartBtn.disabled = false;
+                pigStartBtn.innerText = `🎮 Грати (1 ⚡)`;
+            }
+        }
+    } else {
+        if (pigTimerEl) {
             pigTimerEl.innerText = `⚡ Енергія повна!`;
+        }
+        if (pigStartBtn && !state.pigletGame.roundActive) {
+            pigStartBtn.disabled = false;
+            pigStartBtn.innerText = `🎮 Грати (1 ⚡)`;
         }
     }
 }
@@ -101,8 +141,12 @@ function startPigletGame() {
         return;
     }
 
+    const now = (typeof getServerTime === 'function') ? getServerTime() : Date.now();
+    if (state.pigletGame.energy >= 3) {
+        state.pigletGame.lastEnergyRegen = now;
+    }
+
     state.pigletGame.energy -= 1;
-    state.pigletGame.lastEnergyRegen = (typeof getServerTime === 'function') ? getServerTime() : Date.now();
 
     const totalCells = 72;
     const grid = Array.from({ length: totalCells }, () => ({ hasPig: false, opened: false }));
@@ -175,7 +219,6 @@ function renderMinigamesUI() {
     if (!container) return;
 
     initMinigamesState();
-    updateMinigamesEnergyUI();
 
     let html = `
         <div class="leaderboard-toggle" style="margin-bottom: 15px;">
@@ -206,7 +249,7 @@ function renderMinigamesUI() {
                         <div style="font-size: 3rem;">🐷🌾</div>
                         <p style="color: #ccc; font-size: 0.9rem; margin: 10px 0;">Знайдіть 10 хрюнделів серед 72 кущів! У вас 10 спроб.</p>
                         ${state.pigletGame.lastMessage ? `<div style="color: var(--accent-gold); margin-bottom: 12px; font-size: 0.9rem;">${state.pigletGame.lastMessage}</div>` : ''}
-                        <button class="modal-btn" ${state.pigletGame.energy >= 1 ? '' : 'disabled'} onclick="startPigletGame()">🎮 Грати (1 ⚡)</button>
+                        <button id="piglet-start-btn" class="modal-btn" ${state.pigletGame.energy >= 1 ? '' : 'disabled'} onclick="startPigletGame()">🎮 Грати (1 ⚡)</button>
                     </div>`;
             } else {
                 html += `
@@ -241,4 +284,5 @@ function renderMinigamesUI() {
     }
 
     container.innerHTML = html;
+    updateMinigamesEnergyUI();
 }
