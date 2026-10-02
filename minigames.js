@@ -23,7 +23,7 @@ function initMinigamesState() {
     if (state.pigletGame.energy === undefined) state.pigletGame.energy = 3;
     if (!state.pigletGame.lastEnergyRegen) state.pigletGame.lastEnergyRegen = (typeof getServerTime === 'function') ? getServerTime() : Date.now();
 
-    // Стан міні-гри "Зелена Кнопка" (Перенесена з івенту)
+    // Стан міні-гри "Зелена Кнопка"
     if (!state.buttonMiniGame) {
         state.buttonMiniGame = {
             energy: 5,
@@ -82,7 +82,7 @@ function updateMinigamesLogic(dt) {
 
     // 2. Регенерація енергії Кнопки (макс 5, 1⚡ за 3 години)
     const MAX_BTN_ENERGY = 5;
-    const BTN_REGEN_MS = 3 * 60 * 60 * 1000; // 3 години
+    const BTN_REGEN_MS = 3 * 60 * 60 * 1000;
     if (state.buttonMiniGame.energy < MAX_BTN_ENERGY) {
         const elapsed = now - state.buttonMiniGame.lastEnergyRegen;
         if (elapsed >= BTN_REGEN_MS) {
