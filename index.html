@@ -1906,6 +1906,14 @@
                     updateEventLogic(dt);
                 }
 
+                // ВАЖЛИВО: Оновлення логіки та таймера міні-ігор у реальному часі
+                if (typeof updateMinigamesLogic === 'function') {
+                    updateMinigamesLogic(dt);
+                }
+
+                updateUI();
+            }, 100);
+
                 updateUI();
             }, 100);
 
