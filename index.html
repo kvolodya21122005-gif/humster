@@ -1036,7 +1036,7 @@
             if (dbAvailable && state.playerId) {
                 try {
                     firebase.database().ref('leaderboard/' + state.playerId).remove();
-                    firebase.database().ref('leaderboard_lab/' + state.playerId).remove();
+                    firebase.database().ref('leaderboard_vampire/' + state.playerId).remove();
                 } catch(e) {
                     console.warn("Помилка при видаленні з Firebase:", e);
                 }
@@ -1044,6 +1044,72 @@
 
             localStorage.clear();
             location.reload();
+        }
+
+        // Повна синхронізація статуй гравця
+        function syncPlayerStatues() {
+            if (!state.statues) state.statues = {};
+
+            // 1. Монументальний хрюндель
+            if ((state.usedCodes && state.usedCodes['статуя14']) || state.statues['monumental_hrundel']) {
+                if (!state.statues['monumental_hrundel']) {
+                    state.statues['monumental_hrundel'] = {
+                        name: 'Монументальний хрюндель',
+                        lvl: 7,
+                        maxLvl: 7,
+                        cps: 200000,
+                        img: 'img/statue_hrundel.jpg'
+                    };
+                } else {
+                    const s = state.statues['monumental_hrundel'];
+                    s.name = s.name || 'Монументальний хрюндель';
+                    s.lvl = s.lvl || s.level || 7;
+                    s.maxLvl = s.maxLvl || 7;
+                    s.cps = s.cps || 200000;
+                    s.img = s.img || 'img/statue_hrundel.jpg';
+                }
+            }
+
+            // 2. Бетон для бруківки
+            if ((state.usedCodes && state.usedCodes['бетон27']) || state.statues['concrete_paving']) {
+                if (!state.statues['concrete_paving']) {
+                    state.statues['concrete_paving'] = {
+                        name: 'Бетон для бруківки',
+                        lvl: 7,
+                        maxLvl: 7,
+                        cps: 300000,
+                        img: 'img/statue_concrete.jpg'
+                    };
+                } else {
+                    const s = state.statues['concrete_paving'];
+                    s.name = s.name || 'Бетон для бруківки';
+                    s.lvl = s.lvl || s.level || 7;
+                    s.maxLvl = s.maxLvl || 7;
+                    s.cps = s.cps || 300000;
+                    s.img = s.img || 'img/statue_concrete.jpg';
+                }
+            }
+
+            // 3. Лабораторія / Хімікати
+            if (state.labEventFinished || (state.usedCodes && (state.usedCodes['синаура135'] || state.usedCodes['аутизмадміна'])) || state.statues['laboratory']) {
+                const labLvl = (state.event && state.event.labLvl) ? state.event.labLvl : 10;
+                if (!state.statues['laboratory']) {
+                    state.statues['laboratory'] = {
+                        name: 'Лабораторія (Хімікати)',
+                        lvl: labLvl,
+                        maxLvl: 10,
+                        cps: labLvl * 50000,
+                        img: 'img/statue_lab.jpg'
+                    };
+                } else {
+                    const s = state.statues['laboratory'];
+                    s.name = s.name || 'Лабораторія (Хімікати)';
+                    s.lvl = s.lvl || s.level || labLvl;
+                    s.maxLvl = s.maxLvl || 10;
+                    s.cps = s.cps || (s.lvl * 50000);
+                    s.img = s.img || 'img/statue_lab.jpg';
+                }
+            }
         }
 
         function applyPromoCode() {
@@ -1083,28 +1149,20 @@
 
                     if (typeof initEventState === 'function') {
                         initEventState();
-                    } else if (!state.event) {
-                        state.event = { chemicals: 0, totalChemicals: 0, timeUpgLvl: 0, multUpgLvl: 0, regenUpgLvl: 0, labLvl: 0 };
                     }
-
-                    const chemReward = 5000000;
-                    state.event.chemicals = (state.event.chemicals || 0) + chemReward;
-                    state.event.totalChemicals = (state.event.totalChemicals || 0) + chemReward;
 
                     const nowTime = getServerTime();
                     state.noCdUntil = nowTime + 3600000;
                     state.cooldowns = {};
 
-                    if (typeof syncChemicalsLeaderboard === 'function') {
-                        syncChemicalsLeaderboard();
-                    }
-
+                    syncPlayerStatues();
                     updateUI();
+                    renderStatuesTabUI();
                     if (typeof renderEventUI === 'function') renderEventUI();
                     saveGame();
 
                     msg.style.color = '#2ecc71';
-                    msg.innerText = 'Успішно! Отримано +1.35Т ✨ аури, +5M 🧪 хімікатів та вимкнено КД карточок на 1 годину!';
+                    msg.innerText = 'Успішно! Отримано +1.35Т ✨ аури, додано Статую Лабораторії та вимкнено КД карточок на 1 годину!';
                     msg.style.display = 'block';
                 }
             } else if (cleanCode === 'аутизмадміна') {
@@ -1116,29 +1174,17 @@
                     if (!state.usedCodes) state.usedCodes = {};
                     state.usedCodes['аутизмадміна'] = true;
 
-                    const auraReward = 255000000000;
+                    const auraReward = 25500000000;
                     state.aura += auraReward;
                     state.totalAura = (state.totalAura || 0) + auraReward;
 
-                    if (typeof initEventState === 'function') {
-                        initEventState();
-                    } else if (!state.event) {
-                        state.event = { chemicals: 0, totalChemicals: 0, timeUpgLvl: 0, multUpgLvl: 0, regenUpgLvl: 0, labLvl: 0 };
-                    }
-
-                    const chemReward = 2500000;
-                    state.event.chemicals = (state.event.chemicals || 0) + chemReward;
-                    state.event.totalChemicals = (state.event.totalChemicals || 0) + chemReward;
-
-                    if (typeof syncChemicalsLeaderboard === 'function') {
-                        syncChemicalsLeaderboard();
-                    }
-
+                    syncPlayerStatues();
                     updateUI();
+                    renderStatuesTabUI();
                     saveGame();
 
                     msg.style.color = '#2ecc71';
-                    msg.innerText = 'Успішно! Отримано +255B ✨ аури та +2.5M 🧪 хімікатів!';
+                    msg.innerText = 'Успішно! Отримано +255B ✨ аури та додано Статую Лабораторії!';
                     msg.style.display = 'block';
                 }
             } else if (cleanCode === 'конч') {
@@ -1166,16 +1212,7 @@
                     if (!state.usedCodes) state.usedCodes = {};
                     state.usedCodes['бетон27'] = true;
 
-                    if (!state.statues) state.statues = {};
-
-                    state.statues['concrete_paving'] = {
-                        name: 'Бетон для бруківки',
-                        lvl: 7,
-                        maxLvl: 7,
-                        cps: 300000,
-                        img: 'img/statue_concrete.jpg'
-                    };
-
+                    syncPlayerStatues();
                     updateUI();
                     renderStatuesTabUI();
                     saveGame();
@@ -1193,16 +1230,7 @@
                     if (!state.usedCodes) state.usedCodes = {};
                     state.usedCodes['статуя14'] = true;
 
-                    if (!state.statues) state.statues = {};
-
-                    state.statues['monumental_hrundel'] = {
-                        name: 'Монументальний хрюндель',
-                        lvl: 7,
-                        maxLvl: 7,
-                        cps: 200000,
-                        img: 'img/statue_hrundel.jpg'
-                    };
-
+                    syncPlayerStatues();
                     updateUI();
                     renderStatuesTabUI();
                     saveGame();
@@ -1258,6 +1286,7 @@
         }
 
         function getStatuesAuraIncome() {
+            syncPlayerStatues();
             if (!state.statues) return 0;
             let total = 0;
             Object.values(state.statues).forEach(s => {
@@ -1274,8 +1303,8 @@
                 const count = state.passives[u.id] || 0;
                 cps += count * u.baseCps;
             });
-            if (typeof getLabAuraIncome === 'function') {
-                cps += getLabAuraIncome();
+            if (typeof getVampireEstateAuraIncome === 'function') {
+                cps += getVampireEstateAuraIncome();
             }
             cps += getStatuesAuraIncome();
             return cps;
@@ -1296,8 +1325,8 @@
             state.lastSaveTime = getServerTime();
             localStorage.setItem("hrundel_clicker_save_v10", JSON.stringify(state));
             syncToCloudLeaderboard();
-            if (typeof syncChemicalsLeaderboard === 'function') {
-                syncChemicalsLeaderboard();
+            if (typeof syncBloodLeaderboard === 'function') {
+                syncBloodLeaderboard();
             }
         }
 
@@ -1328,6 +1357,8 @@
             if (typeof initEventState === 'function') initEventState();
             if (typeof initMinigamesState === 'function') initMinigamesState();
 
+            syncPlayerStatues();
+
             if (state.energy > getMaxEnergy()) {
                 state.energy = getMaxEnergy();
             }
@@ -1342,7 +1373,6 @@
             document.getElementById('nickname-modal').classList.remove('active');
             displayOfflineModalIfAvailable();
             renderLeaderboard();
-            if (typeof renderLabLeaderboard === 'function') renderLabLeaderboard();
         }
 
         function calculateOfflineProgress() {
@@ -1567,6 +1597,8 @@
             const container = document.getElementById('tab-statue');
             if (!container) return;
 
+            syncPlayerStatues();
+
             if (!state.statues || Object.keys(state.statues).length === 0) {
                 container.innerHTML = `
                     <div class="category-title" style="width: 100%; text-align: center;">🗿 Статуї Хрюнделя</div>
@@ -1583,14 +1615,19 @@
             Object.keys(state.statues).forEach(key => {
                 const s = state.statues[key];
                 if (!s) return;
+                const currentLvl = s.lvl !== undefined ? s.lvl : (s.level !== undefined ? s.level : 1);
+                const maxLvl = s.maxLvl !== undefined ? s.maxLvl : 10;
+                const statueCps = s.cps || 0;
+                const imgPath = s.img || 'img/statue_hrundel.jpg';
+
                 html += `
                     <div class="upgrade-card evo-card">
                         <div class="upgrade-img-wrap">
-                            <img src="${s.img}" alt="${s.name}" class="upgrade-img" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'65\\' height=\\'65\\'><rect width=\\'65\\' height=\\'65\\' fill=\\'%232a1f45\\'/><text x=\\'50%\\' y=\\'50%\\' dominant-baseline=\\'middle\\' text-anchor=\\'middle\\' fill=\\'%23f1c40f\\' font-size=\\'28\\'>🗿</text></svg>';">
+                            <img src="${imgPath}" alt="${s.name}" class="upgrade-img" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'65\\' height=\\'65\\'><rect width=\\'65\\' height=\\'65\\' fill=\\'%232a1f45\\'/><text x=\\'50%\\' y=\\'50%\\' dominant-baseline=\\'middle\\' text-anchor=\\'middle\\' fill=\\'%23f1c40f\\' font-size=\\'28\\'>🗿</text></svg>';">
                         </div>
                         <div class="upgrade-info">
-                            <div class="upgrade-title">${s.name} <span class="upgrade-level-badge">Рівень ${s.lvl}/${s.maxLvl}</span></div>
-                            <div class="upgrade-desc" style="color: #2ecc71;">Дохід: +${formatNum(s.cps)} аури/сек</div>
+                            <div class="upgrade-title">${s.name} <span class="upgrade-level-badge">Рівень ${currentLvl}/${maxLvl}</span></div>
+                            <div class="upgrade-desc" style="color: #2ecc71;">Дохід: +${formatNum(statueCps)} аури/сек</div>
                         </div>
                         <button class="upgrade-btn" disabled>Активовано</button>
                     </div>
