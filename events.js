@@ -70,12 +70,21 @@ function getCurrentTime() {
     return (typeof getServerTime === 'function') ? getServerTime() : Date.now();
 }
 
+function escapeHtml(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
 // ------------------------------------------
 // КОНВЕРТАЦІЯ ТА ЗБЕРЕЖЕННЯ ЛАБОРАТОРІЇ У СТАТУЇ
 // ------------------------------------------
 function checkAndConvertLabEvent() {
     if (state.event && state.event.eventId === 'laboratory_event_v1' && !state.labEventFinished) {
-        // 1. Перенос Лабораторії у Статуї
         if (!state.statues) state.statues = {};
         const labLvl = state.event.labLvl || 0;
         state.statues.laboratory = {
@@ -85,7 +94,6 @@ function checkAndConvertLabEvent() {
             desc: `Рівень прокачки: ${labLvl}`
         };
 
-        // 2. Конвертація Хімікатів у Ауру (1 хімікат = 5000 аури)
         const chem = state.event.chemicals || 0;
         const convertedAura = chem * 5000;
         state.aura = (state.aura || 0) + convertedAura;
@@ -93,7 +101,6 @@ function checkAndConvertLabEvent() {
 
         state.labEventFinished = true;
 
-        // Повідомлення при вході
         setTimeout(() => {
             alert(`🧪 Івент "Лабораторія" завершено!\n\n` +
                   `• Вашу Лабораторію (${labLvl} рівень) перенесено у список статуй.\n` +
@@ -119,15 +126,26 @@ function initEventState() {
             damageUpgLvl: 0,
             respawnUpgLvl: 0,
             estateLvl: 0,
-            
-            // Жертва
-            currentVictimIdx: 0, // 0 = Муха
+            currentVictimIdx: 0,
             currentVictimHp: 100,
             respawnTimeEnd: 0
         };
     }
-    if (state.vampireEvent.energy === undefined) state.vampireEvent.energy = 2000;
-    if (state.vampireEvent.blood === undefined) state.vampireEvent.blood = 0;
+
+    const ev = state.vampireEvent;
+    if (ev.energy === undefined || isNaN(ev.energy)) ev.energy = 2000;
+    if (ev.blood === undefined || isNaN(ev.blood)) ev.blood = 0;
+    if (ev.totalBlood === undefined || isNaN(ev.totalBlood)) ev.totalBlood = ev.blood || 0;
+    if (!ev.lastEnergyTime || isNaN(ev.lastEnergyTime)) ev.lastEnergyTime = getCurrentTime();
+    if (ev.bloodUpgLvl === undefined) ev.bloodUpgLvl = 0;
+    if (ev.damageUpgLvl === undefined) ev.damageUpgLvl = 0;
+    if (ev.respawnUpgLvl === undefined) ev.respawnUpgLvl = 0;
+    if (ev.estateLvl === undefined) ev.estateLvl = 0;
+    if (ev.currentVictimIdx === undefined) ev.currentVictimIdx = 0;
+    if (ev.currentVictimHp === undefined || isNaN(ev.currentVictimHp)) {
+        ev.currentVictimHp = VICTIMS_DATA[ev.currentVictimIdx] ? VICTIMS_DATA[ev.currentVictimIdx].hp : 100;
+    }
+    if (ev.respawnTimeEnd === undefined || isNaN(ev.respawnTimeEnd)) ev.respawnTimeEnd = 0;
 }
 
 function getRespawnCooldownSec() {
@@ -152,35 +170,115 @@ function getVampireEstateAuraIncome() {
 }
 
 // ------------------------------------------
-// ОНОВЛЕННЯ ЛОГІКИ
+// ОНОВЛЕННЯ ЛОГІКИ ТА ЕНЕРГІЇ
 // ------------------------------------------
 function updateEventLogic(dt) {
     initEventState();
 
-    // Відновлення 2000 енергії за 3 години (10800 секунд)
     const MAX_ENERGY = 2000;
     const REGEN_TOTAL_MS = 3 * 60 * 60 * 1000; // 3 години
     const REGEN_PER_MS = MAX_ENERGY / REGEN_TOTAL_MS;
 
-    if (state.vampireEvent.energy < MAX_ENERGY) {
-        const now = getCurrentTime();
-        const elapsed = now - state.vampireEvent.lastEnergyTime;
+    const ev = state.vampireEvent;
+    const now = getCurrentTime();
+
+    if (ev.energy < MAX_ENERGY) {
+        const elapsed = now - ev.lastEnergyTime;
         if (elapsed > 0) {
-            state.vampireEvent.energy = Math.min(MAX_ENERGY, state.vampireEvent.energy + (elapsed * REGEN_PER_MS));
-            state.vampireEvent.lastEnergyTime = now;
+            ev.energy = Math.min(MAX_ENERGY, ev.energy + (elapsed * REGEN_PER_MS));
+            ev.lastEnergyTime = now;
+        } else if (elapsed < -60000) {
+            ev.lastEnergyTime = now;
         }
     } else {
-        state.vampireEvent.lastEnergyTime = getCurrentTime();
+        ev.lastEnergyTime = now;
     }
 
     updateVampireUI();
 }
 
 function updateVampireUI() {
+    if (!state.vampireEvent) return;
     const energyEl = document.getElementById('vamp-energy-val');
     const bloodEl = document.getElementById('vamp-blood-val');
     if (energyEl) energyEl.textContent = `⚡ Енергія: ${Math.floor(state.vampireEvent.energy)} / 2000`;
     if (bloodEl) bloodEl.textContent = `🩸 Кров: ${typeof formatNum === 'function' ? formatNum(state.vampireEvent.blood) : state.vampireEvent.blood}`;
+}
+
+// ------------------------------------------
+// СИНХРОНІЗАЦІЯ ЛІДЕРБОРДУ КРОВІ
+// ------------------------------------------
+function syncBloodLeaderboard() {
+    if (typeof dbAvailable === 'undefined' || !dbAvailable || !state.playerId || !state.nickname) return;
+    initEventState();
+    const ev = state.vampireEvent;
+    const totalBlood = ev.totalBlood || ev.blood || 0;
+
+    try {
+        firebase.database().ref('leaderboard_vampire/' + state.playerId).set({
+            nickname: state.nickname,
+            blood: totalBlood,
+            updatedAt: getCurrentTime()
+        });
+    } catch (e) {
+        console.warn("Помилка оновлення топу по крові:", e);
+    }
+}
+
+function fetchAndRenderBloodLeaderboard() {
+    const listEl = document.getElementById('vamp-leaderboard-list');
+    if (!listEl) return;
+
+    syncBloodLeaderboard();
+
+    if (typeof dbAvailable === 'undefined' || !dbAvailable || !firebase.database) {
+        listEl.innerHTML = `<div class="empty-leaderboard">⚠️ Онлайн лідерборд тимчасово недоступний.</div>`;
+        return;
+    }
+
+    firebase.database().ref('leaderboard_vampire').once('value').then(snapshot => {
+        const data = snapshot.val();
+        if (!data) {
+            listEl.innerHTML = `<div class="empty-leaderboard">Список поки порожній. Станьте першим!</div>`;
+            return;
+        }
+
+        const players = [];
+        for (let pid in data) {
+            players.push({
+                id: pid,
+                nickname: data[pid].nickname || 'Анонім',
+                blood: data[pid].blood || 0
+            });
+        }
+
+        players.sort((a, b) => b.blood - a.blood);
+
+        let listHtml = '';
+        players.slice(0, 50).forEach((player, index) => {
+            const rank = index + 1;
+            let rankIcon = `#${rank}`;
+            if (rank === 1) rankIcon = '🥇';
+            else if (rank === 2) rankIcon = '🥈';
+            else if (rank === 3) rankIcon = '🥉';
+
+            const isCurrentPlayer = (player.id === state.playerId);
+            const formattedBlood = typeof formatNum === 'function' ? formatNum(player.blood) : player.blood;
+
+            listHtml += `
+                <div class="leaderboard-item ${isCurrentPlayer ? 'is-player' : ''}">
+                    <div class="leaderboard-rank">${rankIcon}</div>
+                    <div class="leaderboard-name">${escapeHtml(player.nickname)} ${isCurrentPlayer ? '(Ви)' : ''}</div>
+                    <div class="leaderboard-cps" style="color: #e74c3c;">🩸 ${formattedBlood}</div>
+                </div>
+            `;
+        });
+
+        listEl.innerHTML = listHtml;
+    }).catch(err => {
+        console.error("Помилка завантаження топу по крові:", err);
+        listEl.innerHTML = `<div class="empty-leaderboard">❌ Помилка завантаження даних.</div>`;
+    });
 }
 
 // ------------------------------------------
@@ -209,6 +307,10 @@ function attackVictim() {
     const victim = VICTIMS_DATA[ev.currentVictimIdx];
     const dmg = getDamagePerClick();
 
+    if (ev.energy >= 2000) {
+        ev.lastEnergyTime = getCurrentTime();
+    }
+
     ev.energy -= 1;
     ev.currentVictimHp -= dmg;
 
@@ -225,6 +327,7 @@ function attackVictim() {
         ev.respawnTimeEnd = getCurrentTime() + (cd * 1000);
         ev.currentVictimIdx = getRandomNextVictimIdx();
 
+        syncBloodLeaderboard();
         if (typeof saveGame === 'function') saveGame();
     }
 
@@ -238,6 +341,10 @@ function changeVictimFor100Energy() {
     if (ev.energy < 100) {
         alert("Необхідно 100 енергії івенту для зміни жертви!");
         return;
+    }
+
+    if (ev.energy >= 2000) {
+        ev.lastEnergyTime = getCurrentTime();
     }
 
     ev.energy -= 100;
@@ -262,6 +369,7 @@ function buyBloodUpgrade() {
     if (ev.blood >= upg.cost) {
         ev.blood -= upg.cost;
         ev.bloodUpgLvl = nextLvl;
+        syncBloodLeaderboard();
         if (typeof saveGame === 'function') saveGame();
         renderEventUI();
     }
@@ -277,6 +385,7 @@ function buyDamageUpgrade() {
     if (ev.blood >= upg.cost) {
         ev.blood -= upg.cost;
         ev.damageUpgLvl = nextLvl;
+        syncBloodLeaderboard();
         if (typeof saveGame === 'function') saveGame();
         renderEventUI();
     }
@@ -306,6 +415,7 @@ function buyEstateLevel(lvl) {
     if (ev.blood >= estate.costBlood) {
         ev.blood -= estate.costBlood;
         ev.estateLvl = lvl;
+        syncBloodLeaderboard();
         if (typeof saveGame === 'function') saveGame();
         renderEventUI();
     }
@@ -340,6 +450,7 @@ function renderEventUI() {
             <button class="sub-tab-btn ${eventSubTab === 'victim' ? 'active' : ''}" onclick="switchEventSubTab('victim')">🎯 Жертва</button>
             <button class="sub-tab-btn ${eventSubTab === 'upgrades' ? 'active' : ''}" onclick="switchEventSubTab('upgrades')">⚡ Прокачки</button>
             <button class="sub-tab-btn ${eventSubTab === 'estate' ? 'active' : ''}" onclick="switchEventSubTab('estate')">🏰 Маєток вампіра</button>
+            <button class="sub-tab-btn ${eventSubTab === 'leaderboard' ? 'active' : ''}" onclick="switchEventSubTab('leaderboard')">🩸 Топ по крові</button>
         </div>
     `;
 
@@ -358,7 +469,6 @@ function renderEventUI() {
             `;
             setTimeout(renderEventUI, 1000);
         } else {
-            // Встановлюємо початкове HP для нової жертви
             if (ev.currentVictimHp <= 0) ev.currentVictimHp = targetVictim.hp;
 
             const hpPct = Math.max(0, Math.min(100, (ev.currentVictimHp / targetVictim.hp) * 100));
@@ -464,6 +574,16 @@ function renderEventUI() {
                 🔒 6-10 рівні з'являться згодом.
             </div>
         </div>`;
+    } else if (eventSubTab === 'leaderboard') {
+        html += `
+            <div style="width: 100%; text-align: center;">
+                <div class="category-title" style="margin-top: 5px;">🏆 Онлайн Топ по Крові</div>
+                <div id="vamp-leaderboard-list" class="leaderboard-list" style="margin-top: 10px;">
+                    <div style="text-align: center; color: #888; padding: 20px;">⏳ Завантаження лідерборду...</div>
+                </div>
+            </div>
+        `;
+        setTimeout(fetchAndRenderBloodLeaderboard, 50);
     }
 
     container.innerHTML = html;
