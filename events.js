@@ -13,7 +13,7 @@ const VICTIMS_DATA = [
     { id: 'goose', name: 'Гуска', hp: 50000, blood: 170, icon: '🪿', chance: 0.02 }
 ];
 
-// 1. Прокачка Крові (на одному місці)
+// 1. Прокачка Крові
 const BLOOD_UPGRADES = [
     { level: 1, mult: 2, cost: 2 },
     { level: 2, mult: 3, cost: 5 },
@@ -28,7 +28,7 @@ const BLOOD_UPGRADES = [
     { level: 11, mult: 12, cost: 8000 }
 ];
 
-// 2. Прокачка Шкоди (на одному місці)
+// 2. Прокачка Шкоди
 const DAMAGE_UPGRADES = [
     { level: 1, mult: 2, cost: 3 },
     { level: 2, mult: 4, cost: 500 },
@@ -36,7 +36,7 @@ const DAMAGE_UPGRADES = [
     { level: 4, mult: 16, cost: 250000 }
 ];
 
-// 3. Прокачка Часу появи (на одному місці)
+// 3. Прокачка Часу появи
 const RESPAWN_UPGRADES = [
     { level: 1, timeSec: 29, costAura: 300000000 },
     { level: 2, timeSec: 28, costAura: 500000000 },
@@ -71,18 +71,39 @@ function getCurrentTime() {
     return (typeof getServerTime === 'function') ? getServerTime() : Date.now();
 }
 
+// Синхронізація лідерборду по крові у Firebase
+function syncBloodLeaderboard() {
+    if (typeof dbAvailable === 'undefined' || !dbAvailable || !state.playerId || !state.nickname) return;
+    if (!state.vampireEvent) return;
+    try {
+        firebase.database().ref('leaderboard_vampire/' + state.playerId).set({
+            name: state.nickname,
+            blood: Math.floor(state.vampireEvent.blood || 0),
+            totalBlood: Math.floor(state.vampireEvent.totalBlood || 0),
+            updatedAt: firebase.database.ServerValue.TIMESTAMP
+        });
+    } catch(e) {
+        console.warn("Помилка синхронізації лідерборду вампірів:", e);
+    }
+}
+
+function syncChemicalsLeaderboard() {
+    syncBloodLeaderboard();
+}
+
 // ------------------------------------------
 // КОНВЕРТАЦІЯ ТА ЗБЕРЕЖЕННЯ ЛАБОРАТОРІЇ У СТАТУЇ
 // ------------------------------------------
 function checkAndConvertLabEvent() {
     if (state.event && state.event.eventId === 'laboratory_event_v1' && !state.labEventFinished) {
         if (!state.statues) state.statues = {};
-        const labLvl = state.event.labLvl || 0;
+        const labLvl = state.event.labLvl || 10;
         state.statues.laboratory = {
-            name: "Лабораторія",
-            level: labLvl,
-            icon: "🧪",
-            desc: `Рівень прокачки: ${labLvl}`
+            name: "Лабораторія (Хімікати)",
+            lvl: labLvl,
+            maxLvl: 10,
+            cps: labLvl * 50000,
+            img: "img/statue_lab.jpg"
         };
 
         const chem = state.event.chemicals || 0;
@@ -94,7 +115,7 @@ function checkAndConvertLabEvent() {
 
         setTimeout(() => {
             alert(`🧪 Івент "Лабораторія" завершено!\n\n` +
-                  `• Вашу Лабораторію (${labLvl} рівень) перенесено у список статуй.\n` +
+                  `• Вашу Лабораторію (${labLvl} рівень) перенесено у список статуй (+${typeof formatNum === 'function' ? formatNum(labLvl * 50000) : labLvl * 50000} аури/сек).\n` +
                   `• Невикористані хімікати (${typeof formatNum === 'function' ? formatNum(chem) : chem}) конвертовано у +${typeof formatNum === 'function' ? formatNum(convertedAura) : convertedAura} аури!`);
         }, 500);
     }
@@ -107,6 +128,7 @@ function initEventState() {
     checkAndConvertLabEvent();
 
     if (!state.vampireEvent || state.vampireEvent.eventId !== VAMPIRE_EVENT_ID) {
+        const defaultVictimIdx = 0;
         state.vampireEvent = {
             eventId: VAMPIRE_EVENT_ID,
             energy: 2000,
@@ -118,16 +140,23 @@ function initEventState() {
             respawnUpgLvl: 0,
             estateLvl: 0,
             
-            currentVictimIdx: 0,
-            currentVictimHp: 100,
+            currentVictimIdx: defaultVictimIdx,
+            currentVictimHp: VICTIMS_DATA[defaultVictimIdx].hp,
             respawnTimeEnd: 0
         };
     }
     
     if (state.vampireEvent.energy === undefined || isNaN(state.vampireEvent.energy)) state.vampireEvent.energy = 2000;
     if (state.vampireEvent.blood === undefined || isNaN(state.vampireEvent.blood)) state.vampireEvent.blood = 0;
+    if (state.vampireEvent.totalBlood === undefined || isNaN(state.vampireEvent.totalBlood)) state.vampireEvent.totalBlood = state.vampireEvent.blood;
     if (!state.vampireEvent.lastEnergyTime || isNaN(state.vampireEvent.lastEnergyTime)) {
         state.vampireEvent.lastEnergyTime = getCurrentTime();
+    }
+    
+    const vIdx = state.vampireEvent.currentVictimIdx || 0;
+    const targetV = VICTIMS_DATA[vIdx] || VICTIMS_DATA[0];
+    if (state.vampireEvent.currentVictimHp === undefined || isNaN(state.vampireEvent.currentVictimHp) || state.vampireEvent.currentVictimHp <= 0) {
+        state.vampireEvent.currentVictimHp = targetV.hp;
     }
 }
 
@@ -225,8 +254,12 @@ function attackVictim() {
 
         const cd = getRespawnCooldownSec();
         ev.respawnTimeEnd = getCurrentTime() + (cd * 1000);
+        
+        // Знаходимо нову жертву і задаємо її ХП
         ev.currentVictimIdx = getRandomNextVictimIdx();
+        ev.currentVictimHp = VICTIMS_DATA[ev.currentVictimIdx].hp;
 
+        syncBloodLeaderboard();
         if (typeof saveGame === 'function') saveGame();
     }
 
@@ -243,10 +276,15 @@ function changeVictimFor100Energy() {
     }
 
     ev.energy -= 100;
+    
+    // Встановлюємо нову жертву та її власне повне ХП
     ev.currentVictimIdx = getRandomNextVictimIdx();
+    ev.currentVictimHp = VICTIMS_DATA[ev.currentVictimIdx].hp;
+    
     const cd = getRespawnCooldownSec();
     ev.respawnTimeEnd = getCurrentTime() + (cd * 1000);
 
+    syncBloodLeaderboard();
     if (typeof saveGame === 'function') saveGame();
     renderEventUI();
 }
@@ -319,6 +357,71 @@ function switchEventSubTab(tab) {
 }
 
 // ------------------------------------------
+// ТОП З КРОВІ
+// ------------------------------------------
+function renderVampireLeaderboard() {
+    const list = document.getElementById('vampire-leaderboard-list');
+    if (!list) return;
+
+    if (typeof dbAvailable === 'undefined' || !dbAvailable) {
+        list.innerHTML = `
+            <div class="empty-leaderboard">
+                <p style="color: var(--accent-gold); font-size: 1.1rem; margin-bottom: 10px;">⚠️ Firebase не підключено!</p>
+                <div class="leaderboard-item is-player">
+                    <div class="leaderboard-rank">🥇</div>
+                    <div class="leaderboard-name">${state.nickname || "Ви"} (Локально)</div>
+                    <div class="leaderboard-cps" style="color: #e74c3c;">${typeof formatNum === 'function' ? formatNum(state.vampireEvent ? state.vampireEvent.blood : 0) : 0} 🩸</div>
+                </div>
+            </div>`;
+        return;
+    }
+
+    firebase.database().ref('leaderboard_vampire').orderByChild('totalBlood').limitToLast(50).once('value', (snapshot) => {
+        const data = snapshot.val();
+        const players = [];
+
+        if (data) {
+            Object.keys(data).forEach(id => {
+                players.push({
+                    id: id,
+                    name: data[id].name || "Вампір",
+                    blood: data[id].blood || 0,
+                    totalBlood: data[id].totalBlood || 0,
+                    isPlayer: id === state.playerId
+                });
+            });
+        }
+
+        players.sort((a, b) => (b.totalBlood || b.blood || 0) - (a.totalBlood || a.blood || 0));
+        list.innerHTML = '';
+
+        if (players.length === 0) {
+            list.innerHTML = `<div class="empty-leaderboard">Завантаження або немає даних...</div>`;
+            return;
+        }
+
+        players.forEach((p, index) => {
+            const rank = index + 1;
+            let rankIcon = `#${rank}`;
+            if (rank === 1) rankIcon = '🥇';
+            else if (rank === 2) rankIcon = '🥈';
+            else if (rank === 3) rankIcon = '🥉';
+
+            const item = document.createElement('div');
+            item.className = `leaderboard-item ${p.isPlayer ? 'is-player' : ''}`;
+            item.innerHTML = `
+                <div class="leaderboard-rank">${rankIcon}</div>
+                <div class="leaderboard-name">${p.name}${p.isPlayer ? ' (Ви)' : ''}</div>
+                <div class="leaderboard-cps" style="color: #e74c3c;">${typeof formatNum === 'function' ? formatNum(p.totalBlood || p.blood) : (p.totalBlood || p.blood)} 🩸</div>
+            `;
+            list.appendChild(item);
+        });
+    }).catch(err => {
+        console.warn("Помилка завантаження лідерборду вампірів:", err);
+    });
+}
+
+// ------------------------------------------
 // ІНТЕРФЕЙС ІВЕНТУ
 // ------------------------------------------
 function renderEventUI() {
@@ -344,6 +447,7 @@ function renderEventUI() {
             <button class="sub-tab-btn ${eventSubTab === 'victim' ? 'active' : ''}" onclick="switchEventSubTab('victim')">🎯 Жертва</button>
             <button class="sub-tab-btn ${eventSubTab === 'upgrades' ? 'active' : ''}" onclick="switchEventSubTab('upgrades')">⚡ Прокачки</button>
             <button class="sub-tab-btn ${eventSubTab === 'estate' ? 'active' : ''}" onclick="switchEventSubTab('estate')">🏰 Маєток вампіра</button>
+            <button class="sub-tab-btn ${eventSubTab === 'leaderboard' ? 'active' : ''}" onclick="switchEventSubTab('leaderboard')">🏆 Топ з крові</button>
         </div>
     `;
 
@@ -361,7 +465,9 @@ function renderEventUI() {
                 </div>
             `;
         } else {
-            if (ev.currentVictimHp <= 0) ev.currentVictimHp = targetVictim.hp;
+            if (ev.currentVictimHp === undefined || ev.currentVictimHp > targetVictim.hp || ev.currentVictimHp <= 0) {
+                ev.currentVictimHp = targetVictim.hp;
+            }
 
             const hpPct = Math.max(0, Math.min(100, (ev.currentVictimHp / targetVictim.hp) * 100));
             html += `
@@ -475,6 +581,12 @@ function renderEventUI() {
         if (ev.energy < 2000) {
             vampireUiTimer = setTimeout(renderEventUI, 1000);
         }
+    } else if (eventSubTab === 'leaderboard') {
+        html += `
+            <div class="category-title" style="width: 100%; text-align: center;">🏆 Топ Вампірів за Кров'ю</div>
+            <div id="vampire-leaderboard-list" class="leaderboard-list"></div>
+        `;
+        setTimeout(renderVampireLeaderboard, 50);
     }
 
     container.innerHTML = html;
