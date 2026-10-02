@@ -1,889 +1,314 @@
 // ==========================================
-// КОНФІГУРАЦІЯ ТА ДАНІ ІВЕНТУ: ЛАБОРАТОРІЯ
+// ЛОГІКА ІВЕНТІВ (НОВИЙ ВАМПІРСЬКИЙ ІВЕНТ)
 // ==========================================
 
-const CURRENT_EVENT_ID = 'laboratory_event_v1';
-let lastChemicalsLeaderboardSync = 0;
+const VAMPIRE_EVENT_ID = 'vampire_event_v1';
 
-// Дата завершення івенту: 2 жовтня о 21:00 EEST (18:00 UTC)
-const LAB_EVENT_END_TS = Date.UTC(2026, 9, 2, 18, 0, 0);
+// Конфігурація жертв
+const VICTIMS_DATA = [
+    { id: 'fly', name: 'Муха', hp: 100, blood: 2, icon: '🪰', chance: 0.40 },
+    { id: 'lizard', name: 'Ящірка', hp: 1000, blood: 10, icon: '🦎', chance: 0.30 },
+    { id: 'mouse', name: 'Миша', hp: 10000, blood: 50, icon: '🖱️', chance: 0.20 },
+    { id: 'chicken', name: 'Курка', hp: 25000, blood: 100, icon: '🐔', chance: 0.08 },
+    { id: 'goose', name: 'Гуска', hp: 50000, blood: 170, icon: '🪿', chance: 0.02 }
+];
+
+// 1. Прокачка Крові (на одному місці)
+const BLOOD_UPGRADES = [
+    { level: 1, mult: 2, cost: 2 },
+    { level: 2, mult: 3, cost: 5 },
+    { level: 3, mult: 4, cost: 10 },
+    { level: 4, mult: 5, cost: 40 },
+    { level: 5, mult: 6, cost: 100 },
+    { level: 6, mult: 7, cost: 250 },
+    { level: 7, mult: 8, cost: 550 },
+    { level: 8, mult: 9, cost: 1200 },
+    { level: 9, mult: 10, cost: 2500 },
+    { level: 10, mult: 11, cost: 5000 },
+    { level: 11, mult: 12, cost: 8000 }
+];
+
+// 2. Прокачка Шкоди (на одному місці)
+const DAMAGE_UPGRADES = [
+    { level: 1, mult: 2, cost: 3 },
+    { level: 2, mult: 4, cost: 500 },
+    { level: 3, mult: 8, cost: 15000 },
+    { level: 4, mult: 16, cost: 250000 }
+];
+
+// 3. Прокачка Часу появи (на одному місці)
+const RESPAWN_UPGRADES = [
+    { level: 1, timeSec: 29, costAura: 300000000 },
+    { level: 2, timeSec: 28, costAura: 500000000 },
+    { level: 3, timeSec: 27, costAura: 750000000 },
+    { level: 4, timeSec: 26, costAura: 1500000000 },
+    { level: 5, timeSec: 25, costAura: 4000000000 },
+    { level: 6, timeSec: 24, costAura: 6000000000 },
+    { level: 7, timeSec: 23, costAura: 15000000000 },
+    { level: 8, timeSec: 22, costAura: 25000000000 },
+    { level: 9, timeSec: 21, costAura: 35000000000 },
+    { level: 10, timeSec: 20, costAura: 50000000000 },
+    { level: 11, timeSec: 19, costAura: 60000000000 },
+    { level: 12, timeSec: 18, costAura: 70000000000 },
+    { level: 13, timeSec: 17, costAura: 80000000000 },
+    { level: 14, timeSec: 16, costAura: 90000000000 },
+    { level: 15, timeSec: 15, costAura: 100000000000 }
+];
+
+// 4. Маєток Вампіра
+const ESTATE_LEVELS = [
+    { level: 1, income: 50000, costBlood: 50 },
+    { level: 2, income: 100000, costBlood: 150 },
+    { level: 3, income: 150000, costBlood: 300 },
+    { level: 4, income: 200000, costBlood: 600 },
+    { level: 5, income: 250000, costBlood: 1200 }
+];
+
+let eventSubTab = 'victim'; // 'victim', 'upgrades', 'estate', 'leaderboard'
 
 function getCurrentTime() {
     return (typeof getServerTime === 'function') ? getServerTime() : Date.now();
 }
 
-function formatEventCountdown(ms) {
-    if (ms <= 0) return '00:00:00';
-    const totalSec = Math.floor(ms / 1000);
-    const hours = Math.floor(totalSec / 3600);
-    const mins = Math.floor((totalSec % 3600) / 60);
-    const secs = totalSec % 60;
-    return `${hours}г ${mins < 10 ? '0' : ''}${mins}хв ${secs < 10 ? '0' : ''}${secs}с`;
+// ------------------------------------------
+// КОНВЕРТАЦІЯ ТА ЗБЕРЕЖЕННЯ ЛАБОРАТОРІЇ У СТАТУЇ
+// ------------------------------------------
+function checkAndConvertLabEvent() {
+    if (state.event && state.event.eventId === 'laboratory_event_v1' && !state.labEventFinished) {
+        // 1. Перенос Лабораторії у Статуї
+        if (!state.statues) state.statues = {};
+        const labLvl = state.event.labLvl || 0;
+        state.statues.laboratory = {
+            name: "Лабораторія",
+            level: labLvl,
+            icon: "🧪",
+            desc: `Рівень прокачки: ${labLvl}`
+        };
+
+        // 2. Конвертація Хімікатів у Ауру (1 хімікат = 5000 аури)
+        const chem = state.event.chemicals || 0;
+        const convertedAura = chem * 5000;
+        state.aura = (state.aura || 0) + convertedAura;
+        state.totalAura = (state.totalAura || 0) + convertedAura;
+
+        state.labEventFinished = true;
+
+        // Повідомлення при вході
+        setTimeout(() => {
+            alert(`🧪 Івент "Лабораторія" завершено!\n\n` +
+                  `• Вашу Лабораторію (${labLvl} рівень) перенесено у список статуй.\n` +
+                  `• Невикористані хімікати (${typeof formatNum === 'function' ? formatNum(chem) : chem}) конвертовано у +${typeof formatNum === 'function' ? formatNum(convertedAura) : convertedAura} аури!`);
+        }, 500);
+    }
 }
 
-// Покращення часу на крок (Time Upgrades)
-const TIME_UPGRADES = [
-    { level: 1, timeSec: 1.2, costChem: 5 },
-    { level: 2, timeSec: 1.4, costChem: 10 },
-    { level: 3, timeSec: 1.6, costChem: 25 },
-    { level: 4, timeSec: 1.8, costChem: 150 },
-    { level: 5, timeSec: 2, costChem: 500 },
-    { level: 6, timeSec: 2.2, costChem: 10000 },
-    { level: 7, timeSec: 2.4, costChem: 250000 },
-    { level: 8, timeSec: 2.6, costChem: 1000000 },
-    { level: 9, timeSec: 2.8, costChem: 3500000 },
-    { level: 10, timeSec: 3, costChem: 8000000 },
-    { level: 11, timeSec: 3.2, costChem: 15000000 }
-];
-
-// Покращення множника хімікатів (Multiplier Upgrades)
-const MULT_UPGRADES = [
-    { level: 1, mult: 2, costChem: 10 },
-    { level: 2, mult: 3, costChem: 100 },
-    { level: 3, mult: 4, costChem: 1000 },
-    { level: 4, mult: 5, costChem: 3000 },
-    { level: 5, mult: 6, costChem: 7500 },
-    { level: 6, mult: 7, costChem: 12000 },
-    { level: 7, mult: 8, costChem: 20000 },
-    { level: 8, mult: 9, costChem: 30000 },
-    { level: 9, mult: 10, costChem: 45000 },
-    { level: 10, mult: 11, costChem: 60000 },
-    { level: 11, mult: 12, costChem: 80000 },
-    { level: 12, mult: 13, costChem: 100000 },
-    { level: 13, mult: 14, costChem: 125000 },
-    { level: 14, mult: 15, costChem: 160000 },
-    { level: 15, mult: 16, costChem: 200000 },
-    { level: 16, mult: 18, costChem: 250000 },
-    { level: 17, mult: 20, costChem: 300000 },
-    { level: 18, mult: 22, costChem: 400000 },
-    { level: 19, mult: 24, costChem: 500000 },
-    { level: 20, mult: 26, costChem: 700000 },
-    { level: 21, mult: 28, costChem: 900000 },
-    { level: 22, mult: 30, costChem: 1200000 }
-];
-
-// Покращення швидкості відновлення енергії для гри (Energy Regen Upgrades)
-const REGEN_UPGRADES = [
-    { level: 1, label: "19хв", intervalSec: 1140, costAura: 1000000000 },
-    { level: 2, label: "18хв", intervalSec: 1080, costAura: 3000000000 },
-    { level: 3, label: "17хв", intervalSec: 1020, costAura: 10000000000 },
-    { level: 4, label: "16хв", intervalSec: 960, costAura: 25000000000 },
-    { level: 5, label: "15хв", intervalSec: 900, costAura: 75000000000 },
-    { level: 6, label: "14хв", intervalSec: 840, costAura: 120000000000 },
-    { level: 7, label: "13хв", intervalSec: 780, costAura: 200000000000 },
-    { level: 8, label: "12хв", intervalSec: 720, costAura: 300000000000 },
-    { level: 9, label: "11хв", intervalSec: 660, costAura: 400000000000 },
-    { level: 10, label: "10хв", intervalSec: 600, costAura: 500000000000 },
-    { level: 11, label: "9хв", intervalSec: 540, costAura: 600000000000 },
-    { level: 12, label: "8хв", intervalSec: 480, costAura: 800000000000 },
-    { level: 13, label: "7хв", intervalSec: 420, costAura: 1000000000000 },
-    { level: 14, label: "6хв", intervalSec: 360, costAura: 1200000000000 },
-    { level: 15, label: "5хв", intervalSec: 300, costAura: 1500000000000 }
-];
-
-// Будівництво Лабораторії (Laboratory Building Levels)
-const LAB_LEVELS = [
-    { level: 1, costChem: 20000, auraIncome: 30000 },
-    { level: 2, costChem: 50000, auraIncome: 60000 },
-    { level: 3, costChem: 100000, auraIncome: 90000 },
-    { level: 4, costChem: 250000, auraIncome: 120000 },
-    { level: 5, costChem: 500000, auraIncome: 150000 },
-    { level: 6, costChem: 1000000, auraIncome: 180000 },
-    { level: 7, costChem: 2000000, auraIncome: 210000 },
-    { level: 8, costChem: 4000000, auraIncome: 240000 },
-    { level: 9, costChem: 7000000, auraIncome: 270000 },
-    { level: 10, costChem: 10000000, auraIncome: 300000 }
-];
-
-let eventSubTab = 'game'; 
-
-// Стан міні-гри "Зелена Кнопка"
-let labGame = {
-    state: 'idle', // 'idle', 'playing', 'ended'
-    step: 1,
-    buttonLvl: 1, // 1 або 2
-    reqType: '', 
-    reqCount: 1,
-    currentClicks: 0,
-    timer: 1.0,
-    maxTimer: 1.0,
-    rememberNumber: 0,
-    checkStep: 45,
-    shownNumber: 0,
-    rememberCheckMatch: false,
-    energyDeducted: false,
-    
-    // Спеціальні кроки та умови (Кнопка 1 рівня)
-    shapeStep: 30,         
-    targetShape: '▲',     
-    shownShape: '',
-    blueStep: 70,          
-    blueShouldClick: true, 
-    isBlueButton: false,
-    spiderStep: 95,        
-    hasSpider: false,
-
-    // Спеціальні кроки (Кнопка 2 рівня)
-    blueStep2: 4,
-    redStep2: 10,
-    purpleStep2: 18,
-    leavesStep2: 26,
-    spiderStep2: 32,
-    shapeStep2: 42,
-
-    targetShape2: '●',
-    leavesCount: 0,
-    isRedButton: false,
-    isPurpleButton: false,
-    purpleShouldClick: true,
-    leavesShouldClick: true,
-
-    lastEarned: 0,
-    completedMax: false
-};
-
+// ------------------------------------------
+// ІНІЦІАЛІЗАЦІЯ ВАМПІРСЬКОГО ІВЕНТУ
+// ------------------------------------------
 function initEventState() {
-    if (!state.event || state.event.eventId !== CURRENT_EVENT_ID) {
-        state.event = {
-            eventId: CURRENT_EVENT_ID,
-            energy: 10,
+    checkAndConvertLabEvent();
+
+    if (!state.vampireEvent || state.vampireEvent.eventId !== VAMPIRE_EVENT_ID) {
+        state.vampireEvent = {
+            eventId: VAMPIRE_EVENT_ID,
+            energy: 2000,
             lastEnergyTime: getCurrentTime(),
-            chemicals: 0,
-            totalChemicals: 0,
-            timeUpgLvl: 0,
-            multUpgLvl: 0,
-            regenUpgLvl: 0,
-            labLvl: 0,
-            unlockedButton2: false,
-            selectedButton: 1
+            blood: 0,
+            totalBlood: 0,
+            bloodUpgLvl: 0,
+            damageUpgLvl: 0,
+            respawnUpgLvl: 0,
+            estateLvl: 0,
+            
+            // Жертва
+            currentVictimIdx: 0, // 0 = Муха
+            currentVictimHp: 100,
+            respawnTimeEnd: 0
         };
     }
-    if (state.event.energy === undefined || state.event.energy > 10) state.event.energy = 10;
-    if (state.event.lastEnergyTime === undefined) state.event.lastEnergyTime = getCurrentTime();
-    if (state.event.chemicals === undefined) state.event.chemicals = 0;
-    if (state.event.totalChemicals === undefined) state.event.totalChemicals = 0;
-    if (state.event.timeUpgLvl === undefined) state.event.timeUpgLvl = 0;
-    if (state.event.multUpgLvl === undefined) state.event.multUpgLvl = 0;
-    if (state.event.regenUpgLvl === undefined) state.event.regenUpgLvl = 0;
-    if (state.event.labLvl === undefined) state.event.labLvl = 0;
-    if (state.event.unlockedButton2 === undefined) state.event.unlockedButton2 = false;
-    if (state.event.selectedButton === undefined) state.event.selectedButton = 1;
+    if (state.vampireEvent.energy === undefined) state.vampireEvent.energy = 2000;
+    if (state.vampireEvent.blood === undefined) state.vampireEvent.blood = 0;
 }
 
-function getEnergyRegenInterval() {
-    if (!state.event || !state.event.regenUpgLvl || state.event.regenUpgLvl === 0) {
-        return 1200; 
-    }
-    const upg = REGEN_UPGRADES[state.event.regenUpgLvl - 1];
-    return upg ? upg.intervalSec : 1200;
+function getRespawnCooldownSec() {
+    const lvl = state.vampireEvent.respawnUpgLvl || 0;
+    return lvl > 0 ? RESPAWN_UPGRADES[lvl - 1].timeSec : 30;
 }
 
-function getStepTime() {
-    if (!state.event || !state.event.timeUpgLvl || state.event.timeUpgLvl === 0) {
-        return 1.0;
-    }
-    const upg = TIME_UPGRADES[state.event.timeUpgLvl - 1];
-    return upg ? upg.timeSec : 1.0;
+function getDamagePerClick() {
+    const lvl = state.vampireEvent.damageUpgLvl || 0;
+    return lvl > 0 ? DAMAGE_UPGRADES[lvl - 1].mult : 1;
 }
 
-function getChemMultiplier() {
-    if (!state.event || !state.event.multUpgLvl || state.event.multUpgLvl === 0) {
-        return 1;
-    }
-    const upg = MULT_UPGRADES[state.event.multUpgLvl - 1];
-    return upg ? upg.mult : 1;
+function getBloodMultiplier() {
+    const lvl = state.vampireEvent.bloodUpgLvl || 0;
+    return lvl > 0 ? BLOOD_UPGRADES[lvl - 1].mult : 1;
 }
 
-function getLabAuraIncome() {
-    if (!state.event || !state.event.labLvl || state.event.labLvl === 0) return 0;
-    const lab = LAB_LEVELS[state.event.labLvl - 1];
-    return lab ? lab.auraIncome : 0;
+function getVampireEstateAuraIncome() {
+    if (!state.vampireEvent || !state.vampireEvent.estateLvl) return 0;
+    const lvl = state.vampireEvent.estateLvl;
+    return lvl > 0 && lvl <= 5 ? ESTATE_LEVELS[lvl - 1].income : 0;
 }
 
+// ------------------------------------------
+// ОНОВЛЕННЯ ЛОГІКИ
+// ------------------------------------------
 function updateEventLogic(dt) {
     initEventState();
 
-    if (state.event.energy < 10) {
-        const interval = getEnergyRegenInterval();
+    // Відновлення 2000 енергії за 3 години (10800 секунд)
+    const MAX_ENERGY = 2000;
+    const REGEN_TOTAL_MS = 3 * 60 * 60 * 1000; // 3 години
+    const REGEN_PER_MS = MAX_ENERGY / REGEN_TOTAL_MS;
+
+    if (state.vampireEvent.energy < MAX_ENERGY) {
         const now = getCurrentTime();
-        const elapsed = (now - state.event.lastEnergyTime) / 1000;
-
-        if (elapsed >= interval) {
-            const added = Math.floor(elapsed / interval);
-            state.event.energy = Math.min(10, state.event.energy + added);
-            state.event.lastEnergyTime = now - ((elapsed % interval) * 1000);
+        const elapsed = now - state.vampireEvent.lastEnergyTime;
+        if (elapsed > 0) {
+            state.vampireEvent.energy = Math.min(MAX_ENERGY, state.vampireEvent.energy + (elapsed * REGEN_PER_MS));
+            state.vampireEvent.lastEnergyTime = now;
         }
     } else {
-        if (state.event.energy > 10) state.event.energy = 10;
-        state.event.lastEnergyTime = getCurrentTime();
+        state.vampireEvent.lastEnergyTime = getCurrentTime();
     }
 
-    if (labGame.state === 'playing') {
-        labGame.timer -= dt;
-
-        if (labGame.timer <= 0) {
-            labGame.timer = 0;
-
-            let isStepSuccess = false;
-
-            if (labGame.hasSpider) {
-                isStepSuccess = (labGame.currentClicks === 0);
-            } else if (labGame.reqType === 'click_1' || labGame.reqType === 'blue_check' || labGame.reqType === 'shape_check') {
-                isStepSuccess = (labGame.currentClicks === labGame.reqCount);
-            } else if (
-                labGame.reqType === 'remember' || 
-                labGame.reqType === 'shape_instruction' || 
-                labGame.reqType === 'blue_instruction' || 
-                labGame.reqType === 'spider_instruction' ||
-                labGame.reqType.includes('instruction2')
-            ) {
-                isStepSuccess = (labGame.currentClicks === 0);
-            } else if (labGame.reqType === 'click_n' || labGame.reqType === 'click_2') {
-                isStepSuccess = (labGame.currentClicks === labGame.reqCount);
-            } else if (labGame.reqType === 'dont_click' || labGame.reqType === 'click_0' || labGame.reqType === 'red_check2') {
-                isStepSuccess = (labGame.currentClicks === 0);
-            } else if (labGame.reqType === 'click_gt4' || labGame.reqType === 'click_gt5') {
-                isStepSuccess = (labGame.currentClicks >= labGame.reqCount);
-            } else if (labGame.reqType === 'remember_check') {
-                if (labGame.rememberCheckMatch) {
-                    isStepSuccess = (labGame.currentClicks === 1);
-                } else {
-                    isStepSuccess = (labGame.currentClicks === 0);
-                }
-            } else if (labGame.reqType === 'blue_check2' || labGame.reqType === 'purple_check2' || labGame.reqType === 'leaves_check2') {
-                isStepSuccess = (labGame.currentClicks === labGame.reqCount);
-            } else if (labGame.reqType === 'shape_check2') {
-                isStepSuccess = (labGame.currentClicks === labGame.reqCount);
-            }
-
-            if (isStepSuccess) {
-                const maxSteps = labGame.buttonLvl === 2 ? 75 : 140;
-                
-                if (labGame.buttonLvl === 2 && labGame.step === 2 && !labGame.energyDeducted) {
-                    state.event.energy -= 2;
-                    labGame.energyDeducted = true;
-                }
-
-                if (labGame.step >= maxSteps) {
-                    endLabGame(true);
-                } else {
-                    completeStep();
-                }
-            } else {
-                endLabGame(false);
-            }
-        }
-    }
-
-    updateEventCountersUI();
+    updateVampireUI();
 }
 
-function updateEventCountersUI() {
-    if (!state.event) return;
-    const energyEl = document.getElementById('lab-energy-val');
-    const chemEl = document.getElementById('lab-chem-val');
-    const timerEl = document.getElementById('lab-event-timer');
-
-    if (energyEl) energyEl.textContent = `⚡ Енергія кнопки: ${Math.floor(state.event.energy)}/10`;
-    if (chemEl) chemEl.textContent = `🧪 Хімікати: ${formatNum(state.event.chemicals)}`;
-
-    if (timerEl) {
-        const now = getCurrentTime();
-        const timeLeftMs = LAB_EVENT_END_TS - now;
-        if (timeLeftMs > 0) {
-            timerEl.textContent = `⏳ Івент закінчується: 2 жовтня о 21:00 (залишилось: ${formatEventCountdown(timeLeftMs)})`;
-            timerEl.style.color = 'var(--accent-gold)';
-        } else {
-            timerEl.textContent = `🔴 Івент завершено (2 жовтня о 21:00)`;
-            timerEl.style.color = '#e74c3c';
-        }
-    }
-
-    renderLabButtonUI();
+function updateVampireUI() {
+    const energyEl = document.getElementById('vamp-energy-val');
+    const bloodEl = document.getElementById('vamp-blood-val');
+    if (energyEl) energyEl.textContent = `⚡ Енергія: ${Math.floor(state.vampireEvent.energy)} / 2000`;
+    if (bloodEl) bloodEl.textContent = `🩸 Кров: ${typeof formatNum === 'function' ? formatNum(state.vampireEvent.blood) : state.vampireEvent.blood}`;
 }
 
-function setupNextStep() {
-    let baseTime = getStepTime();
-    if (labGame.buttonLvl === 2) {
-        baseTime -= 0.5;
-        if (baseTime < 0.2) baseTime = 0.2;
+// ------------------------------------------
+// МЕХАНІКА КЛІКУ ТА СПАВНУ ЖЕРТВ
+// ------------------------------------------
+function getRandomNextVictimIdx() {
+    const rand = Math.random();
+    let cumulative = 0;
+    for (let i = 0; i < VICTIMS_DATA.length; i++) {
+        cumulative += VICTIMS_DATA[i].chance;
+        if (rand <= cumulative) return i;
     }
-    
-    labGame.maxTimer = baseTime;
-    labGame.timer = labGame.maxTimer;
-    labGame.currentClicks = 0;
-    labGame.hasSpider = false;
-    labGame.isBlueButton = false;
-    labGame.isRedButton = false;
-    labGame.isPurpleButton = false;
-    labGame.leavesCount = 0;
-    labGame.shownShape = '';
-
-    if (labGame.buttonLvl === 1) {
-        setupStepLvl1();
-    } else {
-        setupStepLvl2();
-    }
+    return 0;
 }
 
-function setupStepLvl1() {
-    if (labGame.step === 1) {
-        labGame.reqType = 'click_1';
-        labGame.reqCount = 1;
-    } else if (labGame.step === 2) {
-        labGame.reqType = 'remember';
-        labGame.rememberNumber = Math.floor(Math.random() * 90) + 10;
-        labGame.reqCount = 0;
-    } else if (labGame.step === labGame.shapeStep) {
-        labGame.reqType = 'shape_instruction';
-        labGame.reqCount = 0;
-    } else if (labGame.step === labGame.checkStep) {
-        labGame.reqType = 'remember_check';
-        const isMatch = Math.random() < 0.5;
-        labGame.rememberCheckMatch = isMatch;
-        if (isMatch) {
-            labGame.shownNumber = labGame.rememberNumber;
-            labGame.reqCount = 1;
-        } else {
-            let fakeNum;
-            do {
-                fakeNum = Math.floor(Math.random() * 90) + 10;
-            } while (fakeNum === labGame.rememberNumber);
-            labGame.shownNumber = fakeNum;
-            labGame.reqCount = 0;
-        }
-    } else if (labGame.step === labGame.blueStep) {
-        labGame.reqType = 'blue_instruction';
-        labGame.reqCount = 0;
-    } else if (labGame.step === labGame.spiderStep) {
-        labGame.reqType = 'spider_instruction';
-        labGame.reqCount = 0;
-    } else {
-        let specialTriggered = false;
-
-        if (labGame.step > labGame.shapeStep && Math.random() < 0.05) {
-            labGame.reqType = 'shape_check';
-            const shapes = ['▲', '■', '●'];
-            labGame.shownShape = shapes[Math.floor(Math.random() * 3)];
-            labGame.reqCount = (labGame.shownShape === labGame.targetShape) ? 1 : 0;
-            specialTriggered = true;
-        }
-
-        if (!specialTriggered && labGame.step > labGame.blueStep && Math.random() < 0.04) {
-            labGame.reqType = 'blue_check';
-            labGame.isBlueButton = true;
-            labGame.reqCount = labGame.blueShouldClick ? 1 : 0;
-            specialTriggered = true;
-        }
-
-        if (!specialTriggered) {
-            const patternType = Math.floor(Math.random() * 4);
-            if (patternType === 0) {
-                labGame.reqType = 'click_1';
-                labGame.reqCount = 1;
-            } else if (patternType === 1) {
-                labGame.reqType = 'click_n';
-                labGame.reqCount = Math.floor(Math.random() * 3) + 2;
-            } else if (patternType === 2) {
-                labGame.reqType = 'dont_click';
-                labGame.reqCount = 0;
-            } else {
-                labGame.reqType = 'click_gt4';
-                labGame.reqCount = 5;
-            }
-        }
-
-        if (labGame.step > labGame.spiderStep && Math.random() < 0.04) {
-            labGame.hasSpider = true;
-            labGame.reqCount = 0; 
-        }
-    }
-}
-
-function setupStepLvl2() {
-    let specialTriggered = false;
-
-    if (labGame.step === labGame.blueStep2) {
-        labGame.reqType = 'blue_instruction2';
-        labGame.reqCount = 0;
-        specialTriggered = true;
-    } else if (labGame.step === labGame.redStep2) {
-        labGame.reqType = 'red_instruction2';
-        labGame.reqCount = 0;
-        specialTriggered = true;
-    } else if (labGame.step === labGame.purpleStep2) {
-        labGame.reqType = 'purple_instruction2';
-        labGame.reqCount = 0;
-        specialTriggered = true;
-    } else if (labGame.step === labGame.leavesStep2) {
-        labGame.reqType = 'leaves_instruction2';
-        labGame.reqCount = 0;
-        specialTriggered = true;
-    } else if (labGame.step === labGame.spiderStep2) {
-        labGame.reqType = 'spider_instruction2';
-        labGame.reqCount = 0;
-        specialTriggered = true;
-    } else if (labGame.step === labGame.shapeStep2) {
-        labGame.reqType = 'shape_instruction2';
-        labGame.reqCount = 0;
-        specialTriggered = true;
-    }
-
-    if (!specialTriggered && labGame.step > labGame.blueStep2 && Math.random() < 0.1) {
-        labGame.reqType = 'blue_check2';
-        labGame.isBlueButton = true;
-        labGame.reqCount = labGame.blueShouldClick ? 1 : 0;
-        specialTriggered = true;
-    }
-    
-    if (!specialTriggered && labGame.step > labGame.redStep2 && Math.random() < 0.1) {
-        labGame.reqType = 'red_check2';
-        labGame.isRedButton = true;
-        labGame.reqCount = 0; 
-        specialTriggered = true;
-    }
-
-    if (!specialTriggered && labGame.step > labGame.purpleStep2 && Math.random() < 0.1) {
-        labGame.reqType = 'purple_check2';
-        labGame.isPurpleButton = true;
-        labGame.reqCount = labGame.purpleShouldClick ? 1 : 0;
-        specialTriggered = true;
-    }
-
-    if (!specialTriggered && labGame.step > labGame.leavesStep2 && Math.random() < 0.1) {
-        labGame.reqType = 'leaves_check2';
-        labGame.leavesCount = Math.floor(Math.random() * 4) + 3; // 3,4,5,6
-        const isEven = labGame.leavesCount % 2 === 0;
-        if (labGame.leavesShouldClick) {
-            labGame.reqCount = isEven ? 1 : 0;
-        } else {
-            labGame.reqCount = isEven ? 0 : 1;
-        }
-        specialTriggered = true;
-    }
-
-    if (!specialTriggered && labGame.step > labGame.shapeStep2 && Math.random() < 0.1) {
-        labGame.reqType = 'shape_check2';
-        const shapes = ['●', '▲', '■'];
-        labGame.shownShape = shapes[Math.floor(Math.random() * 3)];
-        labGame.reqCount = (labGame.shownShape === labGame.targetShape2) ? 1 : 0;
-        specialTriggered = true;
-    }
-
-    if (!specialTriggered) {
-        const patternType = Math.floor(Math.random() * 5);
-        if (patternType === 0) {
-            labGame.reqType = 'click_1';
-            labGame.reqCount = 1;
-        } else if (patternType === 1) {
-            labGame.reqType = 'dont_click';
-            labGame.reqCount = 0;
-        } else if (patternType === 2) {
-            labGame.reqType = 'click_gt5';
-            labGame.reqCount = 6;
-        } else if (patternType === 3) {
-            labGame.reqType = 'click_0';
-            labGame.reqCount = 0;
-        } else {
-            labGame.reqType = 'click_2';
-            labGame.reqCount = 2;
-        }
-    }
-
-    if (labGame.step > labGame.spiderStep2 && Math.random() < 0.1) {
-        labGame.hasSpider = true;
-        labGame.reqCount = 0; 
-    }
-}
-
-function completeStep() {
-    labGame.step += 1;
-    setupNextStep();
-    renderLabButtonUI();
-}
-
-function handleLabButtonClick() {
+function attackVictim() {
     initEventState();
+    const ev = state.vampireEvent;
 
-    if (labGame.state === 'idle' || labGame.state === 'ended') {
-        const btnLvl = state.event.selectedButton;
-        
-        if (btnLvl === 1 && state.event.energy < 1) return;
-        if (btnLvl === 2 && state.event.energy < 2) return;
-
-        labGame.buttonLvl = btnLvl;
-        labGame.state = 'playing';
-        labGame.step = 1;
-        labGame.completedMax = false;
-        labGame.energyDeducted = false;
-
-        if (btnLvl === 1) {
-            state.event.energy -= 1;
-            labGame.energyDeducted = true;
-            labGame.checkStep = Math.floor(Math.random() * 21) + 40;  
-            labGame.shapeStep = Math.floor(Math.random() * 10) + 26;  
-            labGame.blueStep = Math.floor(Math.random() * 15) + 65;   
-            labGame.spiderStep = Math.floor(Math.random() * 10) + 90; 
-            const shapes = ['▲', '■', '●'];
-            labGame.targetShape = shapes[Math.floor(Math.random() * 3)];
-            labGame.blueShouldClick = Math.random() < 0.5;
-        } else {
-            labGame.blueStep2 = 4;
-            labGame.redStep2 = Math.floor(Math.random() * 3) + 10; // 10-12
-            labGame.purpleStep2 = Math.floor(Math.random() * 7) + 18; // 18-24
-            labGame.leavesStep2 = Math.floor(Math.random() * 5) + 26; // 26-30
-            labGame.spiderStep2 = Math.floor(Math.random() * 5) + 32; // 32-36
-            labGame.shapeStep2 = Math.floor(Math.random() * 8) + 42; // 42-49
-
-            labGame.blueShouldClick = Math.random() < 0.5;
-            labGame.purpleShouldClick = Math.random() < 0.5;
-            labGame.leavesShouldClick = Math.random() < 0.5;
-            const shapes = ['●', '▲', '■'];
-            labGame.targetShape2 = shapes[Math.floor(Math.random() * 3)];
-        }
-
-        setupNextStep();
-        if (typeof playClickSound === 'function') playClickSound();
-        renderLabButtonUI();
+    if (ev.respawnTimeEnd > getCurrentTime()) return; // Чекаємо спавну
+    if (ev.energy < 1) {
+        alert("Недостатньо енергії івенту!");
         return;
     }
 
-    if (labGame.state === 'playing') {
-        if (typeof playClickSound === 'function') playClickSound();
+    const victim = VICTIMS_DATA[ev.currentVictimIdx];
+    const dmg = getDamagePerClick();
 
-        const isForbiddenClick = (
-            labGame.hasSpider ||
-            labGame.reqType === 'dont_click' ||
-            labGame.reqType === 'click_0' ||
-            labGame.reqType === 'remember' ||
-            labGame.reqType === 'shape_instruction' ||
-            labGame.reqType === 'blue_instruction' ||
-            labGame.reqType === 'spider_instruction' ||
-            labGame.reqType.includes('instruction2') ||
-            (labGame.reqType === 'remember_check' && !labGame.rememberCheckMatch) ||
-            (labGame.reqType === 'shape_check' && labGame.reqCount === 0) ||
-            (labGame.reqType === 'blue_check' && labGame.reqCount === 0) ||
-            labGame.reqType === 'red_check2' ||
-            (labGame.reqType === 'blue_check2' && labGame.reqCount === 0) ||
-            (labGame.reqType === 'purple_check2' && labGame.reqCount === 0) ||
-            (labGame.reqType === 'leaves_check2' && labGame.reqCount === 0) ||
-            (labGame.reqType === 'shape_check2' && labGame.reqCount === 0)
-        );
+    ev.energy -= 1;
+    ev.currentVictimHp -= dmg;
 
-        if (isForbiddenClick) {
-            endLabGame(false);
-            return;
-        }
+    if (typeof playClickSound === 'function') playClickSound();
 
-        labGame.currentClicks += 1;
+    if (ev.currentVictimHp <= 0) {
+        // Жертву вбито!
+        const earnedBlood = victim.blood * getBloodMultiplier();
+        ev.blood += earnedBlood;
+        ev.totalBlood += earnedBlood;
 
-        if (
-            labGame.reqType === 'click_1' ||
-            (labGame.reqType === 'remember_check' && labGame.rememberCheckMatch) ||
-            (labGame.reqType === 'shape_check' && labGame.reqCount === 1) ||
-            (labGame.reqType === 'blue_check' && labGame.reqCount === 1) ||
-            (labGame.reqType === 'blue_check2' && labGame.reqCount === 1) ||
-            (labGame.reqType === 'purple_check2' && labGame.reqCount === 1) ||
-            (labGame.reqType === 'leaves_check2' && labGame.reqCount === 1) ||
-            (labGame.reqType === 'shape_check2' && labGame.reqCount === 1)
-        ) {
-            if (labGame.currentClicks > 1) {
-                endLabGame(false);
-                return;
-            }
-        } else if (labGame.reqType === 'click_n') {
-            if (labGame.currentClicks > labGame.reqCount) {
-                endLabGame(false);
-                return;
-            }
-        } else if (labGame.reqType === 'click_2') {
-            if (labGame.currentClicks > 2) {
-                endLabGame(false);
-                return;
-            }
-        }
+        // Таймер появи наступної жертви
+        const cd = getRespawnCooldownSec();
+        ev.respawnTimeEnd = getCurrentTime() + (cd * 1000);
+        ev.currentVictimIdx = getRandomNextVictimIdx();
 
-        renderLabButtonUI();
-    }
-}
-
-function endLabGame(isSuccess) {
-    labGame.state = 'ended';
-    const maxSteps = labGame.buttonLvl === 2 ? 75 : 140;
-    labGame.completedMax = isSuccess && (labGame.step >= maxSteps);
-
-    const reachedStep = labGame.completedMax ? maxSteps : Math.max(1, labGame.step - 1);
-    
-    let earnedRaw = 0;
-    if (labGame.buttonLvl === 1) {
-        earnedRaw = 40 * Math.pow(reachedStep, 1.35);
-    } else {
-        earnedRaw = 90 * Math.pow(reachedStep, 1.35);
-    }
-    
-    const earnedTotal = Math.floor(earnedRaw * getChemMultiplier());
-
-    state.event.chemicals += earnedTotal;
-    state.event.totalChemicals += earnedTotal;
-    labGame.lastEarned = earnedTotal;
-
-    saveGame();
-    syncChemicalsLeaderboardThrottled();
-    renderLabButtonUI();
-}
-
-function renderLabButtonUI() {
-    const btn = document.getElementById('lab-main-interactive-btn');
-    if (!btn) return;
-
-    const ring = document.getElementById('lab-ring-bar');
-
-    if (labGame.state === 'playing') {
-        if (labGame.isBlueButton) {
-            btn.style.background = 'linear-gradient(135deg, #1e3c72, #2a5298)';
-            btn.style.borderColor = '#3498db';
-        } else if (labGame.isRedButton) {
-            btn.style.background = 'linear-gradient(135deg, #7b1fa2, #e53935)';
-            btn.style.borderColor = '#e74c3c';
-        } else if (labGame.isPurpleButton) {
-            btn.style.background = 'linear-gradient(135deg, #4a148c, #8e24aa)';
-            btn.style.borderColor = '#9b59b6';
-        } else {
-            btn.style.background = '';
-            btn.style.borderColor = '';
-        }
-    } else {
-        btn.style.background = '';
-        btn.style.borderColor = '';
+        if (typeof saveGame === 'function') saveGame();
     }
 
-    if (labGame.state === 'idle') {
-        const requiredEnergy = state.event.selectedButton === 2 ? 2 : 1;
-        btn.innerHTML = `
-            <div class="lab-btn-title">ПОЧАТИ ГРУ</div>
-            <div class="lab-btn-sub">Витрачає: ${requiredEnergy} ⚡</div>
-            <div style="font-size: 0.85rem; margin-top: 8px; color: #aaa;">Натисни, щоб розпочати</div>
-        `;
-        if (ring) ring.style.width = '0%';
-    } else if (labGame.state === 'ended') {
-        const maxSteps = labGame.buttonLvl === 2 ? 75 : 140;
-        if (labGame.completedMax) {
-            btn.innerHTML = `
-                <div class="lab-btn-title" style="color: #f1c40f; font-size: 1.15rem; line-height: 1.3;">${maxSteps}-ий крок пройдено!</div>
-                <div class="lab-btn-sub" style="color: #2ecc71; margin-top: 4px;">Вітаємо!</div>
-                <div class="lab-btn-timer" style="color: #2ecc71;">+${formatNum(labGame.lastEarned)} 🧪</div>
-                <div style="font-size: 0.8rem; margin-top: 6px;">Натисни, щоб зіграти знов</div>
-            `;
-        } else {
-            btn.innerHTML = `
-                <div class="lab-btn-title" style="color: #e74c3c;">ГРУ ЗАВЕРШЕНО!</div>
-                <div class="lab-btn-sub">Пройдено кроків: ${Math.max(0, labGame.step - 1)}</div>
-                <div class="lab-btn-timer" style="color: #2ecc71;">+${formatNum(labGame.lastEarned)} 🧪</div>
-                <div style="font-size: 0.8rem; margin-top: 6px;">Натисни, щоб зіграти знов</div>
-            `;
-        }
-        if (ring) ring.style.width = '0%';
-    } else if (labGame.state === 'playing') {
-        let titleText = "";
-        let subText = "";
-
-        if (labGame.reqType === 'click_1') {
-            titleText = "натисни";
-            subText = labGame.currentClicks >= 1 ? "✓ Виконано! Чекай..." : "Натисни 1 раз";
-        } else if (labGame.reqType === 'click_2') {
-            titleText = "натисни 2 рази";
-            subText = `Прогрес: ${labGame.currentClicks}/2 ${labGame.currentClicks >= 2 ? '✓' : ''}`;
-        } else if (labGame.reqType === 'click_0' || labGame.reqType === 'dont_click') {
-            titleText = labGame.reqType === 'click_0' ? "натисни 0 разів" : "не натискай";
-            subText = "Зачекай вичерпання часу!";
-        } else if (labGame.reqType === 'click_gt5') {
-            titleText = "натисни більше 5 разів";
-            subText = `Прогрес: ${labGame.currentClicks}/6 ${labGame.currentClicks >= 6 ? '✓' : ''}`;
-        } else if (labGame.reqType === 'remember') {
-            titleText = `Запам'ятай число ${labGame.rememberNumber}`;
-            subText = "Не натискай! Чекай...";
-        } else if (labGame.reqType === 'shape_instruction') {
-            titleText = `натискай коли бачиш ${labGame.targetShape}`;
-            subText = "Запам'ятай! Не натискай зараз...";
-        } else if (labGame.reqType === 'shape_instruction2') {
-            titleText = `натискай коли бачиш кружечок/трикутник/квадрат`;
-            subText = `Потрібно: ${labGame.targetShape2}. Не натискай зараз...`;
-        } else if (labGame.reqType === 'shape_check' || labGame.reqType === 'shape_check2') {
-            titleText = `Фігура: ${labGame.shownShape}`;
-            if (labGame.reqCount === 1) {
-                subText = labGame.currentClicks >= 1 ? "✓ Виконано! Чекай..." : "Натисни 1 раз!";
-            } else {
-                subText = "Не натискай! Чекай...";
-            }
-        } else if (labGame.reqType === 'remember_check') {
-            titleText = `Натисни якщо це число то яке ти мав запам'ятати ${labGame.shownNumber}`;
-            if (labGame.rememberCheckMatch) {
-                subText = labGame.currentClicks >= 1 ? "✓ Виконано! Чекай..." : "Натисни 1 раз!";
-            } else {
-                subText = "Не натискай! Чекай...";
-            }
-        } else if (labGame.reqType === 'blue_instruction' || labGame.reqType === 'blue_instruction2') {
-            titleText = labGame.blueShouldClick ? "якщо кнопка синя натискай" : "якщо кнопка синя не натискай";
-            subText = "Запам'ятай! Не натискай зараз...";
-        } else if (labGame.reqType === 'red_instruction2') {
-            titleText = "якщо кнопка червона не натискай";
-            subText = "Запам'ятай! Не натискай зараз...";
-        } else if (labGame.reqType === 'purple_instruction2') {
-            titleText = labGame.purpleShouldClick ? "якщо кнопка фіолетова натискай" : "якщо кнопка фіолетова не натискай";
-            subText = "Запам'ятай! Не натискай зараз...";
-        } else if (labGame.reqType === 'leaves_instruction2') {
-            titleText = labGame.leavesShouldClick ? "якщо парна кількість листків натискай" : "якщо парна кількість листків не натискай";
-            subText = "Запам'ятай! Не натискай зараз...";
-        } else if (labGame.reqType === 'spider_instruction' || labGame.reqType === 'spider_instruction2') {
-            titleText = "не натискай коли бачиш павука 🕷️";
-            subText = "Запам'ятай! Не натискай зараз...";
-        } else if (labGame.reqType === 'blue_check' || labGame.reqType === 'blue_check2') {
-            titleText = "Синя кнопка";
-            if (labGame.reqCount === 1) {
-                subText = labGame.currentClicks >= 1 ? "✓ Виконано! Чекай..." : "Натисни 1 раз!";
-            } else {
-                subText = "Не натискай! Чекай...";
-            }
-        } else if (labGame.reqType === 'red_check2') {
-            titleText = "Червона кнопка";
-            subText = "Не натискай! Чекай...";
-        } else if (labGame.reqType === 'purple_check2') {
-            titleText = "Фіолетова кнопка";
-            if (labGame.reqCount === 1) {
-                subText = labGame.currentClicks >= 1 ? "✓ Виконано! Чекай..." : "Натисни 1 раз!";
-            } else {
-                subText = "Не натискай! Чекай...";
-            }
-        } else if (labGame.reqType === 'leaves_check2') {
-            let leavesStr = "";
-            for (let i = 0; i < labGame.leavesCount; i++) leavesStr += "🍃";
-            titleText = leavesStr;
-            if (labGame.reqCount === 1) {
-                subText = labGame.currentClicks >= 1 ? "✓ Виконано! Чекай..." : "Натисни 1 раз!";
-            } else {
-                subText = "Не натискай! Чекай...";
-            }
-        } else if (labGame.reqType === 'click_n') {
-            titleText = `натисни ${labGame.reqCount} разів`;
-            subText = `Прогрес: ${labGame.currentClicks}/${labGame.reqCount} ${labGame.currentClicks >= labGame.reqCount ? '✓' : ''}`;
-        } else if (labGame.reqType === 'click_gt4') {
-            titleText = "натисни більше 4-х разів";
-            subText = `Прогрес: ${labGame.currentClicks}/5 ${labGame.currentClicks >= 5 ? '✓' : ''}`;
-        }
-
-        if (labGame.hasSpider) {
-            titleText += " 🕷️";
-            subText = "Бачиш павука? НЕ НАТИСКАЙ!";
-        }
-
-        subText = " ";
-        const maxSteps = labGame.buttonLvl === 2 ? 75 : 140;
-        const pct = Math.max(0, Math.min(100, (labGame.timer / labGame.maxTimer) * 100));
-
-        btn.innerHTML = `
-            <div style="font-size: 0.85rem; color: #f1c40f; font-weight: bold;">Крок ${labGame.step}/${maxSteps} (Рівень ${labGame.buttonLvl})</div>
-            <div class="lab-btn-title" style="font-size: ${labGame.reqType.includes('check') || labGame.reqType.includes('instruction') ? '1.05rem' : '1.35rem'}; margin: 4px 0; line-height: 1.2;">${titleText}</div>
-            ${subText ? `<div class="lab-btn-sub" style="font-size: 0.9rem;">${subText}</div>` : ''}
-            <div class="lab-btn-timer">${labGame.timer.toFixed(1)}s</div>
-            <div id="lab-ring-bar" class="lab-progress-ring" style="width: ${pct}%;"></div>
-        `;
-    }
+    renderEventUI();
 }
 
-function syncChemicalsLeaderboardThrottled() {
-    const now = Date.now();
-    if (now - lastChemicalsLeaderboardSync > 3000) {
-        lastChemicalsLeaderboardSync = now;
-        syncChemicalsLeaderboard();
-    }
-}
-
-function syncChemicalsLeaderboard() {
-    if (!dbAvailable || !state.playerId || !state.nickname) return;
-    if (!state.event) initEventState();
-    firebase.database().ref('leaderboard_lab/' + state.playerId).set({
-        name: state.nickname,
-        totalChemicals: Math.floor(state.event.totalChemicals || 0),
-        updatedAt: firebase.database.ServerValue.TIMESTAMP
-    }).catch(err => console.warn("Firebase lab sync error:", err));
-}
-
-function buyLabTimeUpg(targetLvl) {
+function changeVictimFor100Energy() {
     initEventState();
-    if (state.event.timeUpgLvl !== targetLvl - 1) return;
-    const upg = TIME_UPGRADES[targetLvl - 1];
-    if (!upg) return;
+    const ev = state.vampireEvent;
 
-    if (state.event.chemicals >= upg.costChem) {
-        state.event.chemicals -= upg.costChem;
-        state.event.timeUpgLvl = targetLvl;
-        saveGame();
+    if (ev.energy < 100) {
+        alert("Необхідно 100 енергії івенту для зміни жертви!");
+        return;
+    }
+
+    ev.energy -= 100;
+    ev.currentVictimIdx = getRandomNextVictimIdx();
+    const cd = getRespawnCooldownSec();
+    ev.respawnTimeEnd = getCurrentTime() + (cd * 1000);
+
+    if (typeof saveGame === 'function') saveGame();
+    renderEventUI();
+}
+
+// ------------------------------------------
+// КУПІВЛЯ ПРОКАЧОК
+// ------------------------------------------
+function buyBloodUpgrade() {
+    initEventState();
+    const ev = state.vampireEvent;
+    const nextLvl = ev.bloodUpgLvl + 1;
+    if (nextLvl > BLOOD_UPGRADES.length) return;
+
+    const upg = BLOOD_UPGRADES[nextLvl - 1];
+    if (ev.blood >= upg.cost) {
+        ev.blood -= upg.cost;
+        ev.bloodUpgLvl = nextLvl;
+        if (typeof saveGame === 'function') saveGame();
         renderEventUI();
     }
 }
 
-function buyLabMultUpg(targetLvl) {
+function buyDamageUpgrade() {
     initEventState();
-    if (state.event.multUpgLvl !== targetLvl - 1) return;
-    const upg = MULT_UPGRADES[targetLvl - 1];
-    if (!upg) return;
+    const ev = state.vampireEvent;
+    const nextLvl = ev.damageUpgLvl + 1;
+    if (nextLvl > DAMAGE_UPGRADES.length) return;
 
-    if (state.event.chemicals >= upg.costChem) {
-        state.event.chemicals -= upg.costChem;
-        state.event.multUpgLvl = targetLvl;
-        saveGame();
+    const upg = DAMAGE_UPGRADES[nextLvl - 1];
+    if (ev.blood >= upg.cost) {
+        ev.blood -= upg.cost;
+        ev.damageUpgLvl = nextLvl;
+        if (typeof saveGame === 'function') saveGame();
         renderEventUI();
     }
 }
 
-function buyLabRegenUpg(targetLvl) {
+function buyRespawnUpgrade() {
     initEventState();
-    if (state.event.regenUpgLvl !== targetLvl - 1) return;
-    const upg = REGEN_UPGRADES[targetLvl - 1];
-    if (!upg) return;
+    const ev = state.vampireEvent;
+    const nextLvl = ev.respawnUpgLvl + 1;
+    if (nextLvl > RESPAWN_UPGRADES.length) return;
 
+    const upg = RESPAWN_UPGRADES[nextLvl - 1];
     if (state.aura >= upg.costAura) {
         state.aura -= upg.costAura;
-        state.event.regenUpgLvl = targetLvl;
-        saveGame();
+        ev.respawnUpgLvl = nextLvl;
+        if (typeof saveGame === 'function') saveGame();
         renderEventUI();
     }
 }
 
-function buyLabBuilding(targetLvl) {
+function buyEstateLevel(lvl) {
     initEventState();
-    if (state.event.labLvl !== targetLvl - 1) return;
-    const lab = LAB_LEVELS[targetLvl - 1];
-    if (!lab) return;
+    const ev = state.vampireEvent;
+    if (ev.estateLvl !== lvl - 1) return;
 
-    if (state.event.chemicals >= lab.costChem) {
-        state.event.chemicals -= lab.costChem;
-        state.event.labLvl = targetLvl;
-        saveGame();
+    const estate = ESTATE_LEVELS[lvl - 1];
+    if (ev.blood >= estate.costBlood) {
+        ev.blood -= estate.costBlood;
+        ev.estateLvl = lvl;
+        if (typeof saveGame === 'function') saveGame();
         renderEventUI();
     }
-}
-
-function buyButtonLvl2() {
-    initEventState();
-    if (state.event.unlockedButton2) return;
-    if (state.event.chemicals >= 500000) {
-        state.event.chemicals -= 500000;
-        state.event.unlockedButton2 = true;
-        state.event.selectedButton = 2;
-        saveGame();
-        renderEventUI();
-    }
-}
-
-function selectButton(lvl) {
-    initEventState();
-    if (lvl === 2 && !state.event.unlockedButton2) return;
-    state.event.selectedButton = lvl;
-    if (labGame.state === 'idle') {
-        renderLabButtonUI();
-    }
-    renderEventUI();
 }
 
 function switchEventSubTab(tab) {
@@ -891,228 +316,155 @@ function switchEventSubTab(tab) {
     renderEventUI();
 }
 
+// ------------------------------------------
+// ІНТЕРФЕЙС ІВЕНТУ
+// ------------------------------------------
 function renderEventUI() {
     const container = document.getElementById('tab-event');
     if (!container) return;
 
     initEventState();
+    const ev = state.vampireEvent;
     const now = getCurrentTime();
-    const timeLeftMs = LAB_EVENT_END_TS - now;
-
-    let timerText = "";
-    if (timeLeftMs > 0) {
-        timerText = `⏳ Івент закінчується: 2 жовтня о 21:00 (залишилось: ${formatEventCountdown(timeLeftMs)})`;
-    } else {
-        timerText = `🔴 Івент завершено (2 жовтня о 21:00)`;
-    }
 
     let html = `
-        <div style="width: 100%; text-align: center; background: var(--card-bg); padding: 12px; border-radius: 12px; border: 2px solid var(--accent-gold); margin-bottom: 12px;">
-            <div style="font-size: 1.1rem; font-weight: bold; color: var(--accent-gold);">🧪 Новий Івент: Лабораторія</div>
-            <div id="lab-event-timer" style="font-size: 0.85rem; font-weight: bold; margin-top: 4px; color: ${timeLeftMs > 0 ? 'var(--accent-gold)' : '#e74c3c'};">
-                ${timerText}
-            </div>
+        <div style="width: 100%; text-align: center; background: var(--card-bg); padding: 12px; border-radius: 12px; border: 2px solid #e74c3c; margin-bottom: 12px;">
+            <div style="font-size: 1.1rem; font-weight: bold; color: #e74c3c;">🦇 Новий Івент: Полювання Вампіра</div>
             <div style="display: flex; justify-content: space-around; margin-top: 10px; font-weight: bold; font-size: 0.95rem;">
-                <span id="lab-energy-val" style="color: #3498db;">⚡ Енергія кнопки: ${Math.floor(state.event.energy)}/10</span>
-                <span id="lab-chem-val" style="color: #2ecc71;">🧪 Хімікати: ${formatNum(state.event.chemicals)}</span>
+                <span id="vamp-energy-val" style="color: #3498db;">⚡ Енергія: ${Math.floor(ev.energy)} / 2000</span>
+                <span id="vamp-blood-val" style="color: #e74c3c;">🩸 Кров: ${typeof formatNum === 'function' ? formatNum(ev.blood) : ev.blood}</span>
             </div>
         </div>
 
         <div class="leaderboard-toggle" style="margin-bottom: 15px;">
-            <button class="sub-tab-btn ${eventSubTab === 'game' ? 'active' : ''}" onclick="switchEventSubTab('game')">🟢 Кнопка</button>
+            <button class="sub-tab-btn ${eventSubTab === 'victim' ? 'active' : ''}" onclick="switchEventSubTab('victim')">🎯 Жертва</button>
             <button class="sub-tab-btn ${eventSubTab === 'upgrades' ? 'active' : ''}" onclick="switchEventSubTab('upgrades')">⚡ Прокачки</button>
-            <button class="sub-tab-btn ${eventSubTab === 'lab' ? 'active' : ''}" onclick="switchEventSubTab('lab')">🔬 Лабораторія</button>
-            <button class="sub-tab-btn ${eventSubTab === 'leaderboard' ? 'active' : ''}" onclick="switchEventSubTab('leaderboard')">🏆 Топ</button>
+            <button class="sub-tab-btn ${eventSubTab === 'estate' ? 'active' : ''}" onclick="switchEventSubTab('estate')">🏰 Маєток вампіра</button>
         </div>
     `;
 
-    if (eventSubTab === 'game') {
-        html += `
-            <div style="display: flex; gap: 10px; justify-content: center; margin-bottom: 15px;">
-                <button class="sub-tab-btn ${state.event.selectedButton === 1 ? 'active' : ''}" onclick="selectButton(1)">Кнопка 1 рівня</button>
-                <button class="sub-tab-btn ${state.event.selectedButton === 2 ? 'active' : ''}" ${state.event.unlockedButton2 ? '' : 'style="opacity: 0.5; border-color: #e74c3c;"'} onclick="${state.event.unlockedButton2 ? 'selectButton(2)' : 'alert(\'Спочатку прокачайте кнопку!\')'}">
-                    ${state.event.unlockedButton2 ? 'Кнопка 2 рівня' : '🔒 Кнопка 2 рівня'}
-                </button>
-            </div>
-            
-            <div class="lab-btn-container">
-                <div id="lab-main-interactive-btn" class="lab-main-btn" onclick="handleLabButtonClick()">
+    if (eventSubTab === 'victim') {
+        const isCooldown = ev.respawnTimeEnd > now;
+        const targetVictim = VICTIMS_DATA[ev.currentVictimIdx];
+
+        if (isCooldown) {
+            const secLeft = Math.ceil((ev.respawnTimeEnd - now) / 1000);
+            html += `
+                <div style="text-align: center; padding: 40px 15px; background: var(--card-bg); border-radius: 16px; border: 2px solid #e74c3c; width: 100%;">
+                    <div style="font-size: 3rem;">⏳</div>
+                    <h3 style="color: #e74c3c; margin-top: 10px;">Пошук наступної жертви...</h3>
+                    <div style="font-size: 1.5rem; font-weight: bold; color: var(--accent-gold); margin-top: 10px;">${secLeft} сек</div>
                 </div>
-            </div>
-        `;
+            `;
+            setTimeout(renderEventUI, 1000);
+        } else {
+            // Встановлюємо початкове HP для нової жертви
+            if (ev.currentVictimHp <= 0) ev.currentVictimHp = targetVictim.hp;
+
+            const hpPct = Math.max(0, Math.min(100, (ev.currentVictimHp / targetVictim.hp) * 100));
+            html += `
+                <div style="width: 100%; text-align: center; background: var(--card-bg); padding: 20px; border-radius: 16px; border: 2px solid #e74c3c;">
+                    <div style="font-size: 4rem; cursor: pointer;" onclick="attackVictim()">${targetVictim.icon}</div>
+                    <h2 style="color: #fff; margin-top: 5px;">${targetVictim.name}</h2>
+                    <div style="color: #e74c3c; font-weight: bold; margin-top: 4px;">Нагорода: +${targetVictim.blood * getBloodMultiplier()} 🩸</div>
+
+                    <div class="progress-bar-container" style="margin: 15px 0; height: 20px;">
+                        <div class="progress-bar-fill" style="width: ${hpPct}%; background: #e74c3c;"></div>
+                    </div>
+                    <div style="font-size: 0.9rem; font-weight: bold;">❤️ HP: ${ev.currentVictimHp} / ${targetVictim.hp}</div>
+
+                    <div style="display: flex; gap: 10px; margin-top: 20px;">
+                        <button class="modal-btn" style="flex: 2; background: linear-gradient(180deg, #e74c3c, #c0392b);" onclick="attackVictim()">🗡️ Ударити (1 ⚡)</button>
+                        <button class="modal-btn" style="flex: 1; background: #7f8c8d; font-size: 0.85rem;" onclick="changeVictimFor100Energy()">🔄 Змінити (100 ⚡)</button>
+                    </div>
+                </div>
+            `;
+        }
     } else if (eventSubTab === 'upgrades') {
         html += `<div class="upgrades-list">`;
 
-        // Прокачка кнопки 2 рівня
-        html += `<div class="category-title">🟢 Прокачка кнопки</div>`;
-        const btn2Owned = state.event.unlockedButton2;
-        const canBuyBtn2 = !btn2Owned && state.event.chemicals >= 500000;
-        
-        html += `
-            <div class="upgrade-card ${btn2Owned ? 'evo-card' : ''}">
-                <div class="upgrade-img-wrap"><span style="font-size: 2rem;">🌟</span></div>
-                <div class="upgrade-info">
-                    <div class="upgrade-title">Кнопка 2 Рівня</div>
-                    <div class="upgrade-desc">Менше часу, більші нагороди (х4), нові завдання! Витрата: 2⚡</div>
-                    <div class="upgrade-desc" style="color: var(--accent-gold);">Ціна: 500k хімікатів</div>
-                </div>
-                <button class="upgrade-btn" ${btn2Owned ? 'disabled' : (canBuyBtn2 ? '' : 'disabled')} onclick="buyButtonLvl2()">
-                    ${btn2Owned ? 'Куплено' : 'Купити'}
-                </button>
-            </div>`;
-
-        // Категорія 1: Час на крок
-        html += `<div class="category-title" style="margin-top: 20px;">⏱️ Кількість часу на крок</div>`;
-        TIME_UPGRADES.forEach(u => {
-            const isOwned = state.event.timeUpgLvl >= u.level;
-            const canBuy = state.event.timeUpgLvl === u.level - 1 && state.event.chemicals >= u.costChem;
-
+        // 1. Прокачка Множника Крові
+        html += `<div class="category-title">🩸 Множник Крові</div>`;
+        const nextBloodLvl = ev.bloodUpgLvl + 1;
+        if (nextBloodLvl <= BLOOD_UPGRADES.length) {
+            const upg = BLOOD_UPGRADES[nextBloodLvl - 1];
             html += `
-                <div class="upgrade-card ${isOwned ? 'evo-card' : ''}">
-                    <div class="upgrade-img-wrap"><span style="font-size: 2rem;">⏱️</span></div>
+                <div class="upgrade-card">
+                    <div class="upgrade-img-wrap"><span style="font-size: 2rem;">🩸</span></div>
                     <div class="upgrade-info">
-                        <div class="upgrade-title">${u.timeSec} секунд</div>
-                        <div class="upgrade-desc" style="color: var(--accent-gold);">Ціна: ${formatNum(u.costChem)} хімікатів</div>
+                        <div class="upgrade-title">х${upg.mult} кров</div>
+                        <div class="upgrade-desc" style="color: var(--accent-gold);">Ціна: ${upg.cost} крові</div>
                     </div>
-                    <button class="upgrade-btn" ${isOwned ? 'disabled' : (canBuy ? '' : 'disabled')} onclick="buyLabTimeUpg(${u.level})">
-                        ${isOwned ? 'Куплено' : 'Купити'}
-                    </button>
+                    <button class="upgrade-btn" ${ev.blood >= upg.cost ? '' : 'disabled'} onclick="buyBloodUpgrade()">Прокачати</button>
                 </div>`;
-        });
+        } else {
+            html += `<div style="color: #2ecc71; text-align: center; padding: 10px;">Максимальний рівень крові!</div>`;
+        }
 
-        // Категорія 2: Множник хімікатів
-        html += `<div class="category-title" style="margin-top: 20px;">🧪 Множник Хімікатів</div>`;
-        MULT_UPGRADES.forEach(u => {
-            const isOwned = state.event.multUpgLvl >= u.level;
-            const canBuy = state.event.multUpgLvl === u.level - 1 && state.event.chemicals >= u.costChem;
-
+        // 2. Прокачка Шкоди
+        html += `<div class="category-title" style="margin-top: 20px;">🗡️ Множник Шкоди</div>`;
+        const nextDmgLvl = ev.damageUpgLvl + 1;
+        if (nextDmgLvl <= DAMAGE_UPGRADES.length) {
+            const upg = DAMAGE_UPGRADES[nextDmgLvl - 1];
             html += `
-                <div class="upgrade-card ${isOwned ? 'evo-card' : ''}">
-                    <div class="upgrade-img-wrap"><span style="font-size: 2rem;">⚗️</span></div>
+                <div class="upgrade-card">
+                    <div class="upgrade-img-wrap"><span style="font-size: 2rem;">⚔️</span></div>
                     <div class="upgrade-info">
-                        <div class="upgrade-title">х${u.mult} хімікати</div>
-                        <div class="upgrade-desc" style="color: var(--accent-gold);">Ціна: ${formatNum(u.costChem)} хімікатів</div>
+                        <div class="upgrade-title">х${upg.mult} шкода</div>
+                        <div class="upgrade-desc" style="color: var(--accent-gold);">Ціна: ${typeof formatNum === 'function' ? formatNum(upg.cost) : upg.cost} крові</div>
                     </div>
-                    <button class="upgrade-btn" ${isOwned ? 'disabled' : (canBuy ? '' : 'disabled')} onclick="buyLabMultUpg(${u.level})">
-                        ${isOwned ? 'Куплено' : 'Купити'}
-                    </button>
+                    <button class="upgrade-btn" ${ev.blood >= upg.cost ? '' : 'disabled'} onclick="buyDamageUpgrade()">Прокачати</button>
                 </div>`;
-        });
+        } else {
+            html += `<div style="color: #2ecc71; text-align: center; padding: 10px;">Максимальний рівень шкоди!</div>`;
+        }
 
-        // Категорія 3: Швидкість відновлення енергії
-        html += `<div class="category-title" style="margin-top: 20px;">⚡ Швидкість відновлення енергії</div>`;
-        REGEN_UPGRADES.forEach(u => {
-            const isOwned = state.event.regenUpgLvl >= u.level;
-            const canBuy = state.event.regenUpgLvl === u.level - 1 && state.aura >= u.costAura;
-
+        // 3. Прокачка Часу появи
+        html += `<div class="category-title" style="margin-top: 20px;">⏱️ Час появи жертви</div>`;
+        const nextRespLvl = ev.respawnUpgLvl + 1;
+        if (nextRespLvl <= RESPAWN_UPGRADES.length) {
+            const upg = RESPAWN_UPGRADES[nextRespLvl - 1];
             html += `
-                <div class="upgrade-card ${isOwned ? 'evo-card' : ''}">
-                    <div class="upgrade-img-wrap"><span style="font-size: 2rem;">⚡</span></div>
+                <div class="upgrade-card">
+                    <div class="upgrade-img-wrap"><span style="font-size: 2rem;">⏳</span></div>
                     <div class="upgrade-info">
-                        <div class="upgrade-title">Час відновлення: ${u.label}</div>
-                        <div class="upgrade-desc" style="color: var(--accent-gold);">Ціна: ${formatNum(u.costAura)} аури</div>
+                        <div class="upgrade-title">Час появи: ${upg.timeSec}с</div>
+                        <div class="upgrade-desc" style="color: var(--accent-gold);">Ціна: ${typeof formatNum === 'function' ? formatNum(upg.costAura) : upg.costAura} аури</div>
                     </div>
-                    <button class="upgrade-btn" ${isOwned ? 'disabled' : (canBuy ? '' : 'disabled')} onclick="buyLabRegenUpg(${u.level})">
-                        ${isOwned ? 'Куплено' : 'Купити'}
-                    </button>
+                    <button class="upgrade-btn" ${state.aura >= upg.costAura ? '' : 'disabled'} onclick="buyRespawnUpgrade()">Прокачати</button>
                 </div>`;
-        });
+        } else {
+            html += `<div style="color: #2ecc71; text-align: center; padding: 10px;">Мінімальний час досягнуто (15с)!</div>`;
+        }
 
         html += `</div>`;
-    } else if (eventSubTab === 'lab') {
-        html += `<div class="upgrades-list">
-            <div class="category-title">🔬 Рівні Лабораторії</div>`;
+    } else if (eventSubTab === 'estate') {
+        html += `<div class="upgrades-list"><div class="category-title">🏰 Рівні Маєтку Вампіра</div>`;
 
-        LAB_LEVELS.forEach(lab => {
-            const isOwned = state.event.labLvl >= lab.level;
-            const canBuy = state.event.labLvl === lab.level - 1 && state.event.chemicals >= lab.costChem;
+        ESTATE_LEVELS.forEach(est => {
+            const isOwned = ev.estateLvl >= est.level;
+            const canBuy = ev.estateLvl === est.level - 1 && ev.blood >= est.costBlood;
 
             html += `
                 <div class="upgrade-card ${isOwned ? 'evo-card' : ''}">
-                    <div class="upgrade-img-wrap"><span style="font-size: 2rem;">🧪</span></div>
+                    <div class="upgrade-img-wrap"><span style="font-size: 2rem;">🏰</span></div>
                     <div class="upgrade-info">
-                        <div class="upgrade-title">Лабораторія Рівень ${lab.level}</div>
-                        <div class="upgrade-desc">Пасивний дохід: +${formatNum(lab.auraIncome)} аури/сек</div>
-                        <div class="upgrade-desc" style="color: var(--accent-gold);">Ціна: ${formatNum(lab.costChem)} хімікатів</div>
+                        <div class="upgrade-title">${est.level} рівень</div>
+                        <div class="upgrade-desc">Дохід: +${typeof formatNum === 'function' ? formatNum(est.income) : est.income} аури/сек</div>
+                        <div class="upgrade-desc" style="color: var(--accent-gold);">Ціна: ${est.costBlood} крові</div>
                     </div>
-                    <button class="upgrade-btn" ${isOwned ? 'disabled' : (canBuy ? '' : 'disabled')} onclick="buyLabBuilding(${lab.level})">
+                    <button class="upgrade-btn" ${isOwned ? 'disabled' : (canBuy ? '' : 'disabled')} onclick="buyEstateLevel(${est.level})">
                         ${isOwned ? 'Куплено' : 'Купити'}
                     </button>
                 </div>`;
         });
 
-        html += `</div>`;
-    } else if (eventSubTab === 'leaderboard') {
         html += `
-            <div class="category-title" style="width: 100%; text-align: center;">🏆 Топ Лабораторії (Завжди Хімікати)</div>
-            <div id="lab-leaderboard-list" class="leaderboard-list">
-                <div class="empty-leaderboard">Завантаження топу хімікатів...</div>
+            <div style="text-align: center; color: #888; padding: 15px; font-weight: bold;">
+                🔒 6-10 рівні з'являться згодом.
             </div>
-        `;
-        setTimeout(() => renderLabLeaderboard(), 50);
+        </div>`;
     }
 
     container.innerHTML = html;
-    renderLabButtonUI();
-}
-
-function renderLabLeaderboard() {
-    const list = document.getElementById('lab-leaderboard-list');
-    if (!list) return;
-
-    if (!dbAvailable) {
-        list.innerHTML = `
-            <div class="empty-leaderboard">
-                <p style="color: var(--accent-gold); font-size: 1.1rem; margin-bottom: 10px;">⚠️ Firebase не підключено!</p>
-                <div class="leaderboard-item is-player">
-                    <div class="leaderboard-rank">🥇</div>
-                    <div class="leaderboard-name">${state.nickname || "Ви"} (Локально)</div>
-                    <div class="leaderboard-cps">${formatNum(state.event.totalChemicals)} 🧪</div>
-                </div>
-            </div>`;
-        return;
-    }
-
-    firebase.database().ref('leaderboard_lab').orderByChild('totalChemicals').limitToLast(50).once('value', (snapshot) => {
-        const data = snapshot.val();
-        const players = [];
-
-        if (data) {
-            Object.keys(data).forEach(id => {
-                players.push({
-                    id: id,
-                    name: data[id].name || "Гравець",
-                    totalChemicals: data[id].totalChemicals || 0,
-                    isPlayer: id === state.playerId
-                });
-            });
-        }
-
-        players.sort((a, b) => (b.totalChemicals || 0) - (a.totalChemicals || 0));
-        list.innerHTML = '';
-
-        if (players.length === 0) {
-            list.innerHTML = `<div class="empty-leaderboard">Поки немає жодного результату. Будьте першим!</div>`;
-            return;
-        }
-
-        players.forEach((p, index) => {
-            const rank = index + 1;
-            let rankIcon = `#${rank}`;
-            if (rank === 1) rankIcon = '🥇';
-            else if (rank === 2) rankIcon = '🥈';
-            else if (rank === 3) rankIcon = '🥉';
-
-            const item = document.createElement('div');
-            item.className = `leaderboard-item ${p.isPlayer ? 'is-player' : ''}`;
-            item.innerHTML = `
-                <div class="leaderboard-rank">${rankIcon}</div>
-                <div class="leaderboard-name">${p.name}${p.isPlayer ? ' (Ви)' : ''}</div>
-                <div class="leaderboard-cps">${formatNum(p.totalChemicals)} 🧪</div>
-            `;
-            list.appendChild(item);
-        });
-    }).catch(err => {
-        console.warn("Помилка завантаження топ-лабораторії:", err);
-    });
 }
