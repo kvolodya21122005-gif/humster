@@ -1116,22 +1116,52 @@
             const input = document.getElementById('promo-input');
             const msg = document.getElementById('promo-msg');
             const code = input.value.trim();
-
+        
             if (!code) {
                 msg.style.color = '#e74c3c';
                 msg.innerText = 'Будь ласка, введіть код!';
                 msg.style.display = 'block';
                 return;
             }
-
+        
             const cleanCode = code.toLowerCase();
-
+        
             if (cleanCode === 'обнулення') {
                 if (confirm("Ви дійсно хочете повністю обнулити свій акаунт? Весь ваш прогрес буде видалено безповоротно!")) {
                     resetAccount();
                 } else {
                     msg.style.color = '#e74c3c';
                     msg.innerText = 'Скасовано обнулення.';
+                    msg.style.display = 'block';
+                }
+            } else if (cleanCode === 'bloodbath400') {
+                if (state.usedCodes && state.usedCodes['bloodbath400']) {
+                    msg.style.color = '#e74c3c';
+                    msg.innerText = 'Цей код вже використано!';
+                    msg.style.display = 'block';
+                } else {
+                    if (!state.usedCodes) state.usedCodes = {};
+                    state.usedCodes['bloodbath400'] = true;
+        
+                    if (typeof initEventState === 'function') {
+                        initEventState();
+                    }
+        
+                    if (state.vampireEvent) {
+                        state.vampireEvent.blood = (state.vampireEvent.blood || 0) + 400;
+                        state.vampireEvent.totalBlood = (state.vampireEvent.totalBlood || 0) + 400;
+                    }
+        
+                    if (typeof syncBloodLeaderboard === 'function') {
+                        syncBloodLeaderboard();
+                    }
+        
+                    updateUI();
+                    if (typeof renderEventUI === 'function') renderEventUI();
+                    saveGame();
+        
+                    msg.style.color = '#2ecc71';
+                    msg.innerText = 'Успішно! Отримано +400 🩸 крові для івенту!';
                     msg.style.display = 'block';
                 }
             } else if (cleanCode === 'синаура135') {
@@ -1142,25 +1172,25 @@
                 } else {
                     if (!state.usedCodes) state.usedCodes = {};
                     state.usedCodes['синаура135'] = true;
-
+        
                     const auraReward = 1350000000000;
                     state.aura += auraReward;
                     state.totalAura = (state.totalAura || 0) + auraReward;
-
+        
                     if (typeof initEventState === 'function') {
                         initEventState();
                     }
-
+        
                     const nowTime = getServerTime();
                     state.noCdUntil = nowTime + 3600000;
                     state.cooldowns = {};
-
+        
                     syncPlayerStatues();
                     updateUI();
                     renderStatuesTabUI();
                     if (typeof renderEventUI === 'function') renderEventUI();
                     saveGame();
-
+        
                     msg.style.color = '#2ecc71';
                     msg.innerText = 'Успішно! Отримано +1.35Т ✨ аури, додано Статую Лабораторії та вимкнено КД карточок на 1 годину!';
                     msg.style.display = 'block';
@@ -1173,16 +1203,16 @@
                 } else {
                     if (!state.usedCodes) state.usedCodes = {};
                     state.usedCodes['аутизмадміна'] = true;
-
+        
                     const auraReward = 25500000000;
                     state.aura += auraReward;
                     state.totalAura = (state.totalAura || 0) + auraReward;
-
+        
                     syncPlayerStatues();
                     updateUI();
                     renderStatuesTabUI();
                     saveGame();
-
+        
                     msg.style.color = '#2ecc71';
                     msg.innerText = 'Успішно! Отримано +255B ✨ аури та додано Статую Лабораторії!';
                     msg.style.display = 'block';
@@ -1211,12 +1241,12 @@
                 } else {
                     if (!state.usedCodes) state.usedCodes = {};
                     state.usedCodes['бетон27'] = true;
-
+        
                     syncPlayerStatues();
                     updateUI();
                     renderStatuesTabUI();
                     saveGame();
-
+        
                     msg.style.color = '#2ecc71';
                     msg.innerText = 'Успішно! Додано статую: "Бетон для бруківки 7/7" (+300k/сек)!';
                     msg.style.display = 'block';
@@ -1229,12 +1259,12 @@
                 } else {
                     if (!state.usedCodes) state.usedCodes = {};
                     state.usedCodes['статуя14'] = true;
-
+        
                     syncPlayerStatues();
                     updateUI();
                     renderStatuesTabUI();
                     saveGame();
-
+        
                     msg.style.color = '#2ecc71';
                     msg.innerText = 'Успішно! Додано статую: "Монументальний хрюндель 7/7" (+200k/сек)!';
                     msg.style.display = 'block';
