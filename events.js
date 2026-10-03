@@ -7,10 +7,10 @@ const VAMPIRE_EVENT_ID = 'vampire_event_v1';
 // Конфігурація жертв
 const VICTIMS_DATA = [
     { id: 'fly', name: 'Муха', hp: 100, blood: 2, icon: '🪰', chance: 0.40 },
-    { id: 'lizard', name: 'Ящірка', hp: 1000, blood: 10, icon: '🦎', chance: 0.30 },
-    { id: 'mouse', name: 'Миша', hp: 10000, blood: 50, icon: '🖱️', chance: 0.20 },
-    { id: 'chicken', name: 'Курка', hp: 25000, blood: 100, icon: '🐔', chance: 0.08 },
-    { id: 'goose', name: 'Гуска', hp: 50000, blood: 170, icon: '🪿', chance: 0.02 }
+    { id: 'lizard', name: 'Ящірка', hp: 500, blood: 8, icon: '🦎', chance: 0.30 },
+    { id: 'mouse', name: 'Миша', hp: 1000, blood: 14, icon: '🖱️', chance: 0.20 },
+    { id: 'chicken', name: 'Курка', hp: 2000, blood: 25, icon: '🐔', chance: 0.08 },
+    { id: 'goose', name: 'Гуска', hp: 3000, blood: 35, icon: '🪿', chance: 0.02 }
 ];
 
 // 1. Прокачка Крові
@@ -21,19 +21,25 @@ const BLOOD_UPGRADES = [
     { level: 4, mult: 5, cost: 40 },
     { level: 5, mult: 6, cost: 100 },
     { level: 6, mult: 7, cost: 250 },
-    { level: 7, mult: 8, cost: 550 },
-    { level: 8, mult: 9, cost: 1200 },
-    { level: 9, mult: 10, cost: 2500 },
-    { level: 10, mult: 11, cost: 5000 },
-    { level: 11, mult: 12, cost: 8000 }
+    { level: 7, mult: 8, cost: 300 },
+    { level: 8, mult: 9, cost: 500 },
+    { level: 9, mult: 10, cost: 700 },
+    { level: 10, mult: 11, cost: 1000 },
+    { level: 11, mult: 12, cost: 1300 },
+    { level: 12, mult: 13, cost: 1500 },
+    { level: 13, mult: 14, cost: 1750 },
+    { level: 14, mult: 15, cost: 2000 },
+    { level: 15, mult: 16, cost: 2300 }
 ];
 
 // 2. Прокачка Шкоди
 const DAMAGE_UPGRADES = [
     { level: 1, mult: 2, cost: 3 },
-    { level: 2, mult: 4, cost: 500 },
-    { level: 3, mult: 8, cost: 5000 },
-    { level: 4, mult: 16, cost: 25000 }
+    { level: 2, mult: 4, cost: 150 },
+    { level: 3, mult: 8, cost: 600 },
+    { level: 4, mult: 16, cost: 1500 },
+    { level: 5, mult: 32, cost: 5000 },
+    { level: 6, mult: 64, cost: 15000 }
 ];
 
 // 3. Прокачка Часу появи
@@ -61,7 +67,10 @@ const ESTATE_LEVELS = [
     { level: 2, income: 100000, costBlood: 150 },
     { level: 3, income: 150000, costBlood: 300 },
     { level: 4, income: 200000, costBlood: 600 },
-    { level: 5, income: 250000, costBlood: 1200 }
+    { level: 5, income: 250000, costBlood: 1200 },
+    { level: 6, income: 300000, costBlood: 2000 },
+    { level: 7, income: 350000, costBlood: 3000 },
+    { level: 8, income: 400000, costBlood: 5000 }
 ];
 
 let eventSubTab = 'victim'; // 'victim', 'upgrades', 'estate', 'leaderboard'
@@ -574,7 +583,7 @@ function renderEventUI() {
 
         html += `
             <div style="text-align: center; color: #888; padding: 15px; font-weight: bold;">
-                🔒 6-10 рівні з'являться згодом.
+                🔒 9-10 рівні з'являться згодом.
             </div>
         </div>`;
 
