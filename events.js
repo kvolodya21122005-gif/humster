@@ -199,7 +199,7 @@ function getBloodMultiplier() {
 function getVampireEstateAuraIncome() {
     if (!state.vampireEvent || !state.vampireEvent.estateLvl) return 0;
     const lvl = state.vampireEvent.estateLvl;
-    return lvl > 0 && lvl <= 5 ? ESTATE_LEVELS[lvl - 1].income : 0;
+    return lvl > 0 && lvl <= 12 ? ESTATE_LEVELS[lvl - 1].income : 0;
 }
 
 // ------------------------------------------
