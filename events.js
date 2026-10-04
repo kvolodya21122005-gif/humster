@@ -6,11 +6,14 @@ const VAMPIRE_EVENT_ID = 'vampire_event_v1';
 
 // Конфігурація жертв
 const VICTIMS_DATA = [
-    { id: 'fly', name: 'Муха', hp: 100, blood: 2, icon: '🪰', chance: 0.40 },
-    { id: 'lizard', name: 'Ящірка', hp: 500, blood: 8, icon: '🦎', chance: 0.30 },
-    { id: 'mouse', name: 'Миша', hp: 1000, blood: 14, icon: '🖱️', chance: 0.20 },
-    { id: 'chicken', name: 'Курка', hp: 2000, blood: 25, icon: '🐔', chance: 0.08 },
-    { id: 'goose', name: 'Гуска', hp: 3000, blood: 35, icon: '🪿', chance: 0.02 }
+    { id: 'fly', name: 'Муха', hp: 100, blood: 2, icon: '🪰', chance: 0.30 },
+    { id: 'lizard', name: 'Ящірка', hp: 500, blood: 8, icon: '🦎', chance: 0.20 },
+    { id: 'mouse', name: 'Миша', hp: 1000, blood: 14, icon: '🖱️', chance: 0.15 },
+    { id: 'chicken', name: 'Курка', hp: 2000, blood: 25, icon: '🐔', chance: 0.10 },
+    { id: 'goose', name: 'Гуска', hp: 3000, blood: 35, icon: '🪿', chance: 0.08 },
+    { id: 'pig', name: 'Свиня', hp: 7500, blood: 50, icon: '🐖', chance: 0.07 },
+    { id: 'cow', name: 'Корова', hp: 12500, blood: 75, icon: '🐄', chance: 0.06 },
+    { id: 'bear', name: 'Ведмідь', hp: 17500, blood: 95, icon: '🐻', chance: 0.04 }
 ];
 
 // 1. Прокачка Крові
