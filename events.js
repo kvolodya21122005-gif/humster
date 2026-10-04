@@ -29,7 +29,11 @@ const BLOOD_UPGRADES = [
     { level: 12, mult: 13, cost: 1500 },
     { level: 13, mult: 14, cost: 1750 },
     { level: 14, mult: 15, cost: 2000 },
-    { level: 15, mult: 16, cost: 2300 }
+    { level: 15, mult: 16, cost: 2300 },
+    { level: 16, mult: 17, cost: 2600 },
+    { level: 17, mult: 18, cost: 3000 },
+    { level: 18, mult: 19, cost: 3500 },
+    { level: 19, mult: 20, cost: 4000 }
 ];
 
 // 2. Прокачка Шкоди
@@ -39,7 +43,8 @@ const DAMAGE_UPGRADES = [
     { level: 3, mult: 8, cost: 600 },
     { level: 4, mult: 16, cost: 1500 },
     { level: 5, mult: 32, cost: 5000 },
-    { level: 6, mult: 64, cost: 15000 }
+    { level: 6, mult: 64, cost: 15000 },
+    { level: 7, mult: 128, cost: 50000 }
 ];
 
 // 3. Прокачка Часу появи
@@ -70,7 +75,11 @@ const ESTATE_LEVELS = [
     { level: 5, income: 250000, costBlood: 1200 },
     { level: 6, income: 300000, costBlood: 2000 },
     { level: 7, income: 350000, costBlood: 3000 },
-    { level: 8, income: 400000, costBlood: 5000 }
+    { level: 8, income: 400000, costBlood: 5000 },
+    { level: 9, income: 450000, costBlood: 10000 },
+    { level: 10, income: 500000, costBlood: 16000 },
+    { level: 11, income: 550000, costBlood: 25000 },
+    { level: 12, income: 600000, costBlood: 45000 }
 ];
 
 let eventSubTab = 'victim'; // 'victim', 'upgrades', 'estate', 'leaderboard'
@@ -583,7 +592,7 @@ function renderEventUI() {
 
         html += `
             <div style="text-align: center; color: #888; padding: 15px; font-weight: bold;">
-                🔒 9-10 рівні з'являться згодом.
+                🔒 13-16 рівні з'являться згодом. Івент закінчиться 16 жовтня
             </div>
         </div>`;
 
