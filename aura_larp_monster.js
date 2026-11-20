@@ -1,6 +1,6 @@
 // ==========================================
 // ОКРЕМИЙ МОДУЛЬ: АУРА ЛАРП МОНСТЕР (v6)
-// Підключення в index.html: <script src="aura_larp_monster-v6.js"></script>
+// Підключення в index.html: <script src="aura_larp_monster.js"></script>
 // ==========================================
 
 (function () {
@@ -275,7 +275,7 @@
     let moduleState = null;
     let isAuraLarpModeActive = false;
     let activeLarpSubTab = 'stairs'; // 'stairs' | 'room' | 'multipliers' | 'leaderboard'
-    let activeRoomStep = 10; // 10 | 20 | 30 | 40 | 50 | 60 | 70 | 80
+    let activeRoomStep = 10; // 10 | 20 | 30 | 40 | 50 | 60 | 70 | 80 | 90
     let activeLeaderboardType = 'highestStep'; // 'highestStep' | 'larpPerSec' | 'totalLarp'
 
     let lastLarpTickTime = Date.now();
@@ -310,6 +310,16 @@
     // ------------------------------------------
     // ДОСТУП ДО ГОЛОВНОГО СТАНУ ГРИ ТА ЗБЕРЕЖЕННЯ
     // ------------------------------------------
+    function isMainGameReady() {
+        if (window.isMainGameLoaded === true) return true;
+        try {
+            if (typeof state !== 'undefined' && state && (state.playerId || state.nickname)) {
+                return true;
+            }
+        } catch (e) {}
+        return Boolean(window.state && (window.state.playerId || window.state.nickname));
+    }
+
     function getRootState() {
         try {
             if (typeof state !== 'undefined' && state && typeof state === 'object') {
@@ -616,14 +626,13 @@
             localStorage.setItem(STORAGE_KEY, JSON.stringify(s));
         } catch (e) {}
 
-        if (callMainSave && typeof window.saveGame === 'function') {
+        if (callMainSave && isMainGameReady() && typeof window.saveGame === 'function') {
             window.saveGame();
         }
     }
 
     // ------------------------------------------
     // ГЛОБАЛЬНИЙ ЧАС ТА ОФЛАЙН-ПРОГРЕС
-    // (Офлайн заробляється враховуючи найвищу відкриту сходинку)
     // ------------------------------------------
     function fetchWithTimeout(url, timeoutMs) {
         return new Promise((resolve, reject) => {
@@ -765,7 +774,7 @@
         isCheckingGlobalTime = true;
 
         const s = initAuraLarpMonsterState();
-        const offlinePct = getOfflineLarpPercent(); // 0% за замовчуванням!
+        const offlinePct = getOfflineLarpPercent();
 
         if (isAuraLarpModeActive && offlinePct > 0) {
             renderAuraLarpMonsterUI(false);
@@ -787,12 +796,10 @@
         isGlobalTimeVerified = true;
         noInternetError = false;
 
-        // Офлайн-фарм Ларпів працює враховуючи найвищу відкриту сходинку гравця
         if (offlinePct > 0 && s.lastGlobalTime && globalNowMs > s.lastGlobalTime) {
             const elapsedSec = (globalNowMs - s.lastGlobalTime) / 1000;
 
             if (elapsedSec >= 2) {
-                // Завершуємо пересування персонажа до цільової сходинки за час відсутності
                 let remainingMoveSec = elapsedSec;
                 const moveSpeed = getCharacterMoveSpeed();
                 while (s.currentStep !== s.targetStep && remainingMoveSec > 0) {
@@ -808,7 +815,6 @@
                     }
                 }
 
-                // Офлайн-заробіток розраховується за найвищою відкритою сходинкою
                 const highestStepRate = getHighestStepLarpPerSecond();
                 const baseOfflineEarned = highestStepRate * elapsedSec;
                 const earnedOffline = baseOfflineEarned * (offlinePct / 100);
@@ -829,7 +835,7 @@
         }
 
         s.lastGlobalTime = globalNowMs;
-        persistAuraLarpState(true);
+        persistAuraLarpState(isMainGameReady());
         syncLarpLeaderboard(true);
 
         if (isAuraLarpModeActive) {
@@ -1024,7 +1030,7 @@
         return Math.round(OFFLINE_UPG_BASE_COST * Math.pow(OFFLINE_UPG_COST_SCALE, s.offlineLarpLvl || 0));
     }
 
-    // Кімната 50 сходинки (Курочка та Пір'я) + вплив прокачок з 80 сходинки
+    // Кімната 50 сходинки (Курочка та Пір'я) + вплив прокачок з 90 сходинки
     function getFeatherMultiplier() {
         const s = initAuraLarpMonsterState();
         const lvl = s.featherMultLvl || 0;
@@ -1343,6 +1349,7 @@
     // СИНХРОНІЗАЦІЯ ТА РЕНДЕР ТОПІВ (FIREBASE, АВТООНОВЛЕННЯ КОЖНІ 3 СЕК)
     // ------------------------------------------
     function syncLarpLeaderboard(force) {
+        if (!isMainGameReady()) return;
         const now = Date.now();
         if (!force && now - lastLeaderboardSyncMs < 3000) return;
 
@@ -1358,7 +1365,6 @@
         const wholeTotalTrash = Math.floor(s.totalTrash || s.trash || 0);
         const wholeTotalFeathers = Math.floor(s.totalFeathers || s.feathers || 0);
         const wholeTotalVitamins = Math.floor(s.totalVitamins || s.vitamins || 0);
-        // У топі дохід ларпів рахується за найвищою відкритою сходинкою гравцем
         const highestIncomePerSec = Number(getHighestStepLarpPerSecond().toFixed(2));
 
         try {
@@ -1375,7 +1381,6 @@
                 updatedAt: firebase.database.ServerValue.TIMESTAMP
             });
 
-            // Окремий прихований топ у базі даних по кількості ларпів на даний момент
             firebase.database().ref('leaderboard_aura_larp_current/' + root.playerId).set({
                 name: root.nickname,
                 currentLarp: wholeCurrentLarp,
@@ -1926,7 +1931,7 @@
         renderAuraLarpMonsterUI(false);
     }
 
-    // Кімната 80 (Виклик сніжної бурі та прокачки бурі/мобів)
+    // Кімната 80 (Виклик сніжної бурі та прокачки бурі)
     function activateSnowstorm() {
         const s = initAuraLarpMonsterState();
         if (s.maxUnlockedStep < 80 || s.currentStep !== 80 || s.targetStep !== 80) return;
@@ -2031,7 +2036,6 @@
         const dmg = getChickenClickDamage();
         s.chickenHp = Math.max(0, s.chickenHp - dmg);
 
-        // Візуальний ефект удару та вилітаючої шкоди
         const arenaEl = document.getElementById('alm-chicken-arena');
         const mobBtn = document.getElementById('alm-chicken-mob-btn');
         if (mobBtn) {
@@ -2088,726 +2092,663 @@
 
         if (hpFill) {
             const pct = Math.max(0, Math.min(100, (s.chickenHp / CHICKEN_MAX_HP) * 100));
-            hpFill.style.width = `${pct.toFixed(1)}%`;
+            hpFill.style.width = `${pct}%`;
         }
         if (hpText) {
             hpText.textContent = `${Math.ceil(s.chickenHp)} / ${CHICKEN_MAX_HP} HP`;
         }
-        if (balEl) balEl.textContent = formatFeatherValue(s.feathers);
-        if (totalEl) totalEl.textContent = formatFeatherValue(s.totalFeathers);
-
-        if (timerEl && s.chickenRespawnEndMs) {
-            const remSec = Math.max(0, (s.chickenRespawnEndMs - getCurrentNowMs()) / 1000);
-            timerEl.textContent = formatTimerMmSs(remSec);
+        if (balEl) {
+            balEl.textContent = formatFeatherValue(s.feathers);
         }
+        if (totalEl) {
+            totalEl.textContent = formatFeatherValue(s.totalFeathers);
+        }
+        if (timerEl && s.chickenRespawnEndMs) {
+            const leftSec = Math.max(0, (s.chickenRespawnEndMs - getCurrentNowMs()) / 1000);
+            timerEl.textContent = formatTimerMmSs(leftSec);
+        }
+    }
 
-        const btn1 = document.getElementById('alm-feather-upg-1');
-        if (btn1) btn1.disabled = s.feathers < getFeatherMultUpgradeCost();
+    function updateStormDynamicHud() {
+        const s = initAuraLarpMonsterState();
+        const now = getCurrentNowMs();
+        const statusEl = document.getElementById('alm-storm-status-text');
+        const btnEl = document.getElementById('alm-storm-activate-btn');
 
-        const btn2 = document.getElementById('alm-feather-upg-2');
-        if (btn2) btn2.disabled = s.feathers < getFeatherLarpUpgradeCost();
+        if (!statusEl && !btnEl) return;
+
+        const active = s.stormActiveEndMs && now < s.stormActiveEndMs;
+        const onCooldown = s.stormCooldownEndMs && now < s.stormCooldownEndMs;
+
+        if (active) {
+            const leftSec = Math.max(0, (s.stormActiveEndMs - now) / 1000);
+            if (statusEl) {
+                statusEl.innerHTML = `<span style="color:#38bdf8;font-weight:900;">🌨️ Сніжна буря вирує! Залишилось: ${formatTimerMmSs(leftSec)}</span>`;
+            }
+            if (btnEl) {
+                btnEl.disabled = true;
+                btnEl.textContent = `🌨️ Буря активна (${formatTimerMmSs(leftSec)})`;
+            }
+        } else if (onCooldown) {
+            const cdLeftSec = Math.max(0, (s.stormCooldownEndMs - now) / 1000);
+            if (statusEl) {
+                statusEl.innerHTML = `<span style="color:#f59e0b;font-weight:800;">⏳ Перезарядка бурі: ${formatTimerMmSs(cdLeftSec)}</span>`;
+            }
+            if (btnEl) {
+                btnEl.disabled = true;
+                btnEl.textContent = `⏳ Перезарядка (${formatTimerMmSs(cdLeftSec)})`;
+            }
+        } else {
+            if (statusEl) {
+                statusEl.innerHTML = `<span style="color:#4ade80;font-weight:800;">✅ Сніжна буря готова до запуску!</span>`;
+            }
+            if (btnEl) {
+                btnEl.disabled = false;
+                btnEl.textContent = `🌨️ Викликати сніжну бурю (${getStormDurationMinutes()} хв)`;
+            }
+        }
     }
 
     // ------------------------------------------
-    // ЛОГІКА СНІЖИНОК (20 СХОДИНКА — ПРОВЕДЕННЯ ПАЛЬЦЕМ)
+    // МЕХАНІКА СНІЖИНОК (20 СХОДИНКА + ШАНСИ З 60 + БУРЯ З 80)
     // ------------------------------------------
     function rollSnowflakeRarity() {
         const emeraldChance = getEmeraldSnowChancePct() / 100;
-        if (emeraldChance > 0 && Math.random() < emeraldChance) {
-            return 'emerald';
-        }
         const goldChance = getGoldSnowChancePct() / 100;
-        if (goldChance > 0 && Math.random() < goldChance) {
-            return 'golden';
-        }
+        const r = Math.random();
+        if (r < emeraldChance) return 'emerald';
+        if (r < emeraldChance + goldChance) return 'gold';
         return 'normal';
     }
 
     function spawnSingleSnowflake() {
         if (activeSnowflakes.length >= MAX_SNOWFLAKES) return;
 
-        const rarity = rollSnowflakeRarity();
-        const sf = {
+        const flake = {
             id: nextSnowflakeId++,
             xPct: Number((8 + Math.random() * 84).toFixed(2)),
             yPct: Number((10 + Math.random() * 80).toFixed(2)),
-            rarity: rarity
+            rarity: rollSnowflakeRarity()
         };
-        activeSnowflakes.push(sf);
+        activeSnowflakes.push(flake);
 
-        const fieldEl = document.getElementById('alm-snow-field');
-        if (fieldEl) {
-            const el = document.createElement('div');
-            el.id = `alm-sf-${sf.id}`;
-            el.className = `alm-snowflake-item ${rarity !== 'normal' ? rarity : ''}`;
-            el.style.left = `${sf.xPct}%`;
-            el.style.top = `${sf.yPct}%`;
-            el.textContent = '❄️';
-            fieldEl.appendChild(el);
-        }
-
-        updateSnowDynamicHud();
-    }
-
-    function showFloatingZonePopup(fieldEl, xPx, yPx, text, className) {
-        if (!fieldEl) return;
-        const pop = document.createElement('div');
-        pop.className = className;
-        pop.style.left = `${xPx}px`;
-        pop.style.top = `${yPx}px`;
-        pop.textContent = text;
-        fieldEl.appendChild(pop);
-        setTimeout(() => {
-            if (pop.parentNode) pop.parentNode.removeChild(pop);
-        }, 650);
-    }
-
-    function collectSnowflakesNearPoint(clientX, clientY) {
-        const fieldEl = document.getElementById('alm-snow-field');
-        if (!fieldEl || activeSnowflakes.length === 0) return;
-
-        const rect = fieldEl.getBoundingClientRect();
-        if (rect.width <= 0 || rect.height <= 0) return;
-
-        const relX = clientX - rect.left;
-        const relY = clientY - rect.top;
-
-        if (relX < -20 || relY < -20 || relX > rect.width + 20 || relY > rect.height + 20) {
-            return;
-        }
-
-        const HIT_RADIUS_PX = 34;
-        const HIT_RADIUS_SQ = HIT_RADIUS_PX * HIT_RADIUS_PX;
-        let totalGain = 0;
-
-        for (let i = activeSnowflakes.length - 1; i >= 0; i--) {
-            const sf = activeSnowflakes[i];
-            const sfX = (sf.xPct / 100) * rect.width;
-            const sfY = (sf.yPct / 100) * rect.height;
-            const dx = relX - sfX;
-            const dy = relY - sfY;
-
-            if (dx * dx + dy * dy <= HIT_RADIUS_SQ) {
-                activeSnowflakes.splice(i, 1);
-
-                const sfDom = document.getElementById(`alm-sf-${sf.id}`);
-                if (sfDom && sfDom.parentNode) {
-                    sfDom.parentNode.removeChild(sfDom);
-                }
-
-                const rarityMult = sf.rarity === 'emerald' ? 1000 : (sf.rarity === 'golden' ? 10 : 1);
-                const gainPerOne = getSnowMultiplier() * rarityMult;
-                totalGain += gainPerOne;
-
-                const popClass = sf.rarity === 'emerald'
-                    ? 'alm-snow-pop emerald'
-                    : (sf.rarity === 'golden' ? 'alm-snow-pop golden' : 'alm-snow-pop');
-                showFloatingZonePopup(fieldEl, sfX, sfY, `+${formatSnowValue(gainPerOne)} ❄️`, popClass);
-            }
-        }
-
-        if (totalGain > 0) {
-            const s = initAuraLarpMonsterState();
-            s.snow += totalGain;
-            s.totalSnow += totalGain;
-            updateSnowDynamicHud();
-            syncLarpLeaderboard(false);
+        const zoneEl = document.getElementById('alm-snow-zone');
+        if (zoneEl) {
+            const el = createSnowflakeElement(flake);
+            zoneEl.appendChild(el);
+            updateSnowCounterText();
         }
     }
 
-    function bindSnowFieldEvents() {
-        const fieldEl = document.getElementById('alm-snow-field');
-        if (!fieldEl || fieldEl._snowBound) return;
-        fieldEl._snowBound = true;
+    function createSnowflakeElement(flake) {
+        const el = document.createElement('div');
+        const rarity = flake.rarity || 'normal';
+        el.className = 'alm-snowflake-item' + (rarity === 'gold' ? ' gold' : (rarity === 'emerald' ? ' emerald' : ''));
+        el.dataset.flakeId = String(flake.id);
+        el.style.left = `${flake.xPct}%`;
+        el.style.top = `${flake.yPct}%`;
+        el.textContent = '❄️';
 
-        fieldEl.addEventListener('touchstart', (e) => {
-            if (e.cancelable) e.preventDefault();
-            for (let i = 0; i < e.touches.length; i++) {
-                collectSnowflakesNearPoint(e.touches[i].clientX, e.touches[i].clientY);
-            }
-        }, { passive: false });
-
-        fieldEl.addEventListener('touchmove', (e) => {
-            if (e.cancelable) e.preventDefault();
-            for (let i = 0; i < e.touches.length; i++) {
-                collectSnowflakesNearPoint(e.touches[i].clientX, e.touches[i].clientY);
-            }
-        }, { passive: false });
-
-        fieldEl.addEventListener('mousedown', (e) => {
+        el.addEventListener('pointerdown', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
             isPointerSwipingSnow = true;
-            collectSnowflakesNearPoint(e.clientX, e.clientY);
+            collectSnowflakeById(flake.id);
         });
 
-        fieldEl.addEventListener('mousemove', (e) => {
+        el.addEventListener('pointerenter', () => {
             if (isPointerSwipingSnow) {
-                collectSnowflakesNearPoint(e.clientX, e.clientY);
+                collectSnowflakeById(flake.id);
             }
         });
 
-        window.addEventListener('mouseup', () => {
-            isPointerSwipingSnow = false;
-        });
+        return el;
     }
 
-    function updateSnowDynamicHud() {
+    function collectSnowflakeById(id) {
+        const idx = activeSnowflakes.findIndex(f => f.id === id);
+        if (idx === -1) return;
+
+        const flake = activeSnowflakes[idx];
+        activeSnowflakes.splice(idx, 1);
+
         const s = initAuraLarpMonsterState();
+        const rarity = flake.rarity || 'normal';
+        const rarityMult = rarity === 'emerald' ? 10 : (rarity === 'gold' ? 3 : 1);
+        const gain = getSnowMultiplier() * rarityMult;
 
-        const balEl = document.getElementById('alm-snow-balance');
-        const totalEl = document.getElementById('alm-snow-total');
-        const countEl = document.getElementById('alm-snow-active-count');
-        const stormBanner = document.getElementById('alm-snow-storm-banner');
+        s.snow = Number((s.snow + gain).toFixed(4));
+        s.totalSnow = Number((s.totalSnow + gain).toFixed(4));
 
-        if (balEl) balEl.textContent = formatSnowValue(s.snow);
-        if (totalEl) totalEl.textContent = formatSnowValue(s.totalSnow);
-        if (countEl) countEl.textContent = `${activeSnowflakes.length} / ${MAX_SNOWFLAKES}`;
+        const zoneEl = document.getElementById('alm-snow-zone');
+        if (zoneEl) {
+            const el = zoneEl.querySelector(`.alm-snowflake-item[data-flake-id="${id}"]`);
+            if (el) el.remove();
 
-        if (stormBanner) {
-            if (isSnowstormActive()) {
-                const remSec = Math.max(0, (s.stormActiveEndMs - getCurrentNowMs()) / 1000);
-                stormBanner.style.display = 'flex';
-                stormBanner.textContent = `🌨️ СНІЖНА БУРЯ АКТИВНА! Залишилось: ${formatTimerMmSs(remSec)} (спавн кожні ${getStormSnowSpawnInterval()}с)`;
-            } else {
-                stormBanner.style.display = 'none';
-            }
+            const pop = document.createElement('div');
+            pop.className = 'alm-snow-pop' + (rarity === 'gold' ? ' gold' : (rarity === 'emerald' ? ' emerald' : ''));
+            pop.style.left = `${flake.xPct}%`;
+            pop.style.top = `${flake.yPct}%`;
+            const badge = rarity === 'emerald' ? ' 💎' : (rarity === 'gold' ? ' ✨' : '');
+            pop.textContent = `+${formatSnowValue(gain)} ❄️${badge}`;
+            zoneEl.appendChild(pop);
+            setTimeout(() => {
+                if (pop.parentNode) pop.parentNode.removeChild(pop);
+            }, 650);
         }
 
-        const btn1 = document.getElementById('alm-snow-upg-1');
-        if (btn1) btn1.disabled = s.snow < getSnowMultUpgradeCost();
+        updateSnowCounterText();
+        updateRoomUpgradeButtons();
+    }
 
-        const btn2 = document.getElementById('alm-snow-upg-2');
-        if (btn2) {
-            const isMax = (s.snowSpeedLvl || 0) >= SNOW_SPEED_MAX_LVL;
-            btn2.disabled = isMax || s.snow < getSnowSpeedUpgradeCost();
+    function handleSnowZoneTouchMove(e) {
+        if (!e.touches || e.touches.length === 0) return;
+        const touch = e.touches[0];
+        const target = document.elementFromPoint(touch.clientX, touch.clientY);
+        if (target && target.classList && target.classList.contains('alm-snowflake-item')) {
+            const id = Number(target.dataset.flakeId);
+            if (id) collectSnowflakeById(id);
         }
+    }
 
-        const btn3 = document.getElementById('alm-snow-upg-3');
-        if (btn3) btn3.disabled = s.snow < getSnowLarpUpgradeCost();
+    function updateSnowCounterText() {
+        const s = initAuraLarpMonsterState();
+        const countEl = document.getElementById('alm-snow-count-badge');
+        if (countEl) {
+            countEl.textContent = `${activeSnowflakes.length} / ${MAX_SNOWFLAKES}`;
+        }
+        const snowBalEl = document.getElementById('alm-snow-balance');
+        if (snowBalEl) {
+            snowBalEl.textContent = formatSnowValue(s.snow);
+        }
+        const snowTotalEl = document.getElementById('alm-snow-total');
+        if (snowTotalEl) {
+            snowTotalEl.textContent = formatSnowValue(s.totalSnow);
+        }
     }
 
     // ------------------------------------------
-    // ЛОГІКА ПРИБИРАННЯ СМІТТЯ (30 СХОДИНКА — ПЕРЕМІЩЕННЯ В ЦЕНТР)
+    // МЕХАНІКА ПРИБИРАННЯ СМІТТЯ (30 СХОДИНКА + ШАНСИ З 60)
     // ------------------------------------------
     function rollTrashRarity() {
         const emeraldChance = getEmeraldTrashChancePct() / 100;
-        if (emeraldChance > 0 && Math.random() < emeraldChance) {
-            return 'emerald';
-        }
         const goldChance = getGoldTrashChancePct() / 100;
-        if (goldChance > 0 && Math.random() < goldChance) {
-            return 'golden';
-        }
+        const r = Math.random();
+        if (r < emeraldChance) return 'emerald';
+        if (r < emeraldChance + goldChance) return 'gold';
         return 'normal';
     }
 
     function spawnSingleTrashItem() {
         if (activeTrashItems.length >= MAX_TRASH_ITEMS) return;
 
-        let xPct = 50;
-        let yPct = 50;
-        for (let tries = 0; tries < 20; tries++) {
-            xPct = Number((10 + Math.random() * 80).toFixed(2));
-            yPct = Number((12 + Math.random() * 76).toFixed(2));
-            const dx = xPct - 50;
-            const dy = yPct - 50;
-            if (dx * dx + dy * dy >= 18 * 18) break;
-        }
-
         const icon = TRASH_ICONS[Math.floor(Math.random() * TRASH_ICONS.length)];
-        const rarity = rollTrashRarity();
-        const tr = {
+        const item = {
             id: nextTrashId++,
-            xPct: xPct,
-            yPct: yPct,
+            xPct: Number((10 + Math.random() * 80).toFixed(2)),
+            yPct: Number((12 + Math.random() * 54).toFixed(2)),
             icon: icon,
-            rarity: rarity
+            rarity: rollTrashRarity()
         };
-        activeTrashItems.push(tr);
+        activeTrashItems.push(item);
 
-        const fieldEl = document.getElementById('alm-trash-field');
-        if (fieldEl) {
-            const el = document.createElement('div');
-            el.id = `alm-tr-${tr.id}`;
-            el.className = `alm-trash-item ${rarity !== 'normal' ? rarity : ''}`;
-            el.style.left = `${tr.xPct}%`;
-            el.style.top = `${tr.yPct}%`;
-            el.textContent = tr.icon;
-            fieldEl.appendChild(el);
+        const zoneEl = document.getElementById('alm-trash-zone');
+        if (zoneEl) {
+            const el = createTrashElement(item);
+            zoneEl.appendChild(el);
+            updateTrashCounterText();
         }
-
-        updateTrashDynamicHud();
     }
 
-    function grabTrashAtPoint(clientX, clientY) {
-        const fieldEl = document.getElementById('alm-trash-field');
-        if (!fieldEl || activeTrashItems.length === 0) return;
+    function createTrashElement(item) {
+        const el = document.createElement('div');
+        const rarity = item.rarity || 'normal';
+        el.className = 'alm-trash-item' + (rarity === 'gold' ? ' gold' : (rarity === 'emerald' ? ' emerald' : ''));
+        el.dataset.trashId = String(item.id);
+        el.style.left = `${item.xPct}%`;
+        el.style.top = `${item.yPct}%`;
+        el.textContent = item.icon;
 
-        const rect = fieldEl.getBoundingClientRect();
+        el.addEventListener('pointerdown', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            draggingTrashId = item.id;
+            el.classList.add('dragging');
+            try {
+                el.setPointerCapture(e.pointerId);
+            } catch (err) {}
+        });
+
+        el.addEventListener('pointermove', (e) => {
+            if (draggingTrashId !== item.id) return;
+            e.preventDefault();
+            moveDraggingTrash(item.id, e.clientX, e.clientY);
+        });
+
+        function finishDrag(e) {
+            if (draggingTrashId !== item.id) return;
+            draggingTrashId = null;
+            el.classList.remove('dragging');
+            try {
+                if (e && e.pointerId !== undefined) {
+                    el.releasePointerCapture(e.pointerId);
+                }
+            } catch (err) {}
+            checkTrashDropIntoBin(item.id, e ? e.clientX : null, e ? e.clientY : null);
+        }
+
+        el.addEventListener('pointerup', finishDrag);
+        el.addEventListener('pointercancel', finishDrag);
+
+        return el;
+    }
+
+    function moveDraggingTrash(id, clientX, clientY) {
+        const zoneEl = document.getElementById('alm-trash-zone');
+        if (!zoneEl) return;
+        const item = activeTrashItems.find(t => t.id === id);
+        if (!item) return;
+
+        const rect = zoneEl.getBoundingClientRect();
         if (rect.width <= 0 || rect.height <= 0) return;
 
-        const relX = clientX - rect.left;
-        const relY = clientY - rect.top;
+        const xPct = Math.min(94, Math.max(6, ((clientX - rect.left) / rect.width) * 100));
+        const yPct = Math.min(92, Math.max(8, ((clientY - rect.top) / rect.height) * 100));
 
-        let bestId = null;
-        let bestDistSq = 38 * 38;
+        item.xPct = Number(xPct.toFixed(2));
+        item.yPct = Number(yPct.toFixed(2));
 
-        for (let i = 0; i < activeTrashItems.length; i++) {
-            const tr = activeTrashItems[i];
-            const trX = (tr.xPct / 100) * rect.width;
-            const trY = (tr.yPct / 100) * rect.height;
-            const dSq = (relX - trX) * (relX - trX) + (relY - trY) * (relY - trY);
-            if (dSq <= bestDistSq) {
-                bestDistSq = dSq;
-                bestId = tr.id;
-            }
+        const el = zoneEl.querySelector(`.alm-trash-item[data-trash-id="${id}"]`);
+        if (el) {
+            el.style.left = `${item.xPct}%`;
+            el.style.top = `${item.yPct}%`;
         }
 
-        draggingTrashId = bestId;
-        if (draggingTrashId !== null) {
-            const dom = document.getElementById(`alm-tr-${draggingTrashId}`);
-            if (dom) dom.classList.add('dragging');
-        }
-    }
-
-    function moveDraggedTrashToPoint(clientX, clientY) {
-        if (draggingTrashId === null) return;
-
-        const fieldEl = document.getElementById('alm-trash-field');
-        if (!fieldEl) return;
-
-        const idx = activeTrashItems.findIndex(item => item.id === draggingTrashId);
-        if (idx === -1) {
-            draggingTrashId = null;
-            return;
-        }
-
-        const rect = fieldEl.getBoundingClientRect();
-        if (rect.width <= 0 || rect.height <= 0) return;
-
-        const relX = Math.max(16, Math.min(rect.width - 16, clientX - rect.left));
-        const relY = Math.max(16, Math.min(rect.height - 16, clientY - rect.top));
-
-        const tr = activeTrashItems[idx];
-        tr.xPct = Number(((relX / rect.width) * 100).toFixed(2));
-        tr.yPct = Number(((relY / rect.height) * 100).toFixed(2));
-
-        const dom = document.getElementById(`alm-tr-${tr.id}`);
-        if (dom) {
-            dom.style.left = `${tr.xPct}%`;
-            dom.style.top = `${tr.yPct}%`;
-        }
-
-        const centerX = rect.width * 0.5;
-        const centerY = rect.height * 0.5;
-        const distCenterSq = (relX - centerX) * (relX - centerX) + (relY - centerY) * (relY - centerY);
-        const CENTER_DROP_RADIUS = 46;
-
-        if (distCenterSq <= CENTER_DROP_RADIUS * CENTER_DROP_RADIUS) {
-            activeTrashItems.splice(idx, 1);
-            draggingTrashId = null;
-
-            if (dom && dom.parentNode) {
-                dom.parentNode.removeChild(dom);
-            }
-
-            const s = initAuraLarpMonsterState();
-            const rarityMult = tr.rarity === 'emerald' ? 1000 : (tr.rarity === 'golden' ? 10 : 1);
-            const gain = getTrashMultiplier() * rarityMult;
-            s.trash += gain;
-            s.totalTrash += gain;
-
-            const popClass = tr.rarity === 'emerald'
-                ? 'alm-trash-pop emerald'
-                : (tr.rarity === 'golden' ? 'alm-trash-pop golden' : 'alm-trash-pop');
-            showFloatingZonePopup(fieldEl, centerX, centerY - 12, `+${formatTrashValue(gain)} 🗑️`, popClass);
-            updateTrashDynamicHud();
-            syncLarpLeaderboard(false);
+        const binEl = document.getElementById('alm-trash-bin');
+        if (binEl) {
+            const binRect = binEl.getBoundingClientRect();
+            const isOverBin = (
+                clientX >= binRect.left - 14 &&
+                clientX <= binRect.right + 14 &&
+                clientY >= binRect.top - 14 &&
+                clientY <= binRect.bottom + 14
+            );
+            binEl.classList.toggle('bin-highlight', isOverBin);
         }
     }
 
-    function releaseDraggedTrash() {
-        if (draggingTrashId !== null) {
-            const dom = document.getElementById(`alm-tr-${draggingTrashId}`);
-            if (dom) dom.classList.remove('dragging');
-            draggingTrashId = null;
+    function checkTrashDropIntoBin(id, clientX, clientY) {
+        const binEl = document.getElementById('alm-trash-bin');
+        const zoneEl = document.getElementById('alm-trash-zone');
+        if (binEl) binEl.classList.remove('bin-highlight');
+        if (!binEl || !zoneEl) return;
+
+        const item = activeTrashItems.find(t => t.id === id);
+        if (!item) return;
+
+        const binRect = binEl.getBoundingClientRect();
+        let droppedInBin = false;
+
+        if (typeof clientX === 'number' && typeof clientY === 'number') {
+            droppedInBin = (
+                clientX >= binRect.left - 16 &&
+                clientX <= binRect.right + 16 &&
+                clientY >= binRect.top - 16 &&
+                clientY <= binRect.bottom + 16
+            );
+        } else {
+            droppedInBin = (item.xPct >= 34 && item.xPct <= 66 && item.yPct >= 70);
+        }
+
+        if (droppedInBin) {
+            collectTrashById(id);
         }
     }
 
-    function bindTrashFieldEvents() {
-        const fieldEl = document.getElementById('alm-trash-field');
-        if (!fieldEl || fieldEl._trashBound) return;
-        fieldEl._trashBound = true;
+    function collectTrashById(id) {
+        const idx = activeTrashItems.findIndex(t => t.id === id);
+        if (idx === -1) return;
 
-        fieldEl.addEventListener('touchstart', (e) => {
-            if (e.cancelable) e.preventDefault();
-            if (e.touches.length > 0) {
-                grabTrashAtPoint(e.touches[0].clientX, e.touches[0].clientY);
-            }
-        }, { passive: false });
+        const item = activeTrashItems[idx];
+        activeTrashItems.splice(idx, 1);
 
-        fieldEl.addEventListener('touchmove', (e) => {
-            if (e.cancelable) e.preventDefault();
-            if (e.touches.length > 0) {
-                moveDraggedTrashToPoint(e.touches[0].clientX, e.touches[0].clientY);
-            }
-        }, { passive: false });
-
-        fieldEl.addEventListener('touchend', () => {
-            releaseDraggedTrash();
-        });
-
-        fieldEl.addEventListener('touchcancel', () => {
-            releaseDraggedTrash();
-        });
-
-        fieldEl.addEventListener('mousedown', (e) => {
-            grabTrashAtPoint(e.clientX, e.clientY);
-        });
-
-        window.addEventListener('mousemove', (e) => {
-            if (draggingTrashId !== null) {
-                moveDraggedTrashToPoint(e.clientX, e.clientY);
-            }
-        });
-
-        window.addEventListener('mouseup', () => {
-            releaseDraggedTrash();
-        });
-    }
-
-    function updateTrashDynamicHud() {
         const s = initAuraLarpMonsterState();
+        const rarity = item.rarity || 'normal';
+        const rarityMult = rarity === 'emerald' ? 10 : (rarity === 'gold' ? 3 : 1);
+        const gain = getTrashMultiplier() * rarityMult;
 
-        const balEl = document.getElementById('alm-trash-balance');
-        const totalEl = document.getElementById('alm-trash-total');
-        const countEl = document.getElementById('alm-trash-active-count');
+        s.trash = Number((s.trash + gain).toFixed(4));
+        s.totalTrash = Number((s.totalTrash + gain).toFixed(4));
 
-        if (balEl) balEl.textContent = formatTrashValue(s.trash);
-        if (totalEl) totalEl.textContent = formatTrashValue(s.totalTrash);
-        if (countEl) countEl.textContent = `${activeTrashItems.length} / ${MAX_TRASH_ITEMS}`;
+        const zoneEl = document.getElementById('alm-trash-zone');
+        if (zoneEl) {
+            const el = zoneEl.querySelector(`.alm-trash-item[data-trash-id="${id}"]`);
+            if (el) el.remove();
 
-        const btn1 = document.getElementById('alm-trash-upg-1');
-        if (btn1) btn1.disabled = s.trash < getTrashMultUpgradeCost();
-
-        const btn2 = document.getElementById('alm-trash-upg-2');
-        if (btn2) {
-            const isMax = (s.trashSpeedLvl || 0) >= TRASH_SPEED_MAX_LVL;
-            btn2.disabled = isMax || s.trash < getTrashSpeedUpgradeCost();
+            const pop = document.createElement('div');
+            pop.className = 'alm-trash-pop' + (rarity === 'gold' ? ' gold' : (rarity === 'emerald' ? ' emerald' : ''));
+            pop.style.left = '50%';
+            pop.style.top = '72%';
+            const badge = rarity === 'emerald' ? ' 💎' : (rarity === 'gold' ? ' ✨' : '');
+            pop.textContent = `+${formatTrashValue(gain)} 🗑️${badge}`;
+            zoneEl.appendChild(pop);
+            setTimeout(() => {
+                if (pop.parentNode) pop.parentNode.removeChild(pop);
+            }, 700);
         }
 
-        const btn3 = document.getElementById('alm-trash-upg-3');
-        if (btn3) btn3.disabled = s.trash < getTrashLarpUpgradeCost();
+        updateTrashCounterText();
+        updateRoomUpgradeButtons();
+    }
+
+    function updateTrashCounterText() {
+        const s = initAuraLarpMonsterState();
+        const countEl = document.getElementById('alm-trash-count-badge');
+        if (countEl) {
+            countEl.textContent = `${activeTrashItems.length} / ${MAX_TRASH_ITEMS}`;
+        }
+        const trashBalEl = document.getElementById('alm-trash-balance');
+        if (trashBalEl) {
+            trashBalEl.textContent = formatTrashValue(s.trash);
+        }
+        const trashTotalEl = document.getElementById('alm-trash-total');
+        if (trashTotalEl) {
+            trashTotalEl.textContent = formatTrashValue(s.totalTrash);
+        }
     }
 
     // ------------------------------------------
-    // ЛОГІКА ОБ'ЄДНАННЯ ОВОЧІВ ТА ФРУКТІВ (70 СХОДИНКА — ВІТАМІНИ)
+    // МЕХАНІКА ОБ'ЄДНАННЯ ОВОЧІВ ТА ФРУКТІВ (70 СХОДИНКА — ВІТАМІНИ)
     // ------------------------------------------
     function getMergeTierInfo(level) {
-        return MERGE_HIERARCHY[Math.min(MERGE_HIERARCHY.length, Math.max(1, level)) - 1];
+        const clamped = Math.max(1, Math.min(MERGE_HIERARCHY.length, level || 1));
+        return MERGE_HIERARCHY[clamped - 1];
+    }
+
+    function getVitaminRewardForMerge(resultingLevel) {
+        const base = Math.max(1, Math.round(Math.pow(1.65, resultingLevel - 1)));
+        return Math.max(1, Math.round(base * getVitaminMultiplier()));
     }
 
     function spawnSingleMergeItem() {
         if (activeMergeItems.length >= MAX_MERGE_ITEMS) return;
 
-        let xPct = 50;
-        let yPct = 50;
-        for (let tries = 0; tries < 25; tries++) {
-            xPct = Number((10 + Math.random() * 80).toFixed(2));
-            yPct = Number((12 + Math.random() * 76).toFixed(2));
-            const tooClose = activeMergeItems.some(other => {
-                const dx = other.xPct - xPct;
-                const dy = other.yPct - yPct;
-                return (dx * dx + dy * dy) < 10 * 10;
-            });
-            if (!tooClose) break;
-        }
-
         const lv2Chance = getMergeLv2ChancePct() / 100;
-        const spawnLevel = (lv2Chance > 0 && Math.random() < lv2Chance) ? 2 : 1;
+        const startLevel = Math.random() < lv2Chance ? 2 : 1;
 
         const item = {
             id: nextMergeId++,
-            xPct: xPct,
-            yPct: yPct,
-            level: spawnLevel
+            xPct: Number((10 + Math.random() * 80).toFixed(2)),
+            yPct: Number((12 + Math.random() * 76).toFixed(2)),
+            level: startLevel
         };
         activeMergeItems.push(item);
 
-        const fieldEl = document.getElementById('alm-merge-field');
-        if (fieldEl) {
-            const tier = getMergeTierInfo(item.level);
-            const el = document.createElement('div');
-            el.id = `alm-mg-${item.id}`;
-            el.className = `alm-merge-item lvl-${item.level}`;
+        const zoneEl = document.getElementById('alm-merge-zone');
+        if (zoneEl) {
+            const el = createMergeElement(item);
+            zoneEl.appendChild(el);
+            updateMergeCounterText();
+        }
+    }
+
+    function createMergeElement(item) {
+        const tier = getMergeTierInfo(item.level);
+        const el = document.createElement('div');
+        el.className = 'alm-merge-item';
+        el.dataset.mergeId = String(item.id);
+        el.style.left = `${item.xPct}%`;
+        el.style.top = `${item.yPct}%`;
+        el.innerHTML = `
+            <span class="alm-merge-emoji">${tier.icon}</span>
+            <span class="alm-merge-lvl-badge">Lv.${item.level}</span>
+        `;
+
+        el.addEventListener('pointerdown', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            draggingMergeId = item.id;
+            el.classList.add('dragging');
+            try {
+                el.setPointerCapture(e.pointerId);
+            } catch (err) {}
+        });
+
+        el.addEventListener('pointermove', (e) => {
+            if (draggingMergeId !== item.id) return;
+            e.preventDefault();
+            moveDraggingMerge(item.id, e.clientX, e.clientY);
+        });
+
+        function finishMergeDrag(e) {
+            if (draggingMergeId !== item.id) return;
+            draggingMergeId = null;
+            el.classList.remove('dragging');
+            try {
+                if (e && e.pointerId !== undefined) {
+                    el.releasePointerCapture(e.pointerId);
+                }
+            } catch (err) {}
+            tryCombineDraggedMergeItem(item.id);
+        }
+
+        el.addEventListener('pointerup', finishMergeDrag);
+        el.addEventListener('pointercancel', finishMergeDrag);
+
+        return el;
+    }
+
+    function moveDraggingMerge(id, clientX, clientY) {
+        const zoneEl = document.getElementById('alm-merge-zone');
+        if (!zoneEl) return;
+        const item = activeMergeItems.find(m => m.id === id);
+        if (!item) return;
+
+        const rect = zoneEl.getBoundingClientRect();
+        if (rect.width <= 0 || rect.height <= 0) return;
+
+        const xPct = Math.min(93, Math.max(7, ((clientX - rect.left) / rect.width) * 100));
+        const yPct = Math.min(91, Math.max(9, ((clientY - rect.top) / rect.height) * 100));
+
+        item.xPct = Number(xPct.toFixed(2));
+        item.yPct = Number(yPct.toFixed(2));
+
+        const el = zoneEl.querySelector(`.alm-merge-item[data-merge-id="${id}"]`);
+        if (el) {
             el.style.left = `${item.xPct}%`;
             el.style.top = `${item.yPct}%`;
-            el.innerHTML = `<span class="alm-merge-emoji">${tier.icon}</span><span class="alm-merge-badge">${item.level}</span>`;
-            fieldEl.appendChild(el);
         }
 
-        updateMergeDynamicHud();
+        zoneEl.querySelectorAll('.alm-merge-item').forEach(node => {
+            const otherId = Number(node.dataset.mergeId);
+            if (otherId === id) {
+                node.classList.remove('merge-target-highlight');
+                return;
+            }
+            const other = activeMergeItems.find(m => m.id === otherId);
+            if (other && other.level === item.level && item.level < MERGE_HIERARCHY.length) {
+                const dist = Math.hypot(other.xPct - item.xPct, other.yPct - item.yPct);
+                node.classList.toggle('merge-target-highlight', dist <= 13);
+            } else {
+                node.classList.remove('merge-target-highlight');
+            }
+        });
     }
 
-    function grabMergeItemAtPoint(clientX, clientY) {
-        const fieldEl = document.getElementById('alm-merge-field');
-        if (!fieldEl || activeMergeItems.length === 0) return;
+    function tryCombineDraggedMergeItem(draggedId) {
+        const zoneEl = document.getElementById('alm-merge-zone');
+        if (zoneEl) {
+            zoneEl.querySelectorAll('.alm-merge-item').forEach(n => n.classList.remove('merge-target-highlight'));
+        }
 
-        const rect = fieldEl.getBoundingClientRect();
-        if (rect.width <= 0 || rect.height <= 0) return;
+        const draggedIdx = activeMergeItems.findIndex(m => m.id === draggedId);
+        if (draggedIdx === -1) return;
+        const dragged = activeMergeItems[draggedIdx];
 
-        const relX = clientX - rect.left;
-        const relY = clientY - rect.top;
+        if (dragged.level >= MERGE_HIERARCHY.length) return;
 
-        let bestId = null;
-        let bestDistSq = 40 * 40;
+        let bestTarget = null;
+        let bestDist = Infinity;
 
         for (let i = 0; i < activeMergeItems.length; i++) {
-            const it = activeMergeItems[i];
-            const itX = (it.xPct / 100) * rect.width;
-            const itY = (it.yPct / 100) * rect.height;
-            const dSq = (relX - itX) * (relX - itX) + (relY - itY) * (relY - itY);
-            if (dSq <= bestDistSq) {
-                bestDistSq = dSq;
-                bestId = it.id;
+            const candidate = activeMergeItems[i];
+            if (candidate.id === dragged.id) continue;
+            if (candidate.level !== dragged.level) continue;
+
+            const dist = Math.hypot(candidate.xPct - dragged.xPct, candidate.yPct - dragged.yPct);
+            if (dist <= 13 && dist < bestDist) {
+                bestDist = dist;
+                bestTarget = candidate;
             }
         }
 
-        draggingMergeId = bestId;
-        if (draggingMergeId !== null) {
-            const dom = document.getElementById(`alm-mg-${draggingMergeId}`);
-            if (dom) dom.classList.add('dragging');
-        }
-    }
+        if (!bestTarget) return;
 
-    function moveDraggedMergeItemToPoint(clientX, clientY) {
-        if (draggingMergeId === null) return;
+        const newLevel = bestTarget.level + 1;
+        const targetX = bestTarget.xPct;
+        const targetY = bestTarget.yPct;
 
-        const fieldEl = document.getElementById('alm-merge-field');
-        if (!fieldEl) return;
+        activeMergeItems = activeMergeItems.filter(m => m.id !== dragged.id && m.id !== bestTarget.id);
 
-        const draggedIdx = activeMergeItems.findIndex(item => item.id === draggingMergeId);
-        if (draggedIdx === -1) {
-            draggingMergeId = null;
-            return;
-        }
-
-        const rect = fieldEl.getBoundingClientRect();
-        if (rect.width <= 0 || rect.height <= 0) return;
-
-        const relX = Math.max(20, Math.min(rect.width - 20, clientX - rect.left));
-        const relY = Math.max(20, Math.min(rect.height - 20, clientY - rect.top));
-
-        const draggedItem = activeMergeItems[draggedIdx];
-        draggedItem.xPct = Number(((relX / rect.width) * 100).toFixed(2));
-        draggedItem.yPct = Number(((relY / rect.height) * 100).toFixed(2));
-
-        const dom = document.getElementById(`alm-mg-${draggedItem.id}`);
-        if (dom) {
-            dom.style.left = `${draggedItem.xPct}%`;
-            dom.style.top = `${draggedItem.yPct}%`;
-        }
-    }
-
-    function releaseDraggedMergeItem() {
-        if (draggingMergeId === null) return;
-
-        const fieldEl = document.getElementById('alm-merge-field');
-        const draggedIdx = activeMergeItems.findIndex(item => item.id === draggingMergeId);
-        const dom = document.getElementById(`alm-mg-${draggingMergeId}`);
-        if (dom) dom.classList.remove('dragging');
-        draggingMergeId = null;
-
-        if (!fieldEl || draggedIdx === -1) return;
-
-        const rect = fieldEl.getBoundingClientRect();
-        if (rect.width <= 0 || rect.height <= 0) return;
-
-        const draggedItem = activeMergeItems[draggedIdx];
-        const dragX = (draggedItem.xPct / 100) * rect.width;
-        const dragY = (draggedItem.yPct / 100) * rect.height;
-
-        // Шукаємо інший об'єкт того ж рівня (до 15 рівня включно) поруч для з'єднання
-        const MERGE_RADIUS_SQ = 42 * 42;
-        let targetIdx = -1;
-        let bestDistSq = MERGE_RADIUS_SQ;
-
-        for (let i = 0; i < activeMergeItems.length; i++) {
-            if (i === draggedIdx) continue;
-            const other = activeMergeItems[i];
-            if (other.level !== draggedItem.level) continue;
-            if (other.level >= MERGE_HIERARCHY.length) continue; // 16 рівень максимальний
-
-            const ox = (other.xPct / 100) * rect.width;
-            const oy = (other.yPct / 100) * rect.height;
-            const dSq = (dragX - ox) * (dragX - ox) + (dragY - oy) * (dragY - oy);
-            if (dSq <= bestDistSq) {
-                bestDistSq = dSq;
-                targetIdx = i;
-            }
-        }
-
-        if (targetIdx !== -1) {
-            const targetItem = activeMergeItems[targetIdx];
-            const mergedFromLevel = draggedItem.level;
-            const newLevel = mergedFromLevel + 1;
-            const targetX = (targetItem.xPct / 100) * rect.width;
-            const targetY = (targetItem.yPct / 100) * rect.height;
-
-            // Видаляємо перетягнутий елемент з DOM та масиву
-            if (dom && dom.parentNode) {
-                dom.parentNode.removeChild(dom);
-            }
-            activeMergeItems.splice(draggedIdx, 1);
-
-            // Оновлюємо цільовий елемент до нового рівня
-            targetItem.level = newLevel;
-            const newTier = getMergeTierInfo(newLevel);
-            const targetDom = document.getElementById(`alm-mg-${targetItem.id}`);
-            if (targetDom) {
-                targetDom.className = `alm-merge-item lvl-${newLevel} merged-pop`;
-                targetDom.innerHTML = `<span class="alm-merge-emoji">${newTier.icon}</span><span class="alm-merge-badge">${newLevel}</span>`;
-                setTimeout(() => {
-                    targetDom.classList.remove('merged-pop');
-                }, 320);
-            }
-
-            // Нараховуємо вітаміни: 1 рів. = +2, 2 рів. = +4, 3 рів. = +8, далі вдвічі більше (2^L * множник)
-            const s = initAuraLarpMonsterState();
-            const baseVitamins = Math.pow(2, mergedFromLevel);
-            const gainedVitamins = baseVitamins * getVitaminMultiplier();
-            s.vitamins += gainedVitamins;
-            s.totalVitamins += gainedVitamins;
-
-            showFloatingZonePopup(
-                fieldEl,
-                targetX,
-                targetY - 14,
-                `+${formatVitaminValue(gainedVitamins)} 💊 (${newTier.name})`,
-                'alm-vitamin-pop'
-            );
-
-            updateMergeDynamicHud();
-            syncLarpLeaderboard(false);
-        }
-    }
-
-    function bindMergeFieldEvents() {
-        const fieldEl = document.getElementById('alm-merge-field');
-        if (!fieldEl || fieldEl._mergeBound) return;
-        fieldEl._mergeBound = true;
-
-        fieldEl.addEventListener('touchstart', (e) => {
-            if (e.cancelable) e.preventDefault();
-            if (e.touches.length > 0) {
-                grabMergeItemAtPoint(e.touches[0].clientX, e.touches[0].clientY);
-            }
-        }, { passive: false });
-
-        fieldEl.addEventListener('touchmove', (e) => {
-            if (e.cancelable) e.preventDefault();
-            if (e.touches.length > 0) {
-                moveDraggedMergeItemToPoint(e.touches[0].clientX, e.touches[0].clientY);
-            }
-        }, { passive: false });
-
-        fieldEl.addEventListener('touchend', () => {
-            releaseDraggedMergeItem();
-        });
-
-        fieldEl.addEventListener('touchcancel', () => {
-            releaseDraggedMergeItem();
-        });
-
-        fieldEl.addEventListener('mousedown', (e) => {
-            grabMergeItemAtPoint(e.clientX, e.clientY);
-        });
-
-        window.addEventListener('mousemove', (e) => {
-            if (draggingMergeId !== null) {
-                moveDraggedMergeItemToPoint(e.clientX, e.clientY);
-            }
-        });
-
-        window.addEventListener('mouseup', () => {
-            releaseDraggedMergeItem();
-        });
-    }
-
-    function updateMergeDynamicHud() {
         const s = initAuraLarpMonsterState();
+        const gainedVitamins = getVitaminRewardForMerge(newLevel);
+        s.vitamins = Number((s.vitamins + gainedVitamins).toFixed(4));
+        s.totalVitamins = Number((s.totalVitamins + gainedVitamins).toFixed(4));
 
-        const balEl = document.getElementById('alm-vitamin-balance');
-        const totalEl = document.getElementById('alm-vitamin-total');
-        const countEl = document.getElementById('alm-merge-active-count');
-
-        if (balEl) balEl.textContent = formatVitaminValue(s.vitamins);
-        if (totalEl) totalEl.textContent = formatVitaminValue(s.totalVitamins);
-        if (countEl) countEl.textContent = `${activeMergeItems.length} / ${MAX_MERGE_ITEMS}`;
-
-        const btn1 = document.getElementById('alm-merge-upg-1');
-        if (btn1) btn1.disabled = s.vitamins < getVitaminMultUpgradeCost();
-
-        const btn2 = document.getElementById('alm-merge-upg-2');
-        if (btn2) {
-            const isMax = (s.mergeLv2ChanceLvl || 0) >= MERGE_LV2_MAX_LVL;
-            btn2.disabled = isMax || s.vitamins < getMergeLv2UpgradeCost();
+        if (zoneEl) {
+            const oldDragNode = zoneEl.querySelector(`.alm-merge-item[data-merge-id="${dragged.id}"]`);
+            if (oldDragNode) oldDragNode.remove();
+            const oldTargetNode = zoneEl.querySelector(`.alm-merge-item[data-merge-id="${bestTarget.id}"]`);
+            if (oldTargetNode) oldTargetNode.remove();
         }
 
-        const btn3 = document.getElementById('alm-merge-upg-3');
-        if (btn3) btn3.disabled = s.vitamins < getMergeLarpUpgradeCost();
+        const mergedItem = {
+            id: nextMergeId++,
+            xPct: targetX,
+            yPct: targetY,
+            level: newLevel
+        };
+        activeMergeItems.push(mergedItem);
+
+        if (zoneEl) {
+            const newNode = createMergeElement(mergedItem);
+            newNode.classList.add('merge-pop-in');
+            zoneEl.appendChild(newNode);
+
+            const pop = document.createElement('div');
+            pop.className = 'alm-merge-pop';
+            pop.style.left = `${targetX}%`;
+            pop.style.top = `${targetY}%`;
+            const tier = getMergeTierInfo(newLevel);
+            pop.textContent = `${tier.icon} +${formatVitaminValue(gainedVitamins)} 💊`;
+            zoneEl.appendChild(pop);
+            setTimeout(() => {
+                if (pop.parentNode) pop.parentNode.removeChild(pop);
+            }, 800);
+        }
+
+        updateMergeCounterText();
+        updateRoomUpgradeButtons();
+        persistAuraLarpState(false);
+    }
+
+    function sellHighestOrRandomMergeItem() {
+        if (activeMergeItems.length === 0) return;
+        let idxToRemove = 0;
+        for (let i = 1; i < activeMergeItems.length; i++) {
+            if (activeMergeItems[i].level < activeMergeItems[idxToRemove].level) {
+                idxToRemove = i;
+            }
+        }
+        const removed = activeMergeItems.splice(idxToRemove, 1)[0];
+        const s = initAuraLarpMonsterState();
+        const bonus = Math.max(1, Math.round(removed.level * getVitaminMultiplier()));
+        s.vitamins = Number((s.vitamins + bonus).toFixed(4));
+        s.totalVitamins = Number((s.totalVitamins + bonus).toFixed(4));
+
+        const zoneEl = document.getElementById('alm-merge-zone');
+        if (zoneEl && removed) {
+            const node = zoneEl.querySelector(`.alm-merge-item[data-merge-id="${removed.id}"]`);
+            if (node) node.remove();
+        }
+        updateMergeCounterText();
+        updateRoomUpgradeButtons();
+        persistAuraLarpState(false);
+    }
+
+    function updateMergeCounterText() {
+        const s = initAuraLarpMonsterState();
+        const countEl = document.getElementById('alm-merge-count-badge');
+        if (countEl) {
+            countEl.textContent = `${activeMergeItems.length} / ${MAX_MERGE_ITEMS}`;
+        }
+        const vitBalEl = document.getElementById('alm-vitamin-balance');
+        if (vitBalEl) {
+            vitBalEl.textContent = formatVitaminValue(s.vitamins);
+        }
+        const vitTotalEl = document.getElementById('alm-vitamin-total');
+        if (vitTotalEl) {
+            vitTotalEl.textContent = formatVitaminValue(s.totalVitamins);
+        }
     }
 
     // ------------------------------------------
-    // ОНОВЛЕННЯ ЛОГІКИ (ЛАРПИ, РУХ ПО СХОДАХ, ЗОНИ, БУРЯ, МОБ)
+    // ЦИКЛ ОНОВЛЕННЯ ЛОГІКИ ТА АНІМАЦІЇ
     // ------------------------------------------
-    function updateAuraLarpMonsterLogic(dt) {
+    function tickAuraLarpLogic(dt) {
         const s = initAuraLarpMonsterState();
-        if (typeof dt !== 'number' || isNaN(dt) || dt <= 0) return;
-        if (dt > 60) dt = 60;
+        const now = getCurrentNowMs();
 
-        // 1. Автоматичний фарм Ларпів
-        const income = getLarpPerSecond() * dt;
-        s.larp += income;
-        s.totalLarp += income;
+        // Перевірка закінчення сніжної бурі
+        if (s.stormActiveEndMs && now >= s.stormActiveEndMs) {
+            s.stormActiveEndMs = null;
+        }
+        if (s.stormCooldownEndMs && now >= s.stormCooldownEndMs) {
+            s.stormCooldownEndMs = null;
+        }
 
-        // 2. Пересування персонажа між сходинками
-        let stepArrived = false;
-        let stepChanged = false;
-        const moveSpeed = getCharacterMoveSpeed();
+        // Перевірка відродження Бойової Квочки Рябої (50 сходинка)
+        if (s.chickenRespawnEndMs && now >= s.chickenRespawnEndMs) {
+            s.chickenRespawnEndMs = null;
+            s.chickenHp = CHICKEN_MAX_HP;
+            if (isAuraLarpModeActive && activeLarpSubTab === 'room' && activeRoomStep === 50) {
+                renderAuraLarpMonsterUI(false);
+            }
+        }
+
+        // 1. Пасивний заробіток Ларпів (поточна сходинка * множники кімнат)
+        const rate = getLarpPerSecond();
+        if (rate > 0) {
+            const earned = rate * dt;
+            s.larp += earned;
+            s.totalLarp += earned;
+        }
+
+        // 2. Пересування персонажа по сходинках (з урахуванням прискорення з 40 сходинки)
         if (s.currentStep !== s.targetStep) {
+            const dir = s.targetStep > s.currentStep ? 1 : -1;
+            const moveSpeed = getCharacterMoveSpeed();
             s.moveProgressSec += dt * moveSpeed;
+
             while (s.moveProgressSec >= 1.0 && s.currentStep !== s.targetStep) {
                 s.moveProgressSec -= 1.0;
-                s.currentStep += (s.targetStep > s.currentStep ? 1 : -1);
+                s.currentStep += dir;
                 s.highestStep = Math.max(s.highestStep || 1, s.currentStep);
-                stepChanged = true;
             }
+
             if (s.currentStep === s.targetStep) {
                 s.moveProgressSec = 0;
-                stepArrived = true;
-                syncLarpLeaderboard(false);
+                persistAuraLarpState(false);
+                if (isAuraLarpModeActive && activeLarpSubTab === 'room') {
+                    renderAuraLarpMonsterUI(false);
+                }
             }
-        } else {
-            s.moveProgressSec = 0;
         }
 
-        const nowMs = getCurrentNowMs();
-
-        // 3. Перевірка завершення сніжної бурі та перезарядки (80 сходинка)
-        let stormStateChanged = false;
-        if (s.stormActiveEndMs && nowMs >= s.stormActiveEndMs) {
-            s.stormActiveEndMs = null;
-            stormStateChanged = true;
-        }
-        if (s.stormCooldownEndMs && nowMs >= s.stormCooldownEndMs) {
-            s.stormCooldownEndMs = null;
-            stormStateChanged = true;
-        }
-
-        // 4. Спавн сніжинок у зоні 20-ї сходинки (враховуючи сніжну бурю)
-        if (s.maxUnlockedStep >= 20 && s.currentStep === 20 && s.targetStep === 20) {
+        // 3. Спавн сніжинок (якщо відкрита 20 сходинка + прискорення під час Сніжної бурі)
+        if (s.maxUnlockedStep >= 20) {
+            const interval = getEffectiveSnowSpawnInterval();
             if (activeSnowflakes.length < MAX_SNOWFLAKES) {
-                const interval = getEffectiveSnowSpawnInterval();
                 snowSpawnAccumSec += dt;
                 while (snowSpawnAccumSec >= interval && activeSnowflakes.length < MAX_SNOWFLAKES) {
                     snowSpawnAccumSec -= interval;
@@ -2818,13 +2759,13 @@
             }
         }
 
-        // 5. Спавн сміття у зоні 30-ї сходинки
-        if (s.maxUnlockedStep >= 30 && s.currentStep === 30 && s.targetStep === 30) {
+        // 4. Спавн сміття (якщо відкрита 30 сходинка)
+        if (s.maxUnlockedStep >= 30) {
+            const trashInterval = getTrashSpawnInterval();
             if (activeTrashItems.length < MAX_TRASH_ITEMS) {
-                const interval = getTrashSpawnInterval();
                 trashSpawnAccumSec += dt;
-                while (trashSpawnAccumSec >= interval && activeTrashItems.length < MAX_TRASH_ITEMS) {
-                    trashSpawnAccumSec -= interval;
+                while (trashSpawnAccumSec >= trashInterval && activeTrashItems.length < MAX_TRASH_ITEMS) {
+                    trashSpawnAccumSec -= trashInterval;
                     spawnSingleTrashItem();
                 }
             } else {
@@ -2832,16 +2773,8 @@
             }
         }
 
-        // 6. Перевірка респавну моба Курочка на 50-й сходинці
-        let chickenRespawned = false;
-        if (s.chickenRespawnEndMs && nowMs >= s.chickenRespawnEndMs) {
-            s.chickenRespawnEndMs = null;
-            s.chickenHp = CHICKEN_MAX_HP;
-            chickenRespawned = true;
-        }
-
-        // 7. Спавн овочів/фруктів у кімнаті 70-ї сходинки кожні 3 сек (макс. 20)
-        if (s.maxUnlockedStep >= 70 && s.currentStep === 70 && s.targetStep === 70) {
+        // 5. Спавн овочів та фруктів для об'єднання (якщо відкрита 70 сходинка)
+        if (s.maxUnlockedStep >= 70) {
             if (activeMergeItems.length < MAX_MERGE_ITEMS) {
                 mergeSpawnAccumSec += dt;
                 while (mergeSpawnAccumSec >= MERGE_SPAWN_SEC && activeMergeItems.length < MAX_MERGE_ITEMS) {
@@ -2852,1810 +2785,1840 @@
                 mergeSpawnAccumSec = 0;
             }
         }
-
-        if (isGlobalTimeVerified) {
-            s.lastGlobalTime = Date.now() + globalTimeOffsetMs;
-        }
-
-        if (isAuraLarpModeActive) {
-            if (chickenRespawned && activeLarpSubTab === 'room' && activeRoomStep === 50) {
-                renderAuraLarpMonsterUI(false);
-                return;
-            }
-            if (stormStateChanged && activeLarpSubTab === 'room' && activeRoomStep === 80) {
-                renderAuraLarpMonsterUI(false);
-                return;
-            }
-            updateAllDynamicElements(stepChanged, stepArrived);
-        }
-    }
-
-    // ------------------------------------------
-    // ВІЗУАЛЬНА АНІМАЦІЯ ПЕРСОНАЖА (60 FPS)
-    // ------------------------------------------
-    function updateCharacterPinPosition() {
-        const pin = document.getElementById('alm-character-pin');
-        if (!pin) return;
-
-        const visStep = getVisualStepPosition();
-        const rowIndexFromTop = MAX_STEP - visStep;
-        const centerY = rowIndexFromTop * ROW_HEIGHT + (ROW_HEIGHT / 2);
-        const barLeft = STEP_BASE_LEFT + (visStep - 1) * STEP_INDENT_PER_LEVEL;
-        const centerX = barLeft + (STEP_BAR_WIDTH / 2);
-
-        pin.style.transform = `translate3d(${centerX.toFixed(2)}px, ${centerY.toFixed(2)}px, 0) translate(-50%, -50%)`;
     }
 
     function startVisualAnimationLoop() {
         if (rafId) cancelAnimationFrame(rafId);
+
         function loop() {
             if (!isAuraLarpModeActive) {
                 rafId = null;
                 return;
             }
-            if (activeLarpSubTab === 'stairs') {
-                updateCharacterPinPosition();
-            }
+            updateAllDynamicElements(false, false);
             rafId = requestAnimationFrame(loop);
         }
+
         rafId = requestAnimationFrame(loop);
     }
 
-    function updateRoom80DynamicHud() {
+    // ------------------------------------------
+    // ОНОВЛЕННЯ DOM-ЕЛЕМЕНТІВ В РЕАЛЬНОМУ ЧАСІ
+    // ------------------------------------------
+    function updateRoomUpgradeButtons() {
         const s = initAuraLarpMonsterState();
-        const now = getCurrentNowMs();
 
-        const statusEl = document.getElementById('alm-storm-status-text');
-        const timerEl = document.getElementById('alm-storm-timer-text');
-        const actBtn = document.getElementById('alm-storm-activate-btn');
+        // Кімната 10
+        const roomBuyBtn = document.getElementById('alm-room-buy-btn');
+        if (roomBuyBtn) {
+            const canBuy = s.maxUnlockedStep >= 10 && s.currentStep === 10 && s.targetStep === 10 && s.larp >= getRoomUpgradeCost();
+            roomBuyBtn.disabled = !canBuy;
+        }
 
-        const stormActive = Boolean(s.stormActiveEndMs && now < s.stormActiveEndMs);
-        const stormOnCd = Boolean(s.stormCooldownEndMs && now < s.stormCooldownEndMs);
+        // Кімната 20 (Сніжинки)
+        const snowMultBtn = document.getElementById('alm-snow-mult-btn');
+        if (snowMultBtn) {
+            const canBuy = s.maxUnlockedStep >= 20 && s.currentStep === 20 && s.targetStep === 20 && s.snow >= getSnowMultUpgradeCost();
+            snowMultBtn.disabled = !canBuy;
+        }
+        const snowSpeedBtn = document.getElementById('alm-snow-speed-btn');
+        if (snowSpeedBtn) {
+            const isMax = (s.snowSpeedLvl || 0) >= SNOW_SPEED_MAX_LVL;
+            const canBuy = !isMax && s.maxUnlockedStep >= 20 && s.currentStep === 20 && s.targetStep === 20 && s.snow >= getSnowSpeedUpgradeCost();
+            snowSpeedBtn.disabled = !canBuy;
+        }
+        const snowLarpBtn = document.getElementById('alm-snow-larp-btn');
+        if (snowLarpBtn) {
+            const canBuy = s.maxUnlockedStep >= 20 && s.currentStep === 20 && s.targetStep === 20 && s.snow >= getSnowLarpUpgradeCost();
+            snowLarpBtn.disabled = !canBuy;
+        }
 
-        if (statusEl) {
-            if (stormActive) {
-                statusEl.textContent = `🌨️ Сніжна буря вирує! Сніжинки спавняться кожні ${getStormSnowSpawnInterval()}с`;
-                statusEl.style.color = '#7dd3fc';
-            } else if (stormOnCd) {
-                statusEl.textContent = '⏳ Перезарядка виклику сніжної бурі';
-                statusEl.style.color = '#94a3b8';
-            } else {
-                statusEl.textContent = `✅ Готова до виклику (${getStormDurationMinutes()} хв, спавн ${getStormSnowSpawnInterval()}с)`;
-                statusEl.style.color = '#2ecc71';
+        // Кімната 30 (Сміття)
+        const trashMultBtn = document.getElementById('alm-trash-mult-btn');
+        if (trashMultBtn) {
+            const canBuy = s.maxUnlockedStep >= 30 && s.currentStep === 30 && s.targetStep === 30 && s.trash >= getTrashMultUpgradeCost();
+            trashMultBtn.disabled = !canBuy;
+        }
+        const trashSpeedBtn = document.getElementById('alm-trash-speed-btn');
+        if (trashSpeedBtn) {
+            const isMax = (s.trashSpeedLvl || 0) >= TRASH_SPEED_MAX_LVL;
+            const canBuy = !isMax && s.maxUnlockedStep >= 30 && s.currentStep === 30 && s.targetStep === 30 && s.trash >= getTrashSpeedUpgradeCost();
+            trashSpeedBtn.disabled = !canBuy;
+        }
+        const trashLarpBtn = document.getElementById('alm-trash-larp-btn');
+        if (trashLarpBtn) {
+            const canBuy = s.maxUnlockedStep >= 30 && s.currentStep === 30 && s.targetStep === 30 && s.trash >= getTrashLarpUpgradeCost();
+            trashLarpBtn.disabled = !canBuy;
+        }
+
+        // Кімната 40 (Швидкість та Офлайн)
+        const stepSpeedBtn = document.getElementById('alm-step-speed-btn');
+        if (stepSpeedBtn) {
+            const canBuy = s.maxUnlockedStep >= 40 && s.currentStep === 40 && s.targetStep === 40 && s.larp >= getSpeedUpgradeCost();
+            stepSpeedBtn.disabled = !canBuy;
+        }
+        const offlineLarpBtn = document.getElementById('alm-offline-larp-btn');
+        if (offlineLarpBtn) {
+            const canBuy = s.maxUnlockedStep >= 40 && s.currentStep === 40 && s.targetStep === 40 && s.larp >= getOfflineUpgradeCost();
+            offlineLarpBtn.disabled = !canBuy;
+        }
+
+        // Кімната 50 (Пір'я)
+        const featherMultBtn = document.getElementById('alm-feather-mult-btn');
+        if (featherMultBtn) {
+            const canBuy = s.maxUnlockedStep >= 50 && s.currentStep === 50 && s.targetStep === 50 && s.feathers >= getFeatherMultUpgradeCost();
+            featherMultBtn.disabled = !canBuy;
+        }
+        const featherLarpBtn = document.getElementById('alm-feather-larp-btn');
+        if (featherLarpBtn) {
+            const canBuy = s.maxUnlockedStep >= 50 && s.currentStep === 50 && s.targetStep === 50 && s.feathers >= getFeatherLarpUpgradeCost();
+            featherLarpBtn.disabled = !canBuy;
+        }
+
+        // Кімната 60 (Шанси золотих та смарагдових сніжинок / сміття)
+        const goldSnowBtn = document.getElementById('alm-gold-snow-btn');
+        if (goldSnowBtn) {
+            const isMax = (s.goldSnowLvl || 0) >= GOLD_SNOW_MAX_LVL;
+            const canBuy = !isMax && s.maxUnlockedStep >= 60 && s.currentStep === 60 && s.targetStep === 60 && s.larp >= getGoldSnowUpgradeCost();
+            goldSnowBtn.disabled = !canBuy;
+        }
+        const emeraldSnowBtn = document.getElementById('alm-emerald-snow-btn');
+        if (emeraldSnowBtn) {
+            const isMax = (s.emeraldSnowLvl || 0) >= EMERALD_SNOW_MAX_LVL;
+            const canBuy = !isMax && s.maxUnlockedStep >= 60 && s.currentStep === 60 && s.targetStep === 60 && s.larp >= getEmeraldSnowUpgradeCost();
+            emeraldSnowBtn.disabled = !canBuy;
+        }
+        const goldTrashBtn = document.getElementById('alm-gold-trash-btn');
+        if (goldTrashBtn) {
+            const isMax = (s.goldTrashLvl || 0) >= GOLD_TRASH_MAX_LVL;
+            const canBuy = !isMax && s.maxUnlockedStep >= 60 && s.currentStep === 60 && s.targetStep === 60 && s.larp >= getGoldTrashUpgradeCost();
+            goldTrashBtn.disabled = !canBuy;
+        }
+        const emeraldTrashBtn = document.getElementById('alm-emerald-trash-btn');
+        if (emeraldTrashBtn) {
+            const isMax = (s.emeraldTrashLvl || 0) >= EMERALD_TRASH_MAX_LVL;
+            const canBuy = !isMax && s.maxUnlockedStep >= 60 && s.currentStep === 60 && s.targetStep === 60 && s.larp >= getEmeraldTrashUpgradeCost();
+            emeraldTrashBtn.disabled = !canBuy;
+        }
+
+        // Кімната 70 (Вітаміни та Овочі)
+        const vitMultBtn = document.getElementById('alm-vit-mult-btn');
+        if (vitMultBtn) {
+            const canBuy = s.maxUnlockedStep >= 70 && s.currentStep === 70 && s.targetStep === 70 && s.vitamins >= getVitaminMultUpgradeCost();
+            vitMultBtn.disabled = !canBuy;
+        }
+        const mergeLv2Btn = document.getElementById('alm-merge-lv2-btn');
+        if (mergeLv2Btn) {
+            const isMax = (s.mergeLv2ChanceLvl || 0) >= MERGE_LV2_MAX_LVL;
+            const canBuy = !isMax && s.maxUnlockedStep >= 70 && s.currentStep === 70 && s.targetStep === 70 && s.vitamins >= getMergeLv2UpgradeCost();
+            mergeLv2Btn.disabled = !canBuy;
+        }
+        const mergeLarpBtn = document.getElementById('alm-merge-larp-btn');
+        if (mergeLarpBtn) {
+            const canBuy = s.maxUnlockedStep >= 70 && s.currentStep === 70 && s.targetStep === 70 && s.vitamins >= getMergeLarpUpgradeCost();
+            mergeLarpBtn.disabled = !canBuy;
+        }
+
+        // Кімната 80 (Сніжна буря + Прокачки мобів)
+        const stormDurBtn = document.getElementById('alm-storm-dur-btn');
+        if (stormDurBtn) {
+            const canBuy = s.maxUnlockedStep >= 80 && s.currentStep === 80 && s.targetStep === 80 && s.larp >= getStormDurationUpgradeCost();
+            stormDurBtn.disabled = !canBuy;
+        }
+        const stormCdBtn = document.getElementById('alm-storm-cd-btn');
+        if (stormCdBtn) {
+            const isMax = (s.stormCooldownLvl || 0) >= STORM_COOLDOWN_MAX_LVL;
+            const canBuy = !isMax && s.maxUnlockedStep >= 80 && s.currentStep === 80 && s.targetStep === 80 && s.larp >= getStormCooldownUpgradeCost();
+            stormCdBtn.disabled = !canBuy;
+        }
+        const stormSpdBtn = document.getElementById('alm-storm-spd-btn');
+        if (stormSpdBtn) {
+            const isMax = (s.stormSpeedLvl || 0) >= STORM_SPAWN_MAX_LVL;
+            const canBuy = !isMax && s.maxUnlockedStep >= 80 && s.currentStep === 80 && s.targetStep === 80 && s.larp >= getStormSpeedUpgradeCost();
+            stormSpdBtn.disabled = !canBuy;
+        }
+
+        // Кімната 90 (Прокачки мобів)
+        const mobDmgBtn = document.getElementById('alm-mob-dmg-btn');
+        if (mobDmgBtn) {
+            const isMax = (s.mobDamageLvl || 0) >= MOB_DMG_MAX_LVL;
+            const canBuy = !isMax && s.maxUnlockedStep >= 90 && s.currentStep === 90 && s.targetStep === 90 && s.larp >= getMobDamageUpgradeCost();
+            mobDmgBtn.disabled = !canBuy;
+        }
+        const mobRespawnBtn = document.getElementById('alm-mob-respawn-btn');
+        if (mobRespawnBtn) {
+            const isMax = (s.mobRespawnLvl || 0) >= MOB_SPAWN_MAX_LVL;
+            const canBuy = !isMax && s.maxUnlockedStep >= 90 && s.currentStep === 90 && s.targetStep === 90 && s.larp >= getMobRespawnUpgradeCost();
+            mobRespawnBtn.disabled = !canBuy;
+        }
+    }
+
+    function updateAllDynamicElements(forceStateSync, autoScrollToPlayer) {
+        if (!isAuraLarpModeActive) return;
+        const s = initAuraLarpMonsterState();
+
+        const larpValEl = document.getElementById('alm-larp-balance');
+        const larpWordEl = document.getElementById('alm-larp-word');
+        const larpRateEl = document.getElementById('alm-larp-rate');
+        const stepBadgeEl = document.getElementById('alm-step-badge');
+        const stairMultEl = document.getElementById('alm-stair-mult-val');
+        const roomMultEl = document.getElementById('alm-room-mult-val');
+        const totalMultEl = document.getElementById('alm-total-mult-val');
+
+        if (larpValEl) larpValEl.textContent = formatLarpValue(s.larp);
+        if (larpWordEl) larpWordEl.textContent = pluralizeLarp(s.larp);
+        if (larpRateEl) larpRateEl.textContent = `+${formatMultValue(getLarpPerSecond())}/сек`;
+        if (stepBadgeEl) stepBadgeEl.textContent = `${s.currentStep} / ${MAX_STEP}`;
+        if (stairMultEl) stairMultEl.textContent = `x${formatMultValue(getStairMultiplier())}`;
+        if (roomMultEl) roomMultEl.textContent = `x${formatMultValue(getRoomLarpMultiplier())}`;
+        if (totalMultEl) totalMultEl.textContent = `x${formatMultValue(getTotalLarpMultiplier())}`;
+
+        const unlockBtn = document.getElementById('alm-unlock-btn');
+        if (unlockBtn) {
+            const nextStep = s.maxUnlockedStep + 1;
+            if (nextStep <= MAX_STEP) {
+                const nextObj = STAIRS_CONFIG.find(item => item.step === nextStep);
+                unlockBtn.disabled = s.larp < nextObj.cost;
             }
         }
 
-        if (timerEl) {
-            if (stormActive) {
-                const remSec = Math.max(0, (s.stormActiveEndMs - now) / 1000);
-                timerEl.textContent = `Активна: ${formatTimerMmSs(remSec)}`;
-            } else if (stormOnCd) {
-                const cdSec = Math.max(0, (s.stormCooldownEndMs - now) / 1000);
-                timerEl.textContent = `Доступно через: ${formatTimerMmSs(cdSec)}`;
-            } else {
-                timerEl.textContent = `Кулдаун після виклику: ${getStormCooldownHours()} год`;
+        updateRoomUpgradeButtons();
+        updateSnowCounterText();
+        updateTrashCounterText();
+        updateChickenDynamicHud();
+        updateMergeCounterText();
+        updateStormDynamicHud();
+
+        const charEl = document.getElementById('alm-character');
+        const trackEl = document.getElementById('alm-stairs-track');
+        if (charEl && trackEl) {
+            const visStep = getVisualStepPosition();
+            const isMoving = s.currentStep !== s.targetStep;
+
+            const leftPct = STEP_BASE_LEFT + (visStep - 1) * STEP_INDENT_PER_LEVEL + STEP_BAR_WIDTH * 0.5;
+            const bottomPx = (visStep - 1) * ROW_HEIGHT + 30;
+
+            charEl.style.left = `${leftPct}%`;
+            charEl.style.bottom = `${bottomPx}px`;
+            charEl.classList.toggle('is-moving', isMoving);
+
+            const statusBubble = document.getElementById('alm-char-status');
+            if (statusBubble) {
+                statusBubble.textContent = isMoving ? `🏃 На ${s.targetStep}` : `⚡ ${s.currentStep}`;
+            }
+
+            if (autoScrollToPlayer) {
+                const viewport = document.getElementById('alm-stairs-viewport');
+                if (viewport) {
+                    const totalHeight = MAX_STEP * ROW_HEIGHT + 70;
+                    const charTop = totalHeight - bottomPx;
+                    viewport.scrollTop = Math.max(0, charTop - viewport.clientHeight * 0.6);
+                }
             }
         }
 
-        if (actBtn) {
-            actBtn.disabled = stormOnCd;
-            actBtn.textContent = stormActive
-                ? '🌨️ Буря триває!'
-                : (stormOnCd ? '⏳ На перезарядці' : '🌨️ Викликати сніжну бурю');
-        }
+        if (forceStateSync) {
+            const rows = document.querySelectorAll('.alm-stair-row');
+            rows.forEach(row => {
+                const stepNum = Number(row.dataset.step);
+                const isUnlocked = stepNum <= s.maxUnlockedStep;
+                const isNext = stepNum === s.maxUnlockedStep + 1;
+                const isCurrent = stepNum === s.currentStep && s.currentStep === s.targetStep;
+                const isTarget = stepNum === s.targetStep && s.currentStep !== s.targetStep;
 
-        const u1 = document.getElementById('alm-r80-upg-1');
-        if (u1) u1.disabled = s.larp < getStormDurationUpgradeCost();
+                row.classList.toggle('unlocked', isUnlocked);
+                row.classList.toggle('next-unlock', isNext);
+                row.classList.toggle('locked', !isUnlocked && !isNext);
+                row.classList.toggle('current-step', isCurrent);
+                row.classList.toggle('target-step', isTarget);
 
-        const u2 = document.getElementById('alm-r80-upg-2');
-        if (u2) u2.disabled = (s.stormCooldownLvl || 0) >= STORM_COOLDOWN_MAX_LVL || s.larp < getStormCooldownUpgradeCost();
-
-        const u3 = document.getElementById('alm-r80-upg-3');
-        if (u3) u3.disabled = (s.stormSpeedLvl || 0) >= STORM_SPAWN_MAX_LVL || s.larp < getStormSpeedUpgradeCost();
-    }
-
-    function updateRoom90DynamicHud() {
-        const s = initAuraLarpMonsterState();
-
-        const u1 = document.getElementById('alm-r90-upg-1');
-        if (u1) u1.disabled = (s.mobDamageLvl || 0) >= MOB_DMG_MAX_LVL || s.larp < getMobDamageUpgradeCost();
-
-        const u2 = document.getElementById('alm-r90-upg-2');
-        if (u2) u2.disabled = (s.mobRespawnLvl || 0) >= MOB_SPAWN_MAX_LVL || s.larp < getMobRespawnUpgradeCost();
-    }
-
-    function updateAllDynamicElements(stepChanged, stepArrived) {
-        const s = initAuraLarpMonsterState();
-        const isMoving = s.currentStep !== s.targetStep;
-        const visStep = getVisualStepPosition();
-        const moveSpeed = getCharacterMoveSpeed();
-
-        const balEl = document.getElementById('alm-top-balance');
-        const rateEl = document.getElementById('alm-top-rate');
-        const posEl = document.getElementById('alm-top-pos');
-
-        if (balEl) balEl.textContent = formatLarpValue(s.larp);
-        if (rateEl) rateEl.textContent = formatMultValue(getLarpPerSecond());
-        if (posEl) {
-            posEl.textContent = isMoving
-                ? `${visStep.toFixed(1)} → ${s.targetStep}`
-                : `${s.currentStep}`;
-        }
-
-        const roomTabDot = document.getElementById('alm-room-tab-dot');
-        if (roomTabDot) {
-            roomTabDot.style.display = s.maxUnlockedStep >= 10 ? 'inline-block' : 'none';
-        }
-
-        if (activeLarpSubTab === 'stairs') {
-            updateCharacterPinPosition();
-
-            if (stepChanged) {
-                for (let step = 1; step <= MAX_STEP; step++) {
-                    const rowEl = document.getElementById(`alm-stair-row-${step}`);
-                    if (!rowEl) continue;
-                    if (step === s.currentStep && !isMoving) {
-                        rowEl.classList.add('alm-row-current');
+                const actionLabel = row.querySelector('.alm-step-action');
+                if (actionLabel) {
+                    if (isCurrent) {
+                        actionLabel.textContent = 'ВИ ТУТ';
+                    } else if (isTarget) {
+                        actionLabel.textContent = 'ЙДЕМО...';
+                    } else if (isUnlocked) {
+                        actionLabel.textContent = 'ПЕРЕЙТИ';
+                    } else if (isNext) {
+                        const st = STAIRS_CONFIG.find(i => i.step === stepNum);
+                        actionLabel.textContent = `ВІДКРИТИ (${formatLarpValue(st.cost)})`;
                     } else {
-                        rowEl.classList.remove('alm-row-current');
+                        actionLabel.textContent = '🔒';
                     }
                 }
-            }
-
-            const nextStep = s.maxUnlockedStep + 1;
-            const nextObj = STAIRS_CONFIG.find(item => item.step === nextStep);
-            const inlineBuyBtn = document.getElementById('alm-inline-buy-btn');
-            const bottomBuyBtn = document.getElementById('alm-bottom-buy-btn');
-
-            if (nextObj) {
-                const canAfford = s.larp >= nextObj.cost;
-                if (inlineBuyBtn) inlineBuyBtn.disabled = !canAfford;
-                if (bottomBuyBtn) bottomBuyBtn.disabled = !canAfford;
-            }
-        } else if (activeLarpSubTab === 'room') {
-            if (stepArrived) {
-                renderAuraLarpMonsterUI(false);
-                return;
-            }
-
-            if (isMoving && s.targetStep === activeRoomStep) {
-                const posTextEl = document.getElementById('alm-room-walk-pos');
-                const timeTextEl = document.getElementById('alm-room-walk-sec');
-                const barFillEl = document.getElementById('alm-room-walk-fill');
-
-                const distSteps = Math.abs(activeRoomStep - visStep);
-                const timeLeftSec = distSteps / moveSpeed;
-                const totalDist = Math.max(1, activeRoomStep - 1);
-                const pct = Math.min(100, Math.max(0, (1 - distSteps / totalDist) * 100));
-
-                if (posTextEl) posTextEl.textContent = visStep.toFixed(1);
-                if (timeTextEl) timeTextEl.textContent = `${timeLeftSec.toFixed(1)} сек`;
-                if (barFillEl) barFillEl.style.width = `${pct.toFixed(1)}%`;
-            } else if (activeRoomStep === 10) {
-                const roomCardBtn = document.getElementById('alm-room-upgrade-card');
-                if (roomCardBtn) {
-                    roomCardBtn.disabled = s.larp < getRoomUpgradeCost();
-                }
-            } else if (activeRoomStep === 20) {
-                updateSnowDynamicHud();
-            } else if (activeRoomStep === 30) {
-                updateTrashDynamicHud();
-            } else if (activeRoomStep === 40) {
-                const spdBtn = document.getElementById('alm-r40-speed-btn');
-                if (spdBtn) spdBtn.disabled = s.larp < getSpeedUpgradeCost();
-                const offBtn = document.getElementById('alm-r40-offline-btn');
-                if (offBtn) offBtn.disabled = s.larp < getOfflineUpgradeCost();
-            } else if (activeRoomStep === 50) {
-                updateChickenDynamicHud();
-            } else if (activeRoomStep === 60) {
-                const b1 = document.getElementById('alm-r60-btn-1');
-                if (b1) b1.disabled = (s.goldSnowLvl || 0) >= GOLD_SNOW_MAX_LVL || s.larp < getGoldSnowUpgradeCost();
-                const b2 = document.getElementById('alm-r60-btn-2');
-                if (b2) b2.disabled = (s.emeraldSnowLvl || 0) >= EMERALD_SNOW_MAX_LVL || s.larp < getEmeraldSnowUpgradeCost();
-                const b3 = document.getElementById('alm-r60-btn-3');
-                if (b3) b3.disabled = (s.goldTrashLvl || 0) >= GOLD_TRASH_MAX_LVL || s.larp < getGoldTrashUpgradeCost();
-                const b4 = document.getElementById('alm-r60-btn-4');
-                if (b4) b4.disabled = (s.emeraldTrashLvl || 0) >= EMERALD_TRASH_MAX_LVL || s.larp < getEmeraldTrashUpgradeCost();
-            } else if (activeRoomStep === 70) {
-                updateMergeDynamicHud();
-            } else if (activeRoomStep === 80) {
-                updateRoom80DynamicHud();
-            } else if (activeRoomStep === 90) {
-                updateRoom90DynamicHud();
-            }
-        } else if (activeLarpSubTab === 'multipliers') {
-            const totalRateEl = document.getElementById('alm-mult-total-rate');
-            if (totalRateEl) {
-                totalRateEl.textContent = `${formatMultValue(getLarpPerSecond())} ларп/сек`;
-            }
+            });
         }
     }
 
     // ------------------------------------------
-    // СТИЛІ ТА ІН'ЄКЦІЯ В ІНТЕРФЕЙС ГРИ
+    // РЕНДЕР ІНТЕРФЕЙСУ ВКЛАДКИ "АУРА ЛАРП МОНСТЕР"
     // ------------------------------------------
-    function injectStyles() {
-        if (document.getElementById('aura-larp-monster-styles')) return;
-        const style = document.createElement('style');
-        style.id = 'aura-larp-monster-styles';
-        style.textContent = `
-            #tab-aura-larp {
-                width: 100%;
-                max-width: 600px;
-                padding: 0 12px 24px 12px;
-                gap: 12px;
-                transition: max-width 0.2s ease;
-            }
-
-            #tab-aura-larp.alm-wide-mode {
-                max-width: 880px;
-            }
-
-            /* Банер відсутності інтернету або офлайн-доходу */
-            .alm-offline-banner {
-                width: 100%;
-                background: #23141b;
-                border: 1.5px solid #e74c3c;
-                border-radius: 14px;
-                padding: 12px 14px;
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-                gap: 10px;
-                flex-wrap: wrap;
-                color: #fecaca;
-                font-size: 0.86rem;
-                font-weight: 700;
-            }
-
-            .alm-offline-banner.reward {
-                background: #0d2b2a;
-                border-color: #2ecc71;
-                color: #d1fae5;
-            }
-
-            .alm-banner-btn {
-                background: #f5b82e;
-                color: #0b101e;
-                border: none;
-                border-radius: 8px;
-                padding: 7px 12px;
-                font-size: 0.8rem;
-                font-weight: 900;
-                cursor: pointer;
-                white-space: nowrap;
-            }
-
-            .alm-banner-btn:disabled {
-                opacity: 0.55;
-                cursor: not-allowed;
-            }
-
-            /* Верхня панель картки */
-            .alm-top-panel {
-                width: 100%;
-                background: #0b101e;
-                border: 1.5px solid #1e2942;
-                border-radius: 16px;
-                padding: 14px 16px;
-                display: flex;
-                flex-direction: column;
-                gap: 12px;
-                box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
-            }
-
-            .alm-top-stats {
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-                gap: 8px;
-                flex-wrap: wrap;
-            }
-
-            .alm-balance-group {
-                display: flex;
-                align-items: baseline;
-                gap: 8px;
-                flex-wrap: wrap;
-            }
-
-            .alm-balance-num {
-                font-size: 1.55rem;
-                font-weight: 900;
-                color: #f5b82e;
-                letter-spacing: 0.3px;
-            }
-
-            .alm-balance-unit {
-                font-size: 0.85rem;
-                font-weight: 700;
-                color: #d99b26;
-            }
-
-            .alm-rate-pill {
-                background: #101729;
-                border: 1px solid #1f2b47;
-                border-radius: 10px;
-                padding: 5px 10px;
-                font-size: 0.85rem;
-                font-weight: 700;
-                color: #cbd5e1;
-                display: inline-flex;
-                align-items: center;
-                gap: 5px;
-            }
-
-            .alm-rate-pill-num {
-                color: #2ecc71;
-                font-weight: 800;
-            }
-
-            .alm-pos-pill {
-                background: #101729;
-                border: 1px solid #1f2b47;
-                border-radius: 10px;
-                padding: 5px 12px;
-                font-size: 0.85rem;
-                font-weight: 800;
-                color: #e2e8f0;
-                display: inline-flex;
-                align-items: center;
-                gap: 7px;
-            }
-
-            .alm-pos-dot {
-                width: 8px;
-                height: 8px;
-                border-radius: 50%;
-                background: #38bdf8;
-                box-shadow: 0 0 8px #38bdf8;
-            }
-
-            /* Перемикач під-вкладок */
-            .alm-subtabs-bar {
-                display: flex;
-                width: 100%;
-                background: #070b14;
-                border: 1px solid #1a233a;
-                border-radius: 12px;
-                padding: 4px;
-                gap: 4px;
-            }
-
-            .alm-subtab-btn {
-                flex: 1;
-                padding: 9px 4px;
-                border: none;
-                border-radius: 9px;
-                background: transparent;
-                color: #e2e8f0;
-                font-size: 0.84rem;
-                font-weight: 800;
-                cursor: pointer;
-                transition: background 0.15s, color 0.15s;
-                display: inline-flex;
-                align-items: center;
-                justify-content: center;
-                gap: 5px;
-            }
-
-            .alm-subtab-btn.active {
-                background: #f5b82e;
-                color: #0b101e;
-            }
-
-            .alm-room-dot {
-                width: 7px;
-                height: 7px;
-                border-radius: 50%;
-                background: #2ecc71;
-                box-shadow: 0 0 6px #2ecc71;
-            }
-
-            /* Головне вікно контенту */
-            .alm-main-box {
-                width: 100%;
-                background: #0b101e;
-                border: 1.5px solid #1e2942;
-                border-radius: 16px;
-                padding: 12px;
-                box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
-            }
-
-            /* Контейнер сходів з сіткою */
-            .alm-stairs-scroll {
-                width: 100%;
-                max-height: 440px;
-                overflow-y: auto;
-                overflow-x: hidden;
-                border-radius: 12px;
-                border: 1px solid #192238;
-                background-color: #090e1a;
-                position: relative;
-            }
-
-            .alm-stairs-scroll::-webkit-scrollbar {
-                width: 8px;
-            }
-            .alm-stairs-scroll::-webkit-scrollbar-track {
-                background: #0d1323;
-            }
-            .alm-stairs-scroll::-webkit-scrollbar-thumb {
-                background: #475569;
-                border-radius: 4px;
-            }
-
-            .alm-stairs-stage {
-                position: relative;
-                width: 100%;
-                height: ${MAX_STEP * ROW_HEIGHT}px;
-                background-image:
-                    linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-                    linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
-                background-size: 24px 24px;
-            }
-
-            .alm-stairs-divider {
-                position: absolute;
-                top: 0;
-                bottom: 0;
-                left: 48%;
-                width: 1px;
-                background: #1e2942;
-                pointer-events: none;
-                z-index: 1;
-            }
-
-            .alm-stair-row {
-                position: relative;
-                height: ${ROW_HEIGHT}px;
-                width: 100%;
-                display: flex;
-                align-items: center;
-                border-bottom: 1px solid rgba(255, 255, 255, 0.03);
-                transition: background-color 0.2s;
-                z-index: 2;
-            }
-
-            .alm-stair-row.alm-row-unlocked {
-                cursor: pointer;
-            }
-
-            .alm-stair-row.alm-row-unlocked:hover {
-                background: rgba(56, 189, 248, 0.05);
-            }
-
-            .alm-stair-row.alm-row-room {
-                background: rgba(46, 204, 113, 0.06);
-            }
-
-            .alm-stair-row.alm-row-room-20 {
-                background: rgba(56, 189, 248, 0.08);
-            }
-
-            .alm-stair-row.alm-row-room-30 {
-                background: rgba(245, 158, 11, 0.08);
-            }
-
-            .alm-stair-row.alm-row-room-40 {
-                background: rgba(168, 85, 247, 0.09);
-            }
-
-            .alm-stair-row.alm-row-room-50 {
-                background: rgba(239, 68, 68, 0.09);
-            }
-
-            .alm-stair-row.alm-row-room-60 {
-                background: rgba(250, 204, 21, 0.09);
-            }
-
-            .alm-stair-row.alm-row-room-70 {
-                background: rgba(16, 185, 129, 0.09);
-            }
-
-            .alm-stair-row.alm-row-room-80 {
-                background: rgba(99, 102, 241, 0.11);
-            }
-
-            .alm-stair-row.alm-row-room-90 {
-                background: rgba(244, 63, 94, 0.11);
-            }
-
-            .alm-stair-row.alm-row-current {
-                background: rgba(56, 189, 248, 0.14);
-            }
-
-            .alm-stair-left {
-                width: 48%;
-                height: 100%;
-                position: relative;
-                display: flex;
-                align-items: center;
-            }
-
-            .alm-step-bar {
-                position: absolute;
-                height: 10px;
-                width: ${STEP_BAR_WIDTH}px;
-                border-radius: 3px;
-                background: #111827;
-                border: 1.5px solid #28354f;
-                transition: border-color 0.2s, background-color 0.2s, box-shadow 0.2s;
-            }
-
-            .alm-step-bar.unlocked {
-                background: #0e3454;
-                border-color: #2185c5;
-            }
-
-            .alm-step-bar.room-bar {
-                background: #114738;
-                border-color: #2ecc71;
-            }
-
-            .alm-step-bar.room-bar-20 {
-                background: #0e3a5c;
-                border-color: #38bdf8;
-            }
-
-            .alm-step-bar.room-bar-30 {
-                background: #422c0b;
-                border-color: #f59e0b;
-            }
-
-            .alm-step-bar.room-bar-40 {
-                background: #351854;
-                border-color: #a855f7;
-            }
-
-            .alm-step-bar.room-bar-50 {
-                background: #47141a;
-                border-color: #ef4444;
-            }
-
-            .alm-step-bar.room-bar-60 {
-                background: #45360b;
-                border-color: #eab308;
-            }
-
-            .alm-step-bar.room-bar-70 {
-                background: #0c3d2e;
-                border-color: #10b981;
-            }
-
-            .alm-step-bar.room-bar-80 {
-                background: #1e2254;
-                border-color: #818cf8;
-            }
-
-            .alm-step-bar.room-bar-90 {
-                background: #4c1124;
-                border-color: #fb7185;
-            }
-
-            .alm-step-bar.next-buy {
-                background: #3a2910;
-                border-color: #d99b26;
-            }
-
-            .alm-step-connector {
-                position: absolute;
-                width: 1.5px;
-                height: ${ROW_HEIGHT - 10}px;
-                background: #28354f;
-                bottom: ${ROW_HEIGHT / 2 + 5}px;
-                pointer-events: none;
-            }
-
-            .alm-step-connector.unlocked {
-                background: #2185c5;
-            }
-
-            .alm-stair-right {
-                width: 52%;
-                height: 100%;
-                padding: 0 10px 0 12px;
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-                gap: 6px;
-            }
-
-            .alm-stair-info-left {
-                display: flex;
-                align-items: center;
-                gap: 7px;
-            }
-
-            .alm-step-number {
-                font-size: 0.92rem;
-                font-weight: 800;
-                color: #64748b;
-                min-width: 26px;
-            }
-
-            .alm-step-number.bright {
-                color: #f8fafc;
-            }
-
-            .alm-mult-chip {
-                background: #0d1e33;
-                border: 1px solid #1d4ed8;
-                color: #38bdf8;
-                font-size: 0.76rem;
-                font-weight: 800;
-                padding: 3px 7px;
-                border-radius: 6px;
-            }
-
-            .alm-inline-buy-btn {
-                background: #f5b82e;
-                color: #0b101e;
-                border: none;
-                border-radius: 7px;
-                padding: 6px 10px;
-                font-size: 0.78rem;
-                font-weight: 900;
-                cursor: pointer;
-                transition: transform 0.1s, opacity 0.15s;
-                white-space: nowrap;
-            }
-
-            .alm-inline-buy-btn:hover:not(:disabled) {
-                transform: scale(1.03);
-            }
-
-            .alm-inline-buy-btn:disabled {
-                opacity: 0.45;
-                cursor: not-allowed;
-            }
-
-            .alm-room-chip-btn {
-                background: #2ecc71;
-                color: #062112;
-                border: none;
-                border-radius: 7px;
-                padding: 5px 10px;
-                font-size: 0.78rem;
-                font-weight: 900;
-                cursor: pointer;
-                white-space: nowrap;
-            }
-
-            .alm-room-chip-btn.ice {
-                background: #38bdf8;
-                color: #061826;
-            }
-
-            .alm-room-chip-btn.trash {
-                background: #f59e0b;
-                color: #1c1002;
-            }
-
-            .alm-room-chip-btn.purple {
-                background: #c084fc;
-                color: #18062b;
-            }
-
-            .alm-room-chip-btn.boss {
-                background: #f87171;
-                color: #240606;
-            }
-
-            .alm-room-chip-btn.gold {
-                background: #facc15;
-                color: #1f1602;
-            }
-
-            .alm-room-chip-btn.garden {
-                background: #34d399;
-                color: #042117;
-            }
-
-            .alm-room-chip-btn.storm {
-                background: #818cf8;
-                color: #0b0d29;
-            }
-
-            .alm-room-chip-btn.combat {
-                background: #fb7185;
-                color: #26060d;
-            }
-
-            /* Персонаж, що плавно переміщається по сходах */
-            .alm-character-pin {
-                position: absolute;
-                left: 0;
-                top: 0;
-                width: 24px;
-                height: 24px;
-                border-radius: 50%;
-                background: #38bdf8;
-                border: 2px solid #bae6fd;
-                box-shadow: 0 0 14px rgba(56, 189, 248, 0.9), 0 0 24px rgba(56, 189, 248, 0.45);
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                z-index: 10;
-                pointer-events: none;
-                will-change: transform;
-            }
-
-            .alm-character-pin svg {
-                width: 14px;
-                height: 14px;
-                fill: #081221;
-            }
-
-            /* Нижня панель під сходами */
-            .alm-bottom-bar {
-                width: 100%;
-                background: #0b101e;
-                border: 1.5px solid #1e2942;
-                border-radius: 14px;
-                padding: 12px 16px;
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-                gap: 10px;
-                flex-wrap: wrap;
-            }
-
-            .alm-bottom-meta {
-                font-size: 0.9rem;
-                color: #94a3b8;
-                font-weight: 700;
-            }
-
-            .alm-bottom-meta strong {
-                color: #f8fafc;
-            }
-
-            .alm-bottom-meta .cyan {
-                color: #38bdf8;
-                font-weight: 800;
-            }
-
-            .alm-bottom-buy-btn {
-                background: #f5b82e;
-                color: #0b101e;
-                border: none;
-                border-radius: 10px;
-                padding: 11px 20px;
-                font-size: 0.92rem;
-                font-weight: 900;
-                cursor: pointer;
-                transition: transform 0.1s, opacity 0.15s;
-            }
-
-            .alm-bottom-buy-btn:hover:not(:disabled) {
-                transform: scale(1.02);
-            }
-
-            .alm-bottom-buy-btn:disabled {
-                opacity: 0.45;
-                cursor: not-allowed;
-            }
-
-            /* Перемикач кімнат (10, 20, 30, 40, 50, 60, 70, 80, 90 сходинки) */
-            .alm-room-selector {
-                display: grid;
-                grid-template-columns: repeat(3, 1fr);
-                gap: 6px;
-                width: 100%;
-                margin-bottom: 12px;
-            }
-
-            .alm-room-sel-btn {
-                padding: 8px 4px;
-                border-radius: 10px;
-                border: 1.5px solid #1e2942;
-                background: #0e1526;
-                color: #cbd5e1;
-                font-size: 0.76rem;
-                font-weight: 800;
-                cursor: pointer;
-                transition: all 0.15s;
-                text-align: center;
-                white-space: nowrap;
-            }
-
-            .alm-room-sel-btn.active {
-                background: #132a46;
-                border-color: #38bdf8;
-                color: #ffffff;
-            }
-
-            /* Вкладка "Кімната" (10 сходинка) */
-            .alm-room-viewport {
-                width: 100%;
-                min-height: 390px;
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                justify-content: center;
-                padding: 20px 12px;
-                text-align: center;
-            }
-
-            .alm-room-subtitle {
-                font-size: 0.85rem;
-                font-weight: 800;
-                color: #94a3b8;
-                letter-spacing: 0.8px;
-                text-transform: uppercase;
-                margin-bottom: 14px;
-            }
-
-            .alm-room-upgrade-card {
-                width: 100%;
-                max-width: 340px;
-                background: #0d2b2a;
-                border: 1.5px solid #1b6b5c;
-                border-radius: 16px;
-                padding: 22px 18px;
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                gap: 12px;
-                cursor: pointer;
-                transition: transform 0.12s, box-shadow 0.2s, opacity 0.2s;
-            }
-
-            .alm-room-upgrade-card:hover:not(:disabled) {
-                transform: translateY(-2px);
-                box-shadow: 0 0 22px rgba(46, 204, 113, 0.25);
-            }
-
-            .alm-room-upgrade-card:active:not(:disabled) {
-                transform: scale(0.98);
-            }
-
-            .alm-room-upgrade-card:disabled {
-                opacity: 0.6;
-                cursor: not-allowed;
-            }
-
-            .alm-room-card-label {
-                font-size: 0.82rem;
-                font-weight: 800;
-                color: #94a3b8;
-                letter-spacing: 0.6px;
-                text-transform: uppercase;
-            }
-
-            .alm-room-lvl-badge {
-                background: #103c37;
-                border: 1px solid #1e7e6c;
-                color: #2ecc71;
-                font-size: 0.82rem;
-                font-weight: 800;
-                padding: 3px 12px;
-                border-radius: 999px;
-            }
-
-            .alm-room-mult-transition {
-                font-size: 1.9rem;
-                font-weight: 900;
-                color: #ffffff;
-                letter-spacing: 0.5px;
-                margin: 2px 0;
-            }
-
-            .alm-room-cost-text {
-                font-size: 0.95rem;
-                font-weight: 900;
-                color: #f5b82e;
-            }
-
-            /* Кімната 40 та 60 сходинки (картки прокачок) */
-            .alm-r40-grid {
-                display: grid;
-                grid-template-columns: 1fr 1fr;
-                gap: 12px;
-                width: 100%;
-                max-width: 580px;
-            }
-
-            @media (max-width: 540px) {
-                .alm-r40-grid {
-                    grid-template-columns: 1fr;
-                }
-            }
-
-            .alm-r40-card {
-                background: #161029;
-                border: 1.5px solid #58288a;
-                border-radius: 16px;
-                padding: 18px 14px;
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                justify-content: space-between;
-                gap: 10px;
-                cursor: pointer;
-                transition: transform 0.12s, box-shadow 0.2s, opacity 0.2s;
-            }
-
-            .alm-r40-card:hover:not(:disabled) {
-                transform: translateY(-2px);
-                box-shadow: 0 0 22px rgba(168, 85, 247, 0.28);
-            }
-
-            .alm-r40-card:disabled {
-                opacity: 0.58;
-                cursor: not-allowed;
-            }
-
-            .alm-r40-card.gold-theme {
-                background: #231d0c;
-                border-color: #b45309;
-            }
-
-            .alm-r40-card.emerald-theme {
-                background: #0b241b;
-                border-color: #059669;
-            }
-
-            .alm-r40-card.combat-theme {
-                background: #281018;
-                border-color: #e11d48;
-            }
-
-            .alm-r40-badge {
-                background: #251542;
-                border: 1px solid #7e3af2;
-                color: #d8b4fe;
-                font-size: 0.8rem;
-                font-weight: 800;
-                padding: 3px 12px;
-                border-radius: 999px;
-            }
-
-            .alm-r40-badge.gold {
-                background: #3b2a09;
-                border-color: #f59e0b;
-                color: #fde68a;
-            }
-
-            .alm-r40-badge.emerald {
-                background: #0c3829;
-                border-color: #10b981;
-                color: #6ee7b7;
-            }
-
-            .alm-r40-badge.combat {
-                background: #451221;
-                border-color: #fb7185;
-                color: #fecdd3;
-            }
-
-            .alm-r40-val {
-                font-size: 1.28rem;
-                font-weight: 900;
-                color: #ffffff;
-                line-height: 1.3;
-            }
-
-            /* Зони 20, 30, 50, 70 — 2-колонковий макет */
-            .alm-snow-layout {
-                display: grid;
-                grid-template-columns: 1fr 278px;
-                gap: 12px;
-                width: 100%;
-                align-items: start;
-            }
-
-            @media (max-width: 680px) {
-                .alm-snow-layout {
-                    grid-template-columns: 1fr;
-                }
-            }
-
-            .alm-snow-zone-col {
-                display: flex;
-                flex-direction: column;
-                gap: 10px;
-            }
-
-            .alm-snow-hud {
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-                gap: 8px;
-                flex-wrap: wrap;
-                background: #0e172a;
-                border: 1px solid #1e3a5f;
-                border-radius: 12px;
-                padding: 10px 12px;
-            }
-
-            .alm-snow-stat {
-                font-size: 0.84rem;
-                font-weight: 800;
-                color: #cbd5e1;
-            }
-
-            .alm-snow-stat strong {
-                color: #38bdf8;
-                font-size: 1.02rem;
-            }
-
-            .alm-storm-active-strip {
-                background: linear-gradient(90deg, #172554, #1e3a8a, #172554);
-                border: 1.5px solid #60a5fa;
-                border-radius: 10px;
-                padding: 7px 12px;
-                color: #bae6fd;
-                font-size: 0.8rem;
-                font-weight: 900;
-                text-align: center;
-                justify-content: center;
-                box-shadow: 0 0 14px rgba(56, 189, 248, 0.3);
-            }
-
-            .alm-snow-field {
-                position: relative;
-                width: 100%;
-                height: 390px;
-                border-radius: 14px;
-                background: radial-gradient(circle at 50% 25%, #112947 0%, #081224 75%, #060c18 100%);
-                border: 1.5px solid #25507a;
-                overflow: hidden;
-                touch-action: none;
-                user-select: none;
-                -webkit-user-select: none;
-                cursor: crosshair;
-                box-shadow: inset 0 0 30px rgba(56, 189, 248, 0.12);
-            }
-
-            /* Поле прибирання сміття (30 сходинка) */
-            .alm-trash-field {
-                position: relative;
-                width: 100%;
-                height: 390px;
-                border-radius: 14px;
-                background: radial-gradient(circle at 50% 50%, #261f12 0%, #12151f 75%, #080b12 100%);
-                border: 1.5px solid #855818;
-                overflow: hidden;
-                touch-action: none;
-                user-select: none;
-                -webkit-user-select: none;
-                box-shadow: inset 0 0 30px rgba(245, 158, 11, 0.12);
-            }
-
-            .alm-trash-center-bin {
-                position: absolute;
-                left: 50%;
-                top: 50%;
-                width: 88px;
-                height: 88px;
-                transform: translate(-50%, -50%);
-                border-radius: 50%;
-                background: radial-gradient(circle, rgba(245, 158, 11, 0.25) 0%, rgba(245, 158, 11, 0.08) 70%);
-                border: 2px dashed #f59e0b;
-                box-shadow: 0 0 22px rgba(245, 158, 11, 0.25);
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                justify-content: center;
-                pointer-events: none;
-                z-index: 2;
-            }
-
-            .alm-trash-center-icon {
-                font-size: 1.6rem;
-                line-height: 1;
-            }
-
-            .alm-trash-center-label {
-                font-size: 0.65rem;
-                font-weight: 900;
-                color: #fcd34d;
-                text-transform: uppercase;
-                margin-top: 3px;
-            }
-
-            .alm-trash-item {
-                position: absolute;
-                font-size: 1.85rem;
-                line-height: 1;
-                transform: translate(-50%, -50%);
-                filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.75));
-                cursor: grab;
-                z-index: 5;
-                transition: transform 0.08s;
-            }
-
-            .alm-trash-item.golden {
-                filter: drop-shadow(0 0 10px #facc15) drop-shadow(0 0 18px rgba(250, 204, 21, 0.95));
-            }
-
-            .alm-trash-item.emerald {
-                filter: drop-shadow(0 0 12px #10b981) drop-shadow(0 0 22px rgba(16, 185, 129, 0.98));
-            }
-
-            .alm-trash-item.dragging {
-                transform: translate(-50%, -50%) scale(1.25);
-                cursor: grabbing;
-                z-index: 12;
-                filter: drop-shadow(0 0 12px rgba(251, 191, 36, 0.9));
-            }
-
-            /* Поле об'єднання овочів та фруктів (70 сходинка) */
-            .alm-merge-field {
-                position: relative;
-                width: 100%;
-                height: 390px;
-                border-radius: 14px;
-                background: radial-gradient(circle at 50% 40%, #0f2e22 0%, #0a1b16 75%, #06100d 100%);
-                border: 1.5px solid #10b981;
-                overflow: hidden;
-                touch-action: none;
-                user-select: none;
-                -webkit-user-select: none;
-                box-shadow: inset 0 0 30px rgba(16, 185, 129, 0.14);
-            }
-
-            .alm-merge-item {
-                position: absolute;
-                width: 46px;
-                height: 46px;
-                border-radius: 50%;
-                background: rgba(15, 39, 31, 0.92);
-                border: 2px solid #34d399;
-                box-shadow: 0 4px 10px rgba(0, 0, 0, 0.65);
-                transform: translate(-50%, -50%);
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                cursor: grab;
-                z-index: 5;
-                transition: transform 0.08s;
-            }
-
-            .alm-merge-item.dragging {
-                transform: translate(-50%, -50%) scale(1.22);
-                cursor: grabbing;
-                z-index: 15;
-                border-color: #fde047;
-                box-shadow: 0 0 16px rgba(253, 224, 71, 0.85);
-            }
-
-            @keyframes almMergePop {
-                0% { transform: translate(-50%, -50%) scale(0.75); }
-                55% { transform: translate(-50%, -50%) scale(1.28); }
-                100% { transform: translate(-50%, -50%) scale(1); }
-            }
-
-            .alm-merge-item.merged-pop {
-                animation: almMergePop 0.32s ease-out;
-            }
-
-            .alm-merge-emoji {
-                font-size: 1.65rem;
-                line-height: 1;
-                pointer-events: none;
-            }
-
-            .alm-merge-badge {
-                position: absolute;
-                bottom: -4px;
-                right: -4px;
-                background: #064e3b;
-                border: 1px solid #6ee7b7;
-                color: #ecfdf5;
-                font-size: 0.65rem;
-                font-weight: 900;
-                padding: 1px 5px;
-                border-radius: 999px;
-                pointer-events: none;
-            }
-
-            .alm-vitamin-pop {
-                position: absolute;
-                font-size: 0.9rem;
-                font-weight: 900;
-                color: #6ee7b7;
-                text-shadow: 0 2px 6px rgba(0, 0, 0, 0.9);
-                pointer-events: none;
-                animation: almSnowPopAnim 0.7s ease-out forwards;
-                z-index: 20;
-                white-space: nowrap;
-            }
-
-            /* Арена боса Курочка (50 сходинка) */
-            .alm-chicken-arena {
-                position: relative;
-                width: 100%;
-                height: 390px;
-                border-radius: 14px;
-                background: radial-gradient(circle at 50% 35%, #2e1518 0%, #140c14 75%, #09070d 100%);
-                border: 1.5px solid #8a2832;
-                overflow: hidden;
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                justify-content: center;
-                padding: 16px;
-                gap: 14px;
-                user-select: none;
-                -webkit-user-select: none;
-            }
-
-            .alm-chicken-title {
-                font-size: 1.12rem;
-                font-weight: 900;
-                color: #fca5a5;
-                letter-spacing: 0.4px;
-            }
-
-            .alm-chicken-hp-wrap {
-                width: 100%;
-                max-width: 280px;
-                display: flex;
-                flex-direction: column;
-                gap: 5px;
-            }
-
-            .alm-chicken-hp-bar {
-                width: 100%;
-                height: 14px;
-                background: #1f1116;
-                border: 1.5px solid #7f1d1d;
-                border-radius: 999px;
-                overflow: hidden;
-            }
-
-            .alm-chicken-hp-fill {
-                height: 100%;
-                background: linear-gradient(90deg, #ef4444, #f97316);
-                border-radius: 999px;
-                transition: width 0.08s ease-out;
-            }
-
-            .alm-chicken-hp-text {
-                font-size: 0.84rem;
-                font-weight: 900;
-                color: #fecaca;
-                text-align: center;
-            }
-
-            @keyframes almChickenHit {
-                0% { transform: scale(1) rotate(0deg); }
-                35% { transform: scale(0.86) rotate(-10deg); }
-                70% { transform: scale(1.06) rotate(6deg); }
-                100% { transform: scale(1) rotate(0deg); }
-            }
-
-            .alm-chicken-mob-btn {
-                width: 138px;
-                height: 138px;
-                border-radius: 50%;
-                background: radial-gradient(circle, #471d22 0%, #260e12 75%);
-                border: 3px solid #ef4444;
-                box-shadow: 0 0 28px rgba(239, 68, 68, 0.35);
-                font-size: 4.5rem;
-                line-height: 1;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                cursor: pointer;
-                transition: box-shadow 0.15s;
-            }
-
-            .alm-chicken-mob-btn:hover {
-                box-shadow: 0 0 36px rgba(239, 68, 68, 0.55);
-            }
-
-            .alm-chicken-mob-btn.hit {
-                animation: almChickenHit 0.22s ease-out;
-            }
-
-            .alm-dmg-pop {
-                position: absolute;
-                font-size: 1.05rem;
-                font-weight: 900;
-                color: #f87171;
-                text-shadow: 0 2px 6px rgba(0, 0, 0, 0.9);
-                pointer-events: none;
-                animation: almSnowPopAnim 0.6s ease-out forwards;
-                z-index: 20;
-            }
-
-            .alm-feather-loot-pop {
-                position: absolute;
-                top: 32%;
-                left: 50%;
-                transform: translate(-50%, -50%);
-                font-size: 1.45rem;
-                font-weight: 900;
-                color: #fde047;
-                text-shadow: 0 2px 10px rgba(0, 0, 0, 0.95);
-                pointer-events: none;
-                animation: almSnowPopAnim 1.1s ease-out forwards;
-                z-index: 25;
-            }
-
-            .alm-snow-hint {
-                position: absolute;
-                bottom: 10px;
-                left: 50%;
-                transform: translateX(-50%);
-                background: rgba(8, 18, 36, 0.82);
-                border: 1px solid rgba(56, 189, 248, 0.25);
-                color: #93c5fd;
-                font-size: 0.74rem;
-                font-weight: 700;
-                padding: 4px 12px;
-                border-radius: 999px;
-                pointer-events: none;
-                white-space: nowrap;
-                z-index: 8;
-            }
-
-            @keyframes almSnowFloat {
-                0%, 100% { transform: translate(-50%, -50%) scale(1) rotate(0deg); }
-                50% { transform: translate(-50%, -56%) scale(1.08) rotate(12deg); }
-            }
-
-            .alm-snowflake-item {
-                position: absolute;
-                font-size: 1.75rem;
-                line-height: 1;
-                transform: translate(-50%, -50%);
-                filter: drop-shadow(0 0 8px rgba(186, 230, 253, 0.85));
-                animation: almSnowFloat 2.2s ease-in-out infinite;
-                pointer-events: none;
-            }
-
-            .alm-snowflake-item.golden {
-                filter: drop-shadow(0 0 10px #facc15) drop-shadow(0 0 18px rgba(250, 204, 21, 0.95));
-            }
-
-            .alm-snowflake-item.emerald {
-                filter: drop-shadow(0 0 12px #10b981) drop-shadow(0 0 22px rgba(16, 185, 129, 0.98));
-            }
-
-            @keyframes almSnowPopAnim {
-                0% { opacity: 1; transform: translate(-50%, -50%) scale(0.9); }
-                100% { opacity: 0; transform: translate(-50%, -140%) scale(1.15); }
-            }
-
-            .alm-snow-pop {
-                position: absolute;
-                font-size: 0.88rem;
-                font-weight: 900;
-                color: #bae6fd;
-                text-shadow: 0 2px 6px rgba(0, 0, 0, 0.85);
-                pointer-events: none;
-                animation: almSnowPopAnim 0.65s ease-out forwards;
-                z-index: 15;
-            }
-
-            .alm-snow-pop.golden, .alm-trash-pop.golden {
-                color: #fde047;
-                font-size: 1.02rem;
-            }
-
-            .alm-snow-pop.emerald, .alm-trash-pop.emerald {
-                color: #34d399;
-                font-size: 1.12rem;
-            }
-
-            .alm-trash-pop {
-                position: absolute;
-                font-size: 0.92rem;
-                font-weight: 900;
-                color: #fcd34d;
-                text-shadow: 0 2px 6px rgba(0, 0, 0, 0.85);
-                pointer-events: none;
-                animation: almSnowPopAnim 0.65s ease-out forwards;
-                z-index: 15;
-            }
-
-            /* Права панель: Прокачки + Топ зібраного ресурсу */
-            .alm-snow-sidebar {
-                display: flex;
-                flex-direction: column;
-                gap: 10px;
-            }
-
-            .alm-snow-side-box {
-                background: #0e1526;
-                border: 1px solid #1e2942;
-                border-radius: 13px;
-                padding: 10px;
-                display: flex;
-                flex-direction: column;
-                gap: 8px;
-            }
-
-            .alm-snow-side-title {
-                font-size: 0.78rem;
-                font-weight: 900;
-                color: #93c5fd;
-                text-transform: uppercase;
-                letter-spacing: 0.5px;
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-            }
-
-            .alm-snow-upg-btn {
-                width: 100%;
-                background: #102138;
-                border: 1.5px solid #244770;
-                border-radius: 10px;
-                padding: 9px 10px;
-                text-align: left;
-                cursor: pointer;
-                display: flex;
-                flex-direction: column;
-                gap: 4px;
-                transition: transform 0.1s, border-color 0.15s, opacity 0.15s;
-            }
-
-            .alm-snow-upg-btn:hover:not(:disabled) {
-                border-color: #38bdf8;
-                transform: translateY(-1px);
-            }
-
-            .alm-snow-upg-btn:disabled {
-                opacity: 0.52;
-                cursor: not-allowed;
-            }
-
-            .alm-snow-upg-top {
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                gap: 6px;
-                font-size: 0.8rem;
-                font-weight: 800;
-                color: #f8fafc;
-            }
-
-            .alm-snow-upg-lvl {
-                font-size: 0.72rem;
-                font-weight: 800;
-                color: #38bdf8;
-                background: #0a1729;
-                padding: 2px 7px;
-                border-radius: 999px;
-                white-space: nowrap;
-            }
-
-            .alm-snow-upg-bot {
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                font-size: 0.78rem;
-                font-weight: 800;
-            }
-
-            .alm-snow-upg-val {
-                color: #2ecc71;
-            }
-
-            .alm-snow-upg-cost {
-                color: #7dd3fc;
-            }
-
-            .alm-snow-lb-list {
-                display: flex;
-                flex-direction: column;
-                gap: 5px;
-                max-height: 175px;
-                overflow-y: auto;
-            }
-
-            .alm-snow-lb-row {
-                background: #090e1a;
-                border: 1px solid #19243b;
-                border-radius: 8px;
-                padding: 6px 8px;
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-                gap: 6px;
-                font-size: 0.78rem;
-            }
-
-            .alm-snow-lb-row.is-player {
-                border-color: #38bdf8;
-                background: #0f233c;
-            }
-
-            .alm-snow-lb-rank {
-                font-weight: 900;
-                color: #f5b82e;
-                min-width: 24px;
-            }
-
-            .alm-snow-lb-name {
-                flex: 1;
-                font-weight: 700;
-                color: #f8fafc;
-                overflow: hidden;
-                text-overflow: ellipsis;
-                white-space: nowrap;
-            }
-
-            .alm-snow-lb-val {
-                font-weight: 900;
-                color: #7dd3fc;
-                white-space: nowrap;
-            }
-
-            /* Кімната 80 (Сніжна буря + прокачки мобів і бурі) */
-            .alm-storm-hero-card {
-                width: 100%;
-                background: linear-gradient(135deg, #101d3b, #1a2854);
-                border: 1.5px solid #6366f1;
-                border-radius: 16px;
-                padding: 18px 16px;
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                gap: 10px;
-                margin-bottom: 14px;
-                text-align: center;
-                box-shadow: 0 0 24px rgba(99, 102, 241, 0.22);
-            }
-
-            .alm-storm-activate-btn {
-                background: linear-gradient(90deg, #38bdf8, #818cf8);
-                color: #060c1f;
-                border: none;
-                border-radius: 12px;
-                padding: 12px 24px;
-                font-size: 0.96rem;
-                font-weight: 900;
-                cursor: pointer;
-                transition: transform 0.12s, opacity 0.15s;
-            }
-
-            .alm-storm-activate-btn:hover:not(:disabled) {
-                transform: scale(1.03);
-            }
-
-            .alm-storm-activate-btn:disabled {
-                opacity: 0.52;
-                cursor: not-allowed;
-            }
-
-            .alm-r80-section-title {
-                width: 100%;
-                text-align: left;
-                font-size: 0.8rem;
-                font-weight: 900;
-                color: #a5b4fc;
-                text-transform: uppercase;
-                letter-spacing: 0.6px;
-                margin: 8px 0 6px 0;
-            }
-
-            .alm-r80-list {
-                display: flex;
-                flex-direction: column;
-                gap: 8px;
-                width: 100%;
-            }
-
-            /* Екран руху до кімнати */
-            .alm-walk-box {
-                width: 100%;
-                max-width: 380px;
-                background: #0e1526;
-                border: 1.5px solid #1e2942;
-                border-radius: 14px;
-                padding: 14px 16px;
-                margin: 14px 0 18px 0;
-            }
-
-            .alm-walk-header {
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                font-size: 0.85rem;
-                font-weight: 700;
-                color: #94a3b8;
-                margin-bottom: 10px;
-            }
-
-            .alm-walk-track {
-                width: 100%;
-                height: 7px;
-                background: #192238;
-                border-radius: 999px;
-                overflow: hidden;
-            }
-
-            .alm-walk-fill {
-                height: 100%;
-                background: #38bdf8;
-                border-radius: 999px;
-                transition: width 0.1s linear;
-            }
-
-            .alm-walk-status-btn {
-                background: #0e182b;
-                border: 1.5px solid #1d3557;
-                color: #38bdf8;
-                border-radius: 10px;
-                padding: 10px 20px;
-                font-size: 0.88rem;
-                font-weight: 800;
-                cursor: pointer;
-            }
-
-            /* Вкладка "Множники" */
-            .alm-mult-container {
-                display: flex;
-                flex-direction: column;
-                gap: 10px;
-                padding: 4px;
-            }
-
-            .alm-mult-row {
-                background: #0e1526;
-                border: 1px solid #1e2942;
-                border-radius: 12px;
-                padding: 12px 14px;
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-                gap: 12px;
-            }
-
-            .alm-mult-summary {
-                background: linear-gradient(135deg, #0e172a, #13223d);
-                border: 1.5px solid #f5b82e;
-                border-radius: 14px;
-                padding: 16px 14px;
-                text-align: center;
-                display: flex;
-                flex-direction: column;
-                gap: 6px;
-                margin-top: 4px;
-            }
-
-            /* Вкладка "Топ" (4 вкладка) */
-            .alm-lb-filters {
-                display: flex;
-                gap: 6px;
-                margin-bottom: 12px;
-                flex-wrap: wrap;
-            }
-
-            .alm-lb-filter-btn {
-                flex: 1;
-                min-width: 105px;
-                padding: 8px 6px;
-                background: #0e1526;
-                border: 1px solid #1e2942;
-                border-radius: 9px;
-                color: #cbd5e1;
-                font-size: 0.78rem;
-                font-weight: 800;
-                cursor: pointer;
-                text-align: center;
-                transition: all 0.15s;
-            }
-
-            .alm-lb-filter-btn.active {
-                background: #f5b82e;
-                color: #0b101e;
-                border-color: #f5b82e;
-            }
-
-            .alm-lb-list {
-                display: flex;
-                flex-direction: column;
-                gap: 8px;
-                max-height: 390px;
-                overflow-y: auto;
-            }
-
-            .alm-lb-row {
-                background: #0e1526;
-                border: 1px solid #1e2942;
-                border-radius: 11px;
-                padding: 11px 14px;
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-                gap: 10px;
-            }
-
-            .alm-lb-row.is-player {
-                border: 1.5px solid #f5b82e;
-                background: linear-gradient(135deg, #131b31, #1e2642);
-            }
-
-            .alm-lb-rank {
-                font-weight: 900;
-                font-size: 1.05rem;
-                color: #f5b82e;
-                min-width: 34px;
-            }
-
-            .alm-lb-name {
-                flex: 1;
-                font-weight: 800;
-                font-size: 0.92rem;
-                color: #f8fafc;
-                overflow: hidden;
-                text-overflow: ellipsis;
-                white-space: nowrap;
-            }
-
-            .alm-lb-val {
-                font-weight: 900;
-                font-size: 0.88rem;
-                color: #2ecc71;
-                white-space: nowrap;
-            }
-        `;
-        document.head.appendChild(style);
+    function switchLarpSubTab(subTab) {
+        activeLarpSubTab = subTab;
+        persistAuraLarpState(false);
+        renderAuraLarpMonsterUI(subTab === 'stairs');
     }
 
-    function ensureDomSetup() {
-        injectStyles();
-        const tabNav = document.querySelector('.tab-nav');
-        const gameScreen = document.getElementById('game-screen');
-        if (!tabNav || !gameScreen) return;
-
-        if (!document.getElementById('btn-tab-aura-larp')) {
-            const mainBtn = document.createElement('button');
-            mainBtn.id = 'btn-tab-aura-larp';
-            mainBtn.className = 'tab-btn';
-            mainBtn.textContent = '👾 Аура Ларп Монстер';
-            mainBtn.onclick = function () {
-                enterAuraLarpMonsterMode();
-            };
-            tabNav.appendChild(mainBtn);
-        }
-
-        if (!document.getElementById('alm-nav-home')) {
-            const homeBtn = document.createElement('button');
-            homeBtn.id = 'alm-nav-home';
-            homeBtn.className = 'tab-btn alm-mode-nav-btn';
-            homeBtn.style.display = 'none';
-            homeBtn.textContent = '🏠 Додому';
-            homeBtn.onclick = exitAuraLarpMonsterMode;
-            tabNav.appendChild(homeBtn);
-        }
-
-        if (!document.getElementById('tab-aura-larp')) {
-            const tabDiv = document.createElement('div');
-            tabDiv.id = 'tab-aura-larp';
-            tabDiv.className = 'tab-content';
-            gameScreen.appendChild(tabDiv);
-        }
-    }
-
-    function updateNavVisibility() {
-        const tabNav = document.querySelector('.tab-nav');
-        if (!tabNav) return;
-
-        Array.from(tabNav.children).forEach(btn => {
-            const isAlmBtn = btn.classList.contains('alm-mode-nav-btn');
-            if (isAuraLarpModeActive) {
-                btn.style.display = isAlmBtn ? '' : 'none';
-            } else {
-                btn.style.display = isAlmBtn ? 'none' : '';
-            }
+    function renderRoomTabHtml(s) {
+        let roomsNavHtml = `<div class="alm-room-selector">`;
+        ROOM_STEPS.forEach(rStep => {
+            const unlocked = s.maxUnlockedStep >= rStep;
+            const active = activeRoomStep === rStep;
+            let icon = '🚪';
+            if (rStep === 20) icon = '❄️';
+            else if (rStep === 30) icon = '🗑️';
+            else if (rStep === 40) icon = '⚡';
+            else if (rStep === 50) icon = '🐔';
+            else if (rStep === 60) icon = '💎';
+            else if (rStep === 70) icon = '🍉';
+            else if (rStep === 80) icon = '🌨️';
+            else if (rStep === 90) icon = '⚔️';
+            roomsNavHtml += `
+                <button class="alm-room-pill ${active ? 'active' : ''} ${unlocked ? '' : 'locked'}"
+                        onclick="window.openAuraLarpRoomAtStep(${rStep})">
+                    ${unlocked ? icon : '🔒'} ${rStep} сходинка
+                </button>
+            `;
         });
+        roomsNavHtml += `</div>`;
+
+        // ---------------- КІМНАТА 10 СХОДИНКИ ----------------
+        if (activeRoomStep === 10) {
+            const isRoomUnlocked = s.maxUnlockedStep >= 10;
+            const isCharacterAtRoom10 = s.currentStep === 10 && s.targetStep === 10;
+            const currentRoomMult = getRoomLarpMultiplier();
+            const nextRoomMult = getNextRoomLarpMultiplier();
+            const upgradeCost = getRoomUpgradeCost();
+            const canBuy = isRoomUnlocked && isCharacterAtRoom10 && s.larp >= upgradeCost;
+
+            let statusBanner = '';
+            if (!isRoomUnlocked) {
+                statusBanner = `
+                    <div class="alm-room-alert locked">
+                        🔒 <b>Кімната заблокована!</b> Спочатку відкрийте <b>10-ту сходинку</b> у вкладці «Сходи».
+                    </div>
+                `;
+            } else if (!isCharacterAtRoom10) {
+                statusBanner = `
+                    <div class="alm-room-alert warning">
+                        <div>🚶 Щоб купувати прокачки в цій кімнаті, персонаж має стояти на <b>10-й сходинці</b> (зараз: ${s.currentStep}).</div>
+                        <button class="alm-mini-go-btn" onclick="window.moveAuraLarpToStep(10); window.switchAuraLarpSubTab('stairs');">
+                            Піти на 10 сходинку
+                        </button>
+                    </div>
+                `;
+            } else {
+                statusBanner = `
+                    <div class="alm-room-alert ready">
+                        ✅ Персонаж у кімнаті 10-ї сходинки! Прокачки доступні.
+                    </div>
+                `;
+            }
+
+            return `
+                ${roomsNavHtml}
+                <div class="alm-room-card">
+                    <div class="alm-room-header">
+                        <div class="alm-room-icon">🚪</div>
+                        <div>
+                            <div class="alm-room-title">Таємна Кімната 10-ї Сходинки</div>
+                            <div class="alm-room-subtitle">Підсилення видобутку Ларпів</div>
+                        </div>
+                    </div>
+
+                    ${statusBanner}
+
+                    <div class="alm-upgrade-box">
+                        <div class="alm-upg-top">
+                            <div class="alm-upg-name">✨ Множник Ларпів Кімнати</div>
+                            <div class="alm-upg-lvl">Рівень ${s.roomMultLvl}</div>
+                        </div>
+                        <div class="alm-upg-desc">
+                            Поточний множник: <b style="color: #38bdf8;">x${formatMultValue(currentRoomMult)}</b>
+                            <span style="color: #94a3b8;">→</span>
+                            Наступний: <b style="color: #4ade80;">x${formatMultValue(nextRoomMult)}</b>
+                        </div>
+                        <div class="alm-upg-note">
+                            Множник кімнати перемножується з множником поточної сходинки.
+                        </div>
+                        <button id="alm-room-buy-btn" class="alm-upg-buy-btn" ${canBuy ? '' : 'disabled'} onclick="window.buyAuraLarpRoomUpgrade()">
+                            Купити за ${formatLarpValue(upgradeCost)} ${pluralizeLarp(upgradeCost)}
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        // ---------------- КІМНАТА 20 СХОДИНКИ (СНІЖИНКИ) ----------------
+        if (activeRoomStep === 20) {
+            const isRoom20Unlocked = s.maxUnlockedStep >= 20;
+            const isCharacterAtRoom20 = s.currentStep === 20 && s.targetStep === 20;
+
+            const curSnowMult = getSnowMultiplier();
+            const nextSnowMult = getNextSnowMultiplier();
+            const snowMultCost = getSnowMultUpgradeCost();
+            const canBuySnowMult = isRoom20Unlocked && isCharacterAtRoom20 && s.snow >= snowMultCost;
+
+            const curSnowInterval = getSnowSpawnInterval();
+            const nextSnowInterval = getNextSnowSpawnInterval();
+            const snowSpeedCost = getSnowSpeedUpgradeCost();
+            const isSnowSpeedMax = (s.snowSpeedLvl || 0) >= SNOW_SPEED_MAX_LVL;
+            const canBuySnowSpeed = !isSnowSpeedMax && isRoom20Unlocked && isCharacterAtRoom20 && s.snow >= snowSpeedCost;
+
+            const curSnowLarpMult = getSnowLarpMultiplier();
+            const nextSnowLarpMult = getNextSnowLarpMultiplier();
+            const snowLarpCost = getSnowLarpUpgradeCost();
+            const canBuySnowLarp = isRoom20Unlocked && isCharacterAtRoom20 && s.snow >= snowLarpCost;
+
+            const goldSnowPct = getGoldSnowChancePct();
+            const emeraldSnowPct = getEmeraldSnowChancePct();
+            const stormActive = isSnowstormActive();
+
+            let statusBanner20 = '';
+            if (!isRoom20Unlocked) {
+                statusBanner20 = `
+                    <div class="alm-room-alert locked">
+                        🔒 <b>Кімната заблокована!</b> Відкрийте <b>20-ту сходинку</b> у вкладці «Сходи», щоб почали з'являтися сніжинки та відкрилися прокачки!
+                    </div>
+                `;
+            } else if (!isCharacterAtRoom20) {
+                statusBanner20 = `
+                    <div class="alm-room-alert warning">
+                        <div>🚶 Щоб купувати прокачки сніжинок, персонаж має стояти на <b>20-й сходинці</b> (зараз: ${s.currentStep}).</div>
+                        <button class="alm-mini-go-btn" onclick="window.moveAuraLarpToStep(20); window.switchAuraLarpSubTab('stairs');">
+                            Піти на 20 сходинку
+                        </button>
+                    </div>
+                `;
+            } else {
+                statusBanner20 = `
+                    <div class="alm-room-alert ready">
+                        ✅ Персонаж у Сніжній Кімнаті 20-ї сходинки! Збирайте сніжинки пальцем або курсором.
+                    </div>
+                `;
+            }
+
+            let flakesHtml = '';
+            activeSnowflakes.forEach(f => {
+                const rarity = f.rarity || 'normal';
+                const extraClass = rarity === 'gold' ? ' gold' : (rarity === 'emerald' ? ' emerald' : '');
+                flakesHtml += `<div class="alm-snowflake-item${extraClass}" data-flake-id="${f.id}" style="left:${f.xPct}%;top:${f.yPct}%;">❄️</div>`;
+            });
+
+            return `
+                ${roomsNavHtml}
+                <div class="alm-room20-layout">
+                    <div class="alm-room-card alm-room20-main">
+                        <div class="alm-room-header">
+                            <div class="alm-room-icon" style="border-color: #38bdf8;">❄️</div>
+                            <div>
+                                <div class="alm-room-title">Сніжна Кімната 20-ї Сходинки</div>
+                                <div class="alm-room-subtitle">Сніжинки з'являються навіть коли ви на інших сходинках!</div>
+                            </div>
+                        </div>
+
+                        ${statusBanner20}
+
+                        ${stormActive ? `
+                            <div class="alm-room-alert" style="background: rgba(56, 189, 248, 0.18); border-color: #38bdf8; color: #e0f2fe;">
+                                🌨️ <b>Сніжна буря активна!</b> Сніжинки з'являються кожні <b>${getEffectiveSnowSpawnInterval()} сек</b>!
+                            </div>
+                        ` : ''}
+
+                        <div class="alm-snow-stats-bar">
+                            <div class="alm-snow-stat-item">
+                                <span class="alm-snow-stat-label">❄️ Ваші сніжинки:</span>
+                                <span id="alm-snow-balance" class="alm-snow-stat-val">${formatSnowValue(s.snow)}</span>
+                            </div>
+                            <div class="alm-snow-stat-item">
+                                <span class="alm-snow-stat-label">📊 Всього зібрано:</span>
+                                <span id="alm-snow-total" class="alm-snow-stat-val">${formatSnowValue(s.totalSnow)}</span>
+                            </div>
+                        </div>
+
+                        <div class="alm-snow-zone-wrap">
+                            <div class="alm-snow-zone-header">
+                                <span>👆 Проводьте пальцем або натискайте по сніжинках</span>
+                                <span id="alm-snow-count-badge" class="alm-snow-badge">${activeSnowflakes.length} / ${MAX_SNOWFLAKES}</span>
+                            </div>
+                            <div style="font-size:0.74rem;color:#94a3b8;margin-bottom:6px;">
+                                ❄️ Звичайна: <b>x1</b> &nbsp;|&nbsp; <span style="color:#facc15;">❄️ Золота (${goldSnowPct}%): <b>x3</b></span> &nbsp;|&nbsp; <span style="color:#34d399;">❄️ Смарагдова (${emeraldSnowPct}%): <b>x10</b></span>
+                            </div>
+                            <div id="alm-snow-zone" class="alm-snow-zone ${isRoom20Unlocked ? '' : 'locked'}">
+                                ${isRoom20Unlocked ? flakesHtml : '<div class="alm-snow-locked-msg">🔒 Відкрийте 20 сходинку</div>'}
+                            </div>
+                        </div>
+
+                        <div class="alm-upgrades-stack">
+                            <div class="alm-upgrade-box">
+                                <div class="alm-upg-top">
+                                    <div class="alm-upg-name">❄️ Множник Сніжинок</div>
+                                    <div class="alm-upg-lvl">Рівень ${s.snowMultLvl}</div>
+                                </div>
+                                <div class="alm-upg-desc">
+                                    Збір за 1 сніжинку: <b style="color: #38bdf8;">x${curSnowMult}</b>
+                                    <span style="color: #94a3b8;">→</span>
+                                    Наступний: <b style="color: #4ade80;">x${nextSnowMult}</b>
+                                </div>
+                                <button id="alm-snow-mult-btn" class="alm-upg-buy-btn snow-btn" ${canBuySnowMult ? '' : 'disabled'} onclick="window.buyAuraLarpSnowMultUpgrade()">
+                                    Купити за ${formatSnowValue(snowMultCost)} ❄️
+                                </button>
+                            </div>
+
+                            <div class="alm-upgrade-box">
+                                <div class="alm-upg-top">
+                                    <div class="alm-upg-name">⚡ Швидкість появи сніжинок</div>
+                                    <div class="alm-upg-lvl">Рівень ${s.snowSpeedLvl} / ${SNOW_SPEED_MAX_LVL}</div>
+                                </div>
+                                <div class="alm-upg-desc">
+                                    Інтервал спавну: <b style="color: #38bdf8;">${curSnowInterval} сек</b>
+                                    ${isSnowSpeedMax ? '<span style="color:#4ade80;">(МАКСИМУМ)</span>' : `<span style="color: #94a3b8;">→</span> Наступний: <b style="color: #4ade80;">${nextSnowInterval} сек</b>`}
+                                </div>
+                                <button id="alm-snow-speed-btn" class="alm-upg-buy-btn snow-btn" ${canBuySnowSpeed ? '' : 'disabled'} onclick="window.buyAuraLarpSnowSpeedUpgrade()">
+                                    ${isSnowSpeedMax ? 'Максимальний рівень (0.2 сек)' : `Купити за ${formatSnowValue(snowSpeedCost)} ❄️`}
+                                </button>
+                            </div>
+
+                            <div class="alm-upgrade-box">
+                                <div class="alm-upg-top">
+                                    <div class="alm-upg-name">✨ Сніжний Множник Ларпів</div>
+                                    <div class="alm-upg-lvl">Рівень ${s.snowLarpMultLvl}</div>
+                                </div>
+                                <div class="alm-upg-desc">
+                                    Множник Ларпів: <b style="color: #38bdf8;">x${formatMultValue(curSnowLarpMult)}</b>
+                                    <span style="color: #94a3b8;">→</span>
+                                    Наступний: <b style="color: #4ade80;">x${formatMultValue(nextSnowLarpMult)}</b>
+                                </div>
+                                <button id="alm-snow-larp-btn" class="alm-upg-buy-btn snow-btn" ${canBuySnowLarp ? '' : 'disabled'} onclick="window.buyAuraLarpSnowLarpUpgrade()">
+                                    Купити за ${formatSnowValue(snowLarpCost)} ❄️
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="alm-snow-side-lb">
+                        <div class="alm-snow-lb-title">🏆 Топ по сніжинках</div>
+                        <div class="alm-snow-lb-sub">За весь час (автооновлення)</div>
+                        <div id="alm-snow-lb-list" class="alm-snow-lb-list">
+                            <div style="color:#94a3b8;font-size:0.8rem;text-align:center;padding:12px;">Завантаження...</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // ---------------- КІМНАТА 30 СХОДИНКИ (ПРИБИРАННЯ СМІТТЯ) ----------------
+        if (activeRoomStep === 30) {
+            const isRoom30Unlocked = s.maxUnlockedStep >= 30;
+            const isCharacterAtRoom30 = s.currentStep === 30 && s.targetStep === 30;
+
+            const curTrashMult = getTrashMultiplier();
+            const nextTrashMult = getNextTrashMultiplier();
+            const trashMultCost = getTrashMultUpgradeCost();
+            const canBuyTrashMult = isRoom30Unlocked && isCharacterAtRoom30 && s.trash >= trashMultCost;
+
+            const curTrashInterval = getTrashSpawnInterval();
+            const nextTrashInterval = getNextTrashSpawnInterval();
+            const trashSpeedCost = getTrashSpeedUpgradeCost();
+            const isTrashSpeedMax = (s.trashSpeedLvl || 0) >= TRASH_SPEED_MAX_LVL;
+            const canBuyTrashSpeed = !isTrashSpeedMax && isRoom30Unlocked && isCharacterAtRoom30 && s.trash >= trashSpeedCost;
+
+            const curTrashLarpMult = getTrashLarpMultiplier();
+            const nextTrashLarpMult = getNextTrashLarpMultiplier();
+            const trashLarpCost = getTrashLarpUpgradeCost();
+            const canBuyTrashLarp = isRoom30Unlocked && isCharacterAtRoom30 && s.trash >= trashLarpCost;
+
+            const goldTrashPct = getGoldTrashChancePct();
+            const emeraldTrashPct = getEmeraldTrashChancePct();
+
+            let statusBanner30 = '';
+            if (!isRoom30Unlocked) {
+                statusBanner30 = `
+                    <div class="alm-room-alert locked">
+                        🔒 <b>Кімната заблокована!</b> Відкрийте <b>30-ту сходинку</b> у вкладці «Сходи», щоб з'явилось сміття та відкрилися прокачки!
+                    </div>
+                `;
+            } else if (!isCharacterAtRoom30) {
+                statusBanner30 = `
+                    <div class="alm-room-alert warning">
+                        <div>🚶 Щоб купувати прокачки прибирання, персонаж має стояти на <b>30-й сходинці</b> (зараз: ${s.currentStep}).</div>
+                        <button class="alm-mini-go-btn" onclick="window.moveAuraLarpToStep(30); window.switchAuraLarpSubTab('stairs');">
+                            Піти на 30 сходинку
+                        </button>
+                    </div>
+                `;
+            } else {
+                statusBanner30 = `
+                    <div class="alm-room-alert ready">
+                        ✅ Персонаж у Кімнаті Прибирання 30-ї сходинки! Перетягуйте сміття у смітник.
+                    </div>
+                `;
+            }
+
+            let trashItemsHtml = '';
+            activeTrashItems.forEach(t => {
+                const rarity = t.rarity || 'normal';
+                const extraClass = rarity === 'gold' ? ' gold' : (rarity === 'emerald' ? ' emerald' : '');
+                trashItemsHtml += `<div class="alm-trash-item${extraClass}" data-trash-id="${t.id}" style="left:${t.xPct}%;top:${t.yPct}%;">${t.icon}</div>`;
+            });
+
+            return `
+                ${roomsNavHtml}
+                <div class="alm-room20-layout">
+                    <div class="alm-room-card alm-room20-main">
+                        <div class="alm-room-header">
+                            <div class="alm-room-icon" style="border-color: #22c55e;">🗑️</div>
+                            <div>
+                                <div class="alm-room-title">Кімната Прибирання 30-ї Сходинки</div>
+                                <div class="alm-room-subtitle">Сміття накопичується навіть коли ви на інших сходинках!</div>
+                            </div>
+                        </div>
+
+                        ${statusBanner30}
+
+                        <div class="alm-snow-stats-bar">
+                            <div class="alm-snow-stat-item">
+                                <span class="alm-snow-stat-label">🗑️ Зібране сміття:</span>
+                                <span id="alm-trash-balance" class="alm-snow-stat-val" style="color: #4ade80;">${formatTrashValue(s.trash)}</span>
+                            </div>
+                            <div class="alm-snow-stat-item">
+                                <span class="alm-snow-stat-label">♻️ Всього прибрано:</span>
+                                <span id="alm-trash-total" class="alm-snow-stat-val" style="color: #4ade80;">${formatTrashValue(s.totalTrash)}</span>
+                            </div>
+                        </div>
+
+                        <div class="alm-snow-zone-wrap">
+                            <div class="alm-snow-zone-header">
+                                <span>✊ Затисніть сміття та перетягніть у смітник внизу</span>
+                                <span id="alm-trash-count-badge" class="alm-snow-badge" style="color:#4ade80;border-color:rgba(74,222,128,0.45);">${activeTrashItems.length} / ${MAX_TRASH_ITEMS}</span>
+                            </div>
+                            <div style="font-size:0.74rem;color:#94a3b8;margin-bottom:6px;">
+                                🗑️ Звичайне: <b>x1</b> &nbsp;|&nbsp; <span style="color:#facc15;">🗑️ Золоте (${goldTrashPct}%): <b>x3</b></span> &nbsp;|&nbsp; <span style="color:#34d399;">🗑️ Смарагдове (${emeraldTrashPct}%): <b>x10</b></span>
+                            </div>
+                            <div id="alm-trash-zone" class="alm-trash-zone ${isRoom30Unlocked ? '' : 'locked'}">
+                                ${isRoom30Unlocked ? `
+                                    ${trashItemsHtml}
+                                    <div id="alm-trash-bin" class="alm-trash-bin">
+                                        <span class="alm-trash-bin-icon">🗑️</span>
+                                        <span class="alm-trash-bin-label">СМІТНИК</span>
+                                    </div>
+                                ` : '<div class="alm-snow-locked-msg">🔒 Відкрийте 30 сходинку</div>'}
+                            </div>
+                        </div>
+
+                        <div class="alm-upgrades-stack">
+                            <div class="alm-upgrade-box">
+                                <div class="alm-upg-top">
+                                    <div class="alm-upg-name">♻️ Множник Сміття</div>
+                                    <div class="alm-upg-lvl">Рівень ${s.trashMultLvl}</div>
+                                </div>
+                                <div class="alm-upg-desc">
+                                    За 1 прибраний предмет: <b style="color: #4ade80;">x${curTrashMult}</b>
+                                    <span style="color: #94a3b8;">→</span>
+                                    Наступний: <b style="color: #38bdf8;">x${nextTrashMult}</b>
+                                </div>
+                                <button id="alm-trash-mult-btn" class="alm-upg-buy-btn trash-btn" ${canBuyTrashMult ? '' : 'disabled'} onclick="window.buyAuraLarpTrashMultUpgrade()">
+                                    Купити за ${formatTrashValue(trashMultCost)} 🗑️
+                                </button>
+                            </div>
+
+                            <div class="alm-upgrade-box">
+                                <div class="alm-upg-top">
+                                    <div class="alm-upg-name">⚡ Швидкість появи сміття</div>
+                                    <div class="alm-upg-lvl">Рівень ${s.trashSpeedLvl} / ${TRASH_SPEED_MAX_LVL}</div>
+                                </div>
+                                <div class="alm-upg-desc">
+                                    Інтервал спавну: <b style="color: #4ade80;">${curTrashInterval} сек</b>
+                                    ${isTrashSpeedMax ? '<span style="color:#facc15;">(МАКСИМУМ)</span>' : `<span style="color: #94a3b8;">→</span> Наступний: <b style="color: #38bdf8;">${nextTrashInterval} сек</b>`}
+                                </div>
+                                <button id="alm-trash-speed-btn" class="alm-upg-buy-btn trash-btn" ${canBuyTrashSpeed ? '' : 'disabled'} onclick="window.buyAuraLarpTrashSpeedUpgrade()">
+                                    ${isTrashSpeedMax ? 'Максимальний рівень (0.4 сек)' : `Купити за ${formatTrashValue(trashSpeedCost)} 🗑️`}
+                                </button>
+                            </div>
+
+                            <div class="alm-upgrade-box">
+                                <div class="alm-upg-top">
+                                    <div class="alm-upg-name">✨ Еко-Множник Ларпів</div>
+                                    <div class="alm-upg-lvl">Рівень ${s.trashLarpMultLvl}</div>
+                                </div>
+                                <div class="alm-upg-desc">
+                                    Множник Ларпів: <b style="color: #4ade80;">x${formatMultValue(curTrashLarpMult)}</b>
+                                    <span style="color: #94a3b8;">→</span>
+                                    Наступний: <b style="color: #38bdf8;">x${formatMultValue(nextTrashLarpMult)}</b>
+                                </div>
+                                <button id="alm-trash-larp-btn" class="alm-upg-buy-btn trash-btn" ${canBuyTrashLarp ? '' : 'disabled'} onclick="window.buyAuraLarpTrashLarpUpgrade()">
+                                    Купити за ${formatTrashValue(trashLarpCost)} 🗑️
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="alm-snow-side-lb">
+                        <div class="alm-snow-lb-title" style="color: #4ade80;">🏆 Топ з прибирання</div>
+                        <div class="alm-snow-lb-sub">За весь час (автооновлення)</div>
+                        <div id="alm-trash-lb-list" class="alm-snow-lb-list">
+                            <div style="color:#94a3b8;font-size:0.8rem;text-align:center;padding:12px;">Завантаження...</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // ---------------- КІМНАТА 40 СХОДИНКИ (ШВИДКІСТЬ ТА ОФЛАЙН) ----------------
+        if (activeRoomStep === 40) {
+            const isRoom40Unlocked = s.maxUnlockedStep >= 40;
+            const isCharacterAtRoom40 = s.currentStep === 40 && s.targetStep === 40;
+
+            const curSpeedMult = getCharacterMoveSpeed();
+            const nextSpeedMult = getNextCharacterMoveSpeed();
+            const curSpeedBonusPct = (s.stepSpeedLvl || 0) * SPEED_UPG_STEP_PCT;
+            const nextSpeedBonusPct = curSpeedBonusPct + SPEED_UPG_STEP_PCT;
+            const speedCost = getSpeedUpgradeCost();
+            const canBuySpeed = isRoom40Unlocked && isCharacterAtRoom40 && s.larp >= speedCost;
+
+            const curOfflinePct = getOfflineLarpPercent();
+            const nextOfflinePct = getNextOfflineLarpPercent();
+            const offlineCost = getOfflineUpgradeCost();
+            const canBuyOffline = isRoom40Unlocked && isCharacterAtRoom40 && s.larp >= offlineCost;
+
+            let statusBanner40 = '';
+            if (!isRoom40Unlocked) {
+                statusBanner40 = `
+                    <div class="alm-room-alert locked">
+                        🔒 <b>Кімната заблокована!</b> Відкрийте <b>40-ту сходинку</b> у вкладці «Сходи», щоб отримати доступ до прискорення та офлайн-фарму!
+                    </div>
+                `;
+            } else if (!isCharacterAtRoom40) {
+                statusBanner40 = `
+                    <div class="alm-room-alert warning">
+                        <div>🚶 Щоб купувати прокачки в цій кімнаті, персонаж має стояти на <b>40-й сходинці</b> (зараз: ${s.currentStep}).</div>
+                        <button class="alm-mini-go-btn" onclick="window.moveAuraLarpToStep(40); window.switchAuraLarpSubTab('stairs');">
+                            Піти на 40 сходинку
+                        </button>
+                    </div>
+                `;
+            } else {
+                statusBanner40 = `
+                    <div class="alm-room-alert ready">
+                        ✅ Персонаж у Залі Прискорення 40-ї сходинки! Прокачки доступні.
+                    </div>
+                `;
+            }
+
+            return `
+                ${roomsNavHtml}
+                <div class="alm-room-card">
+                    <div class="alm-room-header">
+                        <div class="alm-room-icon" style="border-color: #f59e0b;">⚡</div>
+                        <div>
+                            <div class="alm-room-title">Зал Часу та Швидкості 40-ї Сходинки</div>
+                            <div class="alm-room-subtitle">Прискорення пересування та заробіток поза грою</div>
+                        </div>
+                    </div>
+
+                    ${statusBanner40}
+
+                    <div class="alm-upgrades-stack">
+                        <div class="alm-upgrade-box">
+                            <div class="alm-upg-top">
+                                <div class="alm-upg-name">🏃 Швидкість пересування сходами</div>
+                                <div class="alm-upg-lvl">Рівень ${s.stepSpeedLvl}</div>
+                            </div>
+                            <div class="alm-upg-desc">
+                                Бонус швидкості: <b style="color: #38bdf8;">+${curSpeedBonusPct}% (x${curSpeedMult})</b>
+                                <span style="color: #94a3b8;">→</span>
+                                Наступний: <b style="color: #4ade80;">+${nextSpeedBonusPct}% (x${nextSpeedMult})</b>
+                            </div>
+                            <div class="alm-upg-note">
+                                Кожен рівень прискорює підйом і спуск персонажа між сходинками на +1%.
+                            </div>
+                            <button id="alm-step-speed-btn" class="alm-upg-buy-btn" ${canBuySpeed ? '' : 'disabled'} onclick="window.buyAuraLarpStepSpeedUpgrade()">
+                                Купити за ${formatLarpValue(speedCost)} ${pluralizeLarp(speedCost)}
+                            </button>
+                        </div>
+
+                        <div class="alm-upgrade-box">
+                            <div class="alm-upg-top">
+                                <div class="alm-upg-name">🌙 Офлайн-фарм Ларпів</div>
+                                <div class="alm-upg-lvl">Рівень ${s.offlineLarpLvl}</div>
+                            </div>
+                            <div class="alm-upg-desc">
+                                Заробіток офлайн: <b style="color: #facc15;">${curOfflinePct}%</b>
+                                <span style="color: #94a3b8;">→</span>
+                                Наступний: <b style="color: #4ade80;">${nextOfflinePct}%</b>
+                            </div>
+                            <div class="alm-upg-note">
+                                Поки ви поза грою, ви отримуєте ${curOfflinePct}% від доходу вашої найвищої відкритої сходинки (${getHighestUnlockedStepNumber()} сходинка).
+                            </div>
+                            <button id="alm-offline-larp-btn" class="alm-upg-buy-btn" ${canBuyOffline ? '' : 'disabled'} onclick="window.buyAuraLarpOfflineUpgrade()">
+                                Купити за ${formatLarpValue(offlineCost)} ${pluralizeLarp(offlineCost)}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // ---------------- КІМНАТА 50 СХОДИНКИ (БОЙОВА КВОЧКА РЯБА ТА ПІР'Я) ----------------
+        if (activeRoomStep === 50) {
+            const isRoom50Unlocked = s.maxUnlockedStep >= 50;
+            const isCharacterAtRoom50 = s.currentStep === 50 && s.targetStep === 50;
+
+            const now = getCurrentNowMs();
+            const isRespawning = Boolean(s.chickenRespawnEndMs && now < s.chickenRespawnEndMs);
+            const respawnLeftSec = isRespawning ? Math.max(0, (s.chickenRespawnEndMs - now) / 1000) : 0;
+            const hpPct = Math.max(0, Math.min(100, (s.chickenHp / CHICKEN_MAX_HP) * 100));
+
+            const curFeatherMult = getFeatherMultiplier();
+            const nextFeatherMult = getNextFeatherMultiplier();
+            const featherMultCost = getFeatherMultUpgradeCost();
+            const canBuyFeatherMult = isRoom50Unlocked && isCharacterAtRoom50 && s.feathers >= featherMultCost;
+
+            const curFeatherLarpMult = getFeatherLarpMultiplier();
+            const nextFeatherLarpMult = getNextFeatherLarpMultiplier();
+            const featherLarpCost = getFeatherLarpUpgradeCost();
+            const canBuyFeatherLarp = isRoom50Unlocked && isCharacterAtRoom50 && s.feathers >= featherLarpCost;
+
+            const clickDamage = getChickenClickDamage();
+            const respawnDurationSec = getChickenRespawnDurationSec();
+            const expectedDrop = Math.round(CHICKEN_BASE_FEATHER_DROP * curFeatherMult);
+
+            let statusBanner50 = '';
+            if (!isRoom50Unlocked) {
+                statusBanner50 = `
+                    <div class="alm-room-alert locked">
+                        🔒 <b>Кімната заблокована!</b> Відкрийте <b>50-ту сходинку</b> у вкладці «Сходи», щоб битися з мобом «${CHICKEN_MOB_NAME}»!
+                    </div>
+                `;
+            } else if (!isCharacterAtRoom50) {
+                statusBanner50 = `
+                    <div class="alm-room-alert warning">
+                        <div>🚶 Щоб атакувати моба та купувати прокачки за пір'я, персонаж має стояти на <b>50-й сходинці</b> (зараз: ${s.currentStep}).</div>
+                        <button class="alm-mini-go-btn" onclick="window.moveAuraLarpToStep(50); window.switchAuraLarpSubTab('stairs');">
+                            Піти на 50 сходинку
+                        </button>
+                    </div>
+                `;
+            } else {
+                statusBanner50 = `
+                    <div class="alm-room-alert ready">
+                        ✅ Персонаж на Арені 50-ї сходинки! Натискайте по мобу, щоб завдавати ${clickDamage} урону за клік.
+                    </div>
+                `;
+            }
+
+            return `
+                ${roomsNavHtml}
+                <div class="alm-room20-layout">
+                    <div class="alm-room-card alm-room20-main">
+                        <div class="alm-room-header">
+                            <div class="alm-room-icon" style="border-color: #fb923c;">🐔</div>
+                            <div>
+                                <div class="alm-room-title">Бойова Арена 50-ї Сходинки</div>
+                                <div class="alm-room-subtitle">Моб: ${CHICKEN_MOB_NAME} • Дроп: 🪶 Пір'я</div>
+                            </div>
+                        </div>
+
+                        ${statusBanner50}
+
+                        <div class="alm-snow-stats-bar">
+                            <div class="alm-snow-stat-item">
+                                <span class="alm-snow-stat-label">🪶 Ваше пір'я:</span>
+                                <span id="alm-feather-balance" class="alm-snow-stat-val" style="color: #fdba74;">${formatFeatherValue(s.feathers)}</span>
+                            </div>
+                            <div class="alm-snow-stat-item">
+                                <span class="alm-snow-stat-label">🏆 Всього здобуто:</span>
+                                <span id="alm-feather-total" class="alm-snow-stat-val" style="color: #fdba74;">${formatFeatherValue(s.totalFeathers)}</span>
+                            </div>
+                        </div>
+
+                        <div id="alm-chicken-arena" class="alm-chicken-arena ${isRoom50Unlocked && isCharacterAtRoom50 ? '' : 'locked'}">
+                            ${!isRoom50Unlocked ? `
+                                <div class="alm-snow-locked-msg">🔒 Відкрийте 50 сходинку</div>
+                            ` : isRespawning ? `
+                                <div class="alm-chicken-respawn-box">
+                                    <div style="font-size: 2.6rem;">🥚⏳</div>
+                                    <div style="font-weight: 900; color: #facc15; font-size: 1rem; margin-top: 6px;">
+                                        ${CHICKEN_MOB_NAME} відновлюється...
+                                    </div>
+                                    <div style="color: #94a3b8; font-size: 0.82rem; margin-top: 4px;">
+                                        Повернення через (час спавну: ${formatDurationUk(respawnDurationSec)}):
+                                    </div>
+                                    <div id="alm-chicken-respawn-timer" class="alm-respawn-countdown">
+                                        ${formatTimerMmSs(respawnLeftSec)}
+                                    </div>
+                                </div>
+                            ` : `
+                                <div class="alm-mob-title-row">
+                                    <span class="alm-mob-name">⚔️ ${CHICKEN_MOB_NAME}</span>
+                                    <span class="alm-mob-reward-tag">Нагорода: +${formatFeatherValue(expectedDrop)} 🪶</span>
+                                </div>
+                                <div class="alm-chicken-hp-wrap">
+                                    <div id="alm-chicken-hp-fill" class="alm-chicken-hp-fill" style="width: ${hpPct}%;"></div>
+                                    <div id="alm-chicken-hp-text" class="alm-chicken-hp-text">${Math.ceil(s.chickenHp)} / ${CHICKEN_MAX_HP} HP</div>
+                                </div>
+                                <button id="alm-chicken-mob-btn" class="alm-chicken-mob-btn"
+                                        ${isCharacterAtRoom50 ? '' : 'disabled'}
+                                        onclick="window.attackAuraLarpChicken(event)">
+                                    <span class="alm-chicken-emoji">🐔</span>
+                                    <span class="alm-chicken-hit-hint">
+                                        ${isCharacterAtRoom50 ? `💥 ВДАРИТИ (-${clickDamage} HP)` : '🚶 Підійдіть на 50 сходинку'}
+                                    </span>
+                                </button>
+                            `}
+                        </div>
+
+                        <div class="alm-upgrades-stack" style="margin-top: 12px;">
+                            <div class="alm-upgrade-box">
+                                <div class="alm-upg-top">
+                                    <div class="alm-upg-name">🪶 Множник Пір'я</div>
+                                    <div class="alm-upg-lvl">Рівень ${s.featherMultLvl}</div>
+                                </div>
+                                <div class="alm-upg-desc">
+                                    Множник дропу пір'я: <b style="color: #fdba74;">x${formatMultValue(curFeatherMult)}</b>
+                                    <span style="color: #94a3b8;">→</span>
+                                    Наступний: <b style="color: #4ade80;">x${formatMultValue(nextFeatherMult)}</b>
+                                </div>
+                                <div class="alm-upg-note">
+                                    За перемогу над мобом випаде ${Math.round(CHICKEN_BASE_FEATHER_DROP * curFeatherMult)} пір'я (наступний рівень: ${Math.round(CHICKEN_BASE_FEATHER_DROP * nextFeatherMult)}).
+                                </div>
+                                <button id="alm-feather-mult-btn" class="alm-upg-buy-btn feather-btn" ${canBuyFeatherMult ? '' : 'disabled'} onclick="window.buyAuraLarpFeatherMultUpgrade()">
+                                    Купити за ${formatFeatherValue(featherMultCost)} 🪶
+                                </button>
+                            </div>
+
+                            <div class="alm-upgrade-box">
+                                <div class="alm-upg-top">
+                                    <div class="alm-upg-name">✨ Пір'яний Множник Ларпів</div>
+                                    <div class="alm-upg-lvl">Рівень ${s.featherLarpMultLvl}</div>
+                                </div>
+                                <div class="alm-upg-desc">
+                                    Множник Ларпів: <b style="color: #fdba74;">x${formatMultValue(curFeatherLarpMult)}</b>
+                                    <span style="color: #94a3b8;">→</span>
+                                    Наступний: <b style="color: #4ade80;">x${formatMultValue(nextFeatherLarpMult)}</b>
+                                </div>
+                                <button id="alm-feather-larp-btn" class="alm-upg-buy-btn feather-btn" ${canBuyFeatherLarp ? '' : 'disabled'} onclick="window.buyAuraLarpFeatherLarpUpgrade()">
+                                    Купити за ${formatFeatherValue(featherLarpCost)} 🪶
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="alm-snow-side-lb">
+                        <div class="alm-snow-lb-title" style="color: #fdba74;">🏆 Топ за пір'ям</div>
+                        <div class="alm-snow-lb-sub">За весь час (автооновлення)</div>
+                        <div id="alm-feather-lb-list" class="alm-snow-lb-list">
+                            <div style="color:#94a3b8;font-size:0.8rem;text-align:center;padding:12px;">Завантаження...</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // ---------------- КІМНАТА 60 СХОДИНКИ (ЗОЛОТІ ТА СМАРАГДОВІ ШАНСИ) ----------------
+        if (activeRoomStep === 60) {
+            const isRoom60Unlocked = s.maxUnlockedStep >= 60;
+            const isCharacterAtRoom60 = s.currentStep === 60 && s.targetStep === 60;
+
+            const curGoldSnow = getGoldSnowChancePct();
+            const isGoldSnowMax = (s.goldSnowLvl || 0) >= GOLD_SNOW_MAX_LVL;
+            const goldSnowCost = getGoldSnowUpgradeCost();
+            const canBuyGoldSnow = !isGoldSnowMax && isRoom60Unlocked && isCharacterAtRoom60 && s.larp >= goldSnowCost;
+
+            const curEmeraldSnow = getEmeraldSnowChancePct();
+            const isEmeraldSnowMax = (s.emeraldSnowLvl || 0) >= EMERALD_SNOW_MAX_LVL;
+            const emeraldSnowCost = getEmeraldSnowUpgradeCost();
+            const canBuyEmeraldSnow = !isEmeraldSnowMax && isRoom60Unlocked && isCharacterAtRoom60 && s.larp >= emeraldSnowCost;
+
+            const curGoldTrash = getGoldTrashChancePct();
+            const isGoldTrashMax = (s.goldTrashLvl || 0) >= GOLD_TRASH_MAX_LVL;
+            const goldTrashCost = getGoldTrashUpgradeCost();
+            const canBuyGoldTrash = !isGoldTrashMax && isRoom60Unlocked && isCharacterAtRoom60 && s.larp >= goldTrashCost;
+
+            const curEmeraldTrash = getEmeraldTrashChancePct();
+            const isEmeraldTrashMax = (s.emeraldTrashLvl || 0) >= EMERALD_TRASH_MAX_LVL;
+            const emeraldTrashCost = getEmeraldTrashUpgradeCost();
+            const canBuyEmeraldTrash = !isEmeraldTrashMax && isRoom60Unlocked && isCharacterAtRoom60 && s.larp >= emeraldTrashCost;
+
+            let statusBanner60 = '';
+            if (!isRoom60Unlocked) {
+                statusBanner60 = `
+                    <div class="alm-room-alert locked">
+                        🔒 <b>Кімната заблокована!</b> Відкрийте <b>60-ту сходинку</b> у вкладці «Сходи», щоб відкрити рідкісні золоті та смарагдові сніжинки і сміття!
+                    </div>
+                `;
+            } else if (!isCharacterAtRoom60) {
+                statusBanner60 = `
+                    <div class="alm-room-alert warning">
+                        <div>🚶 Щоб купувати прокачки шансів, персонаж має стояти на <b>60-й сходинці</b> (зараз: ${s.currentStep}).</div>
+                        <button class="alm-mini-go-btn" onclick="window.moveAuraLarpToStep(60); window.switchAuraLarpSubTab('stairs');">
+                            Піти на 60 сходинку
+                        </button>
+                    </div>
+                `;
+            } else {
+                statusBanner60 = `
+                    <div class="alm-room-alert ready">
+                        ✅ Персонаж у Скарбниці Рідкостей 60-ї сходинки! Прокачуйте шанси золотих (x3) та смарагдових (x10) предметів.
+                    </div>
+                `;
+            }
+
+            return `
+                ${roomsNavHtml}
+                <div class="alm-room-card">
+                    <div class="alm-room-header">
+                        <div class="alm-room-icon" style="border-color: #34d399;">💎</div>
+                        <div>
+                            <div class="alm-room-title">Скарбниця Рідкостей 60-ї Сходинки</div>
+                            <div class="alm-room-subtitle">Золоті предмети дають x3, а Смарагдові — x10 ресурсів!</div>
+                        </div>
+                    </div>
+
+                    ${statusBanner60}
+
+                    <div class="alm-upgrades-stack">
+                        <div class="alm-upgrade-box">
+                            <div class="alm-upg-top">
+                                <div class="alm-upg-name" style="color:#facc15;">❄️ Шанс золотої сніжинки (x3 ❄️)</div>
+                                <div class="alm-upg-lvl">Рівень ${s.goldSnowLvl} / ${GOLD_SNOW_MAX_LVL}</div>
+                            </div>
+                            <div class="alm-upg-desc">
+                                Поточний шанс: <b style="color:#facc15;">${curGoldSnow}%</b>
+                                ${isGoldSnowMax ? '<span style="color:#4ade80;">(МАКСИМУМ)</span>' : `<span style="color:#94a3b8;">→</span> Наступний: <b style="color:#4ade80;">${Number((curGoldSnow + 1).toFixed(2))}%</b>`}
+                            </div>
+                            <button id="alm-gold-snow-btn" class="alm-upg-buy-btn" ${canBuyGoldSnow ? '' : 'disabled'} onclick="window.buyAuraLarpGoldSnowUpgrade()">
+                                ${isGoldSnowMax ? 'Максимальний шанс (100%)' : `Купити за ${formatLarpValue(goldSnowCost)} ${pluralizeLarp(goldSnowCost)}`}
+                            </button>
+                        </div>
+
+                        <div class="alm-upgrade-box">
+                            <div class="alm-upg-top">
+                                <div class="alm-upg-name" style="color:#34d399;">💎 Шанс смарагдової сніжинки (x10 ❄️)</div>
+                                <div class="alm-upg-lvl">Рівень ${s.emeraldSnowLvl} / ${EMERALD_SNOW_MAX_LVL}</div>
+                            </div>
+                            <div class="alm-upg-desc">
+                                Поточний шанс: <b style="color:#34d399;">${curEmeraldSnow}%</b>
+                                ${isEmeraldSnowMax ? '<span style="color:#4ade80;">(МАКСИМУМ)</span>' : `<span style="color:#94a3b8;">→</span> Наступний: <b style="color:#4ade80;">${Number((curEmeraldSnow + 0.01).toFixed(2))}%</b>`}
+                            </div>
+                            <button id="alm-emerald-snow-btn" class="alm-upg-buy-btn" ${canBuyEmeraldSnow ? '' : 'disabled'} onclick="window.buyAuraLarpEmeraldSnowUpgrade()">
+                                ${isEmeraldSnowMax ? 'Максимальний шанс (100%)' : `Купити за ${formatLarpValue(emeraldSnowCost)} ${pluralizeLarp(emeraldSnowCost)}`}
+                            </button>
+                        </div>
+
+                        <div class="alm-upgrade-box">
+                            <div class="alm-upg-top">
+                                <div class="alm-upg-name" style="color:#facc15;">🗑️ Шанс золотого сміття (x3 🗑️)</div>
+                                <div class="alm-upg-lvl">Рівень ${s.goldTrashLvl} / ${GOLD_TRASH_MAX_LVL}</div>
+                            </div>
+                            <div class="alm-upg-desc">
+                                Поточний шанс: <b style="color:#facc15;">${curGoldTrash}%</b>
+                                ${isGoldTrashMax ? '<span style="color:#4ade80;">(МАКСИМУМ)</span>' : `<span style="color:#94a3b8;">→</span> Наступний: <b style="color:#4ade80;">${Number((curGoldTrash + 1).toFixed(2))}%</b>`}
+                            </div>
+                            <button id="alm-gold-trash-btn" class="alm-upg-buy-btn" ${canBuyGoldTrash ? '' : 'disabled'} onclick="window.buyAuraLarpGoldTrashUpgrade()">
+                                ${isGoldTrashMax ? 'Максимальний шанс (100%)' : `Купити за ${formatLarpValue(goldTrashCost)} ${pluralizeLarp(goldTrashCost)}`}
+                            </button>
+                        </div>
+
+                        <div class="alm-upgrade-box">
+                            <div class="alm-upg-top">
+                                <div class="alm-upg-name" style="color:#34d399;">💎 Шанс смарагдового сміття (x10 🗑️)</div>
+                                <div class="alm-upg-lvl">Рівень ${s.emeraldTrashLvl} / ${EMERALD_TRASH_MAX_LVL}</div>
+                            </div>
+                            <div class="alm-upg-desc">
+                                Поточний шанс: <b style="color:#34d399;">${curEmeraldTrash}%</b>
+                                ${isEmeraldTrashMax ? '<span style="color:#4ade80;">(МАКСИМУМ)</span>' : `<span style="color:#94a3b8;">→</span> Наступний: <b style="color:#4ade80;">${Number((curEmeraldTrash + 0.01).toFixed(2))}%</b>`}
+                            </div>
+                            <button id="alm-emerald-trash-btn" class="alm-upg-buy-btn" ${canBuyEmeraldTrash ? '' : 'disabled'} onclick="window.buyAuraLarpEmeraldTrashUpgrade()">
+                                ${isEmeraldTrashMax ? 'Максимальний шанс (100%)' : `Купити за ${formatLarpValue(emeraldTrashCost)} ${pluralizeLarp(emeraldTrashCost)}`}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // ---------------- КІМНАТА 70 СХОДИНКИ (ОБ'ЄДНАННЯ ОВОЧІВ ТА ФРУКТІВ — ВІТАМІНИ) ----------------
+        if (activeRoomStep === 70) {
+            const isRoom70Unlocked = s.maxUnlockedStep >= 70;
+            const isCharacterAtRoom70 = s.currentStep === 70 && s.targetStep === 70;
+
+            const curVitMult = getVitaminMultiplier();
+            const nextVitMult = getNextVitaminMultiplier();
+            const vitMultCost = getVitaminMultUpgradeCost();
+            const canBuyVitMult = isRoom70Unlocked && isCharacterAtRoom70 && s.vitamins >= vitMultCost;
+
+            const curLv2Pct = getMergeLv2ChancePct();
+            const nextLv2Pct = getNextMergeLv2ChancePct();
+            const isLv2Max = (s.mergeLv2ChanceLvl || 0) >= MERGE_LV2_MAX_LVL;
+            const lv2Cost = getMergeLv2UpgradeCost();
+            const canBuyLv2 = !isLv2Max && isRoom70Unlocked && isCharacterAtRoom70 && s.vitamins >= lv2Cost;
+
+            const curMergeLarpMult = getMergeLarpMultiplier();
+            const nextMergeLarpMult = getNextMergeLarpMultiplier();
+            const mergeLarpCost = getMergeLarpUpgradeCost();
+            const canBuyMergeLarp = isRoom70Unlocked && isCharacterAtRoom70 && s.vitamins >= mergeLarpCost;
+
+            let statusBanner70 = '';
+            if (!isRoom70Unlocked) {
+                statusBanner70 = `
+                    <div class="alm-room-alert locked">
+                        🔒 <b>Кімната заблокована!</b> Відкрийте <b>70-ту сходинку</b> у вкладці «Сходи», щоб відкрити ферму об'єднання овочів та фруктів!
+                    </div>
+                `;
+            } else if (!isCharacterAtRoom70) {
+                statusBanner70 = `
+                    <div class="alm-room-alert warning">
+                        <div>🚶 Щоб купувати прокачки за вітаміни, персонаж має стояти на <b>70-й сходинці</b> (зараз: ${s.currentStep}).</div>
+                        <button class="alm-mini-go-btn" onclick="window.moveAuraLarpToStep(70); window.switchAuraLarpSubTab('stairs');">
+                            Піти на 70 сходинку
+                        </button>
+                    </div>
+                `;
+            } else {
+                statusBanner70 = `
+                    <div class="alm-room-alert ready">
+                        ✅ Персонаж у Вітамінній Оранжереї 70-ї сходинки! Перетягуйте два однакових овочі або фрукти один на одного.
+                    </div>
+                `;
+            }
+
+            let mergeItemsHtml = '';
+            activeMergeItems.forEach(m => {
+                const tier = getMergeTierInfo(m.level);
+                mergeItemsHtml += `
+                    <div class="alm-merge-item" data-merge-id="${m.id}" style="left:${m.xPct}%;top:${m.yPct}%;">
+                        <span class="alm-merge-emoji">${tier.icon}</span>
+                        <span class="alm-merge-lvl-badge">Lv.${m.level}</span>
+                    </div>
+                `;
+            });
+
+            const chainPreview = MERGE_HIERARCHY.map(t => `${t.icon}${t.level}`).join(' → ');
+
+            return `
+                ${roomsNavHtml}
+                <div class="alm-room20-layout">
+                    <div class="alm-room-card alm-room20-main">
+                        <div class="alm-room-header">
+                            <div class="alm-room-icon" style="border-color: #f43f5e;">🍉</div>
+                            <div>
+                                <div class="alm-room-title">Вітамінна Оранжерея 70-ї Сходинки</div>
+                                <div class="alm-room-subtitle">Об'єднуйте однакові плоди для отримання 💊 Вітамінів!</div>
+                            </div>
+                        </div>
+
+                        ${statusBanner70}
+
+                        <div class="alm-snow-stats-bar">
+                            <div class="alm-snow-stat-item">
+                                <span class="alm-snow-stat-label">💊 Ваші вітаміни:</span>
+                                <span id="alm-vitamin-balance" class="alm-snow-stat-val" style="color: #fb7185;">${formatVitaminValue(s.vitamins)}</span>
+                            </div>
+                            <div class="alm-snow-stat-item">
+                                <span class="alm-snow-stat-label">🌟 Всього зібрано:</span>
+                                <span id="alm-vitamin-total" class="alm-snow-stat-val" style="color: #fb7185;">${formatVitaminValue(s.totalVitamins)}</span>
+                            </div>
+                        </div>
+
+                        <div class="alm-snow-zone-wrap">
+                            <div class="alm-snow-zone-header">
+                                <span>🔄 Наведіть один плід на такий самий (кожні 3 сек +1)</span>
+                                <span id="alm-merge-count-badge" class="alm-snow-badge" style="color:#fb7185;border-color:rgba(251,113,133,0.45);">${activeMergeItems.length} / ${MAX_MERGE_ITEMS}</span>
+                            </div>
+                            <div style="font-size:0.7rem;color:#94a3b8;margin-bottom:6px;line-height:1.3;">
+                                ${chainPreview}
+                            </div>
+                            <div id="alm-merge-zone" class="alm-merge-zone ${isRoom70Unlocked ? '' : 'locked'}">
+                                ${isRoom70Unlocked ? mergeItemsHtml : '<div class="alm-snow-locked-msg">🔒 Відкрийте 70 сходинку</div>'}
+                            </div>
+                            ${isRoom70Unlocked ? `
+                                <div style="display:flex;justify-content:flex-end;margin-top:6px;">
+                                    <button class="alm-mini-go-btn" style="background:rgba(251,113,133,0.18);border-color:rgba(251,113,133,0.5);color:#fda4af;" onclick="window.sellAuraLarpMergeItem()">
+                                        ♻️ Звільнити місце (+💊)
+                                    </button>
+                                </div>
+                            ` : ''}
+                        </div>
+
+                        <div class="alm-upgrades-stack">
+                            <div class="alm-upgrade-box">
+                                <div class="alm-upg-top">
+                                    <div class="alm-upg-name">💊 Множник Вітамінів</div>
+                                    <div class="alm-upg-lvl">Рівень ${s.vitaminMultLvl}</div>
+                                </div>
+                                <div class="alm-upg-desc">
+                                    Нагорода за злиття: <b style="color: #fb7185;">x${formatMultValue(curVitMult)}</b>
+                                    <span style="color: #94a3b8;">→</span>
+                                    Наступний: <b style="color: #4ade80;">x${formatMultValue(nextVitMult)}</b>
+                                </div>
+                                <button id="alm-vit-mult-btn" class="alm-upg-buy-btn vitamin-btn" ${canBuyVitMult ? '' : 'disabled'} onclick="window.buyAuraLarpVitaminMultUpgrade()">
+                                    Купити за ${formatVitaminValue(vitMultCost)} 💊
+                                </button>
+                            </div>
+
+                            <div class="alm-upgrade-box">
+                                <div class="alm-upg-top">
+                                    <div class="alm-upg-name">🍅 Шанс появи плода 2-го рівня</div>
+                                    <div class="alm-upg-lvl">Рівень ${s.mergeLv2ChanceLvl} / ${MERGE_LV2_MAX_LVL}</div>
+                                </div>
+                                <div class="alm-upg-desc">
+                                    Шанс спавну 🍅 (Lv.2): <b style="color: #fb7185;">${curLv2Pct}%</b>
+                                    ${isLv2Max ? '<span style="color:#4ade80;">(МАКСИМУМ)</span>' : `<span style="color: #94a3b8;">→</span> Наступний: <b style="color: #4ade80;">${nextLv2Pct}%</b>`}
+                                </div>
+                                <button id="alm-merge-lv2-btn" class="alm-upg-buy-btn vitamin-btn" ${canBuyLv2 ? '' : 'disabled'} onclick="window.buyAuraLarpMergeLv2Upgrade()">
+                                    ${isLv2Max ? 'Максимальний шанс (100%)' : `Купити за ${formatVitaminValue(lv2Cost)} 💊`}
+                                </button>
+                            </div>
+
+                            <div class="alm-upgrade-box">
+                                <div class="alm-upg-top">
+                                    <div class="alm-upg-name">✨ Вітамінний Множник Ларпів</div>
+                                    <div class="alm-upg-lvl">Рівень ${s.mergeLarpMultLvl}</div>
+                                </div>
+                                <div class="alm-upg-desc">
+                                    Множник Ларпів: <b style="color: #fb7185;">x${formatMultValue(curMergeLarpMult)}</b>
+                                    <span style="color: #94a3b8;">→</span>
+                                    Наступний: <b style="color: #4ade80;">x${formatMultValue(nextMergeLarpMult)}</b>
+                                </div>
+                                <button id="alm-merge-larp-btn" class="alm-upg-buy-btn vitamin-btn" ${canBuyMergeLarp ? '' : 'disabled'} onclick="window.buyAuraLarpMergeLarpUpgrade()">
+                                    Купити за ${formatVitaminValue(mergeLarpCost)} 💊
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="alm-snow-side-lb">
+                        <div class="alm-snow-lb-title" style="color: #fb7185;">🏆 Топ з вітамінів</div>
+                        <div class="alm-snow-lb-sub">За весь час (автооновлення)</div>
+                        <div id="alm-vitamin-lb-list" class="alm-snow-lb-list">
+                            <div style="color:#94a3b8;font-size:0.8rem;text-align:center;padding:12px;">Завантаження...</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // ---------------- КІМНАТА 80 СХОДИНКИ (СНІЖНА БУРЯ) ----------------
+        if (activeRoomStep === 80) {
+            const isRoom80Unlocked = s.maxUnlockedStep >= 80;
+            const isCharacterAtRoom80 = s.currentStep === 80 && s.targetStep === 80;
+            const now = getCurrentNowMs();
+
+            const stormActive = s.stormActiveEndMs && now < s.stormActiveEndMs;
+            const stormCooldown = s.stormCooldownEndMs && now < s.stormCooldownEndMs;
+            const canActivateStorm = isRoom80Unlocked && isCharacterAtRoom80 && !stormActive && !stormCooldown;
+
+            const curDurMin = getStormDurationMinutes();
+            const nextDurMin = getNextStormDurationMinutes();
+            const durCost = getStormDurationUpgradeCost();
+            const canBuyDur = isRoom80Unlocked && isCharacterAtRoom80 && s.larp >= durCost;
+
+            const curCdHr = getStormCooldownHours();
+            const nextCdHr = getNextStormCooldownHours();
+            const isCdMax = (s.stormCooldownLvl || 0) >= STORM_COOLDOWN_MAX_LVL;
+            const cdCost = getStormCooldownUpgradeCost();
+            const canBuyCd = !isCdMax && isRoom80Unlocked && isCharacterAtRoom80 && s.larp >= cdCost;
+
+            const curStormSpd = getStormSnowSpawnInterval();
+            const nextStormSpd = getNextStormSnowSpawnInterval();
+            const isStormSpdMax = (s.stormSpeedLvl || 0) >= STORM_SPAWN_MAX_LVL;
+            const stormSpdCost = getStormSpeedUpgradeCost();
+            const canBuyStormSpd = !isStormSpdMax && isRoom80Unlocked && isCharacterAtRoom80 && s.larp >= stormSpdCost;
+
+            let statusBanner80 = '';
+            if (!isRoom80Unlocked) {
+                statusBanner80 = `
+                    <div class="alm-room-alert locked">
+                        🔒 <b>Кімната заблокована!</b> Відкрийте <b>80-ту сходинку</b> у вкладці «Сходи», щоб керувати Сніжною Бурею!
+                    </div>
+                `;
+            } else if (!isCharacterAtRoom80) {
+                statusBanner80 = `
+                    <div class="alm-room-alert warning">
+                        <div>🚶 Щоб викликати Сніжну бурю та купувати прокачки, персонаж має стояти на <b>80-й сходинці</b> (зараз: ${s.currentStep}).</div>
+                        <button class="alm-mini-go-btn" onclick="window.moveAuraLarpToStep(80); window.switchAuraLarpSubTab('stairs');">
+                            Піти на 80 сходинку
+                        </button>
+                    </div>
+                `;
+            } else {
+                statusBanner80 = `
+                    <div class="alm-room-alert ready">
+                        ✅ Персонаж у Метео-Обсерваторії 80-ї сходинки! Викликайте Сніжну бурю та покращуйте її силу.
+                    </div>
+                `;
+            }
+
+            let stormBtnText = `🌨️ Викликати сніжну бурю (${curDurMin} хв)`;
+            let stormStatusLine = `<span style="color:#4ade80;font-weight:800;">✅ Сніжна буря готова до запуску!</span>`;
+            if (stormActive) {
+                const leftSec = Math.max(0, (s.stormActiveEndMs - now) / 1000);
+                stormBtnText = `🌨️ Буря активна (${formatTimerMmSs(leftSec)})`;
+                stormStatusLine = `<span style="color:#38bdf8;font-weight:900;">🌨️ Сніжна буря вирує! Залишилось: ${formatTimerMmSs(leftSec)}</span>`;
+            } else if (stormCooldown) {
+                const cdLeftSec = Math.max(0, (s.stormCooldownEndMs - now) / 1000);
+                stormBtnText = `⏳ Перезарядка (${formatTimerMmSs(cdLeftSec)})`;
+                stormStatusLine = `<span style="color:#f59e0b;font-weight:800;">⏳ Перезарядка бурі: ${formatTimerMmSs(cdLeftSec)}</span>`;
+            }
+
+            return `
+                ${roomsNavHtml}
+                <div class="alm-room-card">
+                    <div class="alm-room-header">
+                        <div class="alm-room-icon" style="border-color: #38bdf8;">🌨️</div>
+                        <div>
+                            <div class="alm-room-title">Метео-Обсерваторія 80-ї Сходинки</div>
+                            <div class="alm-room-subtitle">Викликає Сніжну бурю у кімнаті 20-ї сходинки!</div>
+                        </div>
+                    </div>
+
+                    ${statusBanner80}
+
+                    <div class="alm-upgrade-box" style="border-color: rgba(56, 189, 248, 0.45); background: rgba(14, 116, 144, 0.16); margin-bottom: 12px;">
+                        <div class="alm-upg-top">
+                            <div class="alm-upg-name" style="color:#38bdf8;">🌨️ Активація Сніжної Бурі</div>
+                            <div class="alm-upg-lvl">Спавн: ${curStormSpd} сек</div>
+                        </div>
+                        <div id="alm-storm-status-text" class="alm-upg-desc">${stormStatusLine}</div>
+                        <div class="alm-upg-note">
+                            Під час бурі сніжинки на 20-й сходинці з'являються зі швидкістю <b>1 сніжинка / ${curStormSpd} сек</b> протягом <b>${curDurMin} хв</b>.
+                        </div>
+                        <button id="alm-storm-activate-btn" class="alm-upg-buy-btn snow-btn" ${canActivateStorm ? '' : 'disabled'} onclick="window.activateAuraLarpSnowstorm()">
+                            ${stormBtnText}
+                        </button>
+                    </div>
+
+                    <div class="alm-upgrades-stack">
+                        <div class="alm-upgrade-box">
+                            <div class="alm-upg-top">
+                                <div class="alm-upg-name">⏱️ Тривалість сніжної бурі</div>
+                                <div class="alm-upg-lvl">Рівень ${s.stormDurationLvl}</div>
+                            </div>
+                            <div class="alm-upg-desc">
+                                Тривалість: <b style="color:#38bdf8;">${curDurMin} хв</b>
+                                <span style="color:#94a3b8;">→</span>
+                                Наступний: <b style="color:#4ade80;">${nextDurMin} хв</b>
+                            </div>
+                            <button id="alm-storm-dur-btn" class="alm-upg-buy-btn" ${canBuyDur ? '' : 'disabled'} onclick="window.buyAuraLarpStormDurationUpgrade()">
+                                Купити за ${formatLarpValue(durCost)} ${pluralizeLarp(durCost)}
+                            </button>
+                        </div>
+
+                        <div class="alm-upgrade-box">
+                            <div class="alm-upg-top">
+                                <div class="alm-upg-name">🔄 Перезарядка сніжної бурі</div>
+                                <div class="alm-upg-lvl">Рівень ${s.stormCooldownLvl} / ${STORM_COOLDOWN_MAX_LVL}</div>
+                            </div>
+                            <div class="alm-upg-desc">
+                                Перезарядка: <b style="color:#38bdf8;">${curCdHr} год</b>
+                                ${isCdMax ? '<span style="color:#4ade80;">(МАКСИМУМ)</span>' : `<span style="color:#94a3b8;">→</span> Наступний: <b style="color:#4ade80;">${nextCdHr} год</b>`}
+                            </div>
+                            <button id="alm-storm-cd-btn" class="alm-upg-buy-btn" ${canBuyCd ? '' : 'disabled'} onclick="window.buyAuraLarpStormCooldownUpgrade()">
+                                ${isCdMax ? 'Мінімальна перезарядка (0.5 год)' : `Купити за ${formatLarpValue(cdCost)} ${pluralizeLarp(cdCost)}`}
+                            </button>
+                        </div>
+
+                        <div class="alm-upgrade-box">
+                            <div class="alm-upg-top">
+                                <div class="alm-upg-name">❄️ Швидкість сніжинок під час бурі</div>
+                                <div class="alm-upg-lvl">Рівень ${s.stormSpeedLvl} / ${STORM_SPAWN_MAX_LVL}</div>
+                            </div>
+                            <div class="alm-upg-desc">
+                                Інтервал бурі: <b style="color:#38bdf8;">${curStormSpd} сек</b>
+                                ${isStormSpdMax ? '<span style="color:#4ade80;">(МАКСИМУМ)</span>' : `<span style="color:#94a3b8;">→</span> Наступний: <b style="color:#4ade80;">${nextStormSpd} сек</b>`}
+                            </div>
+                            <button id="alm-storm-spd-btn" class="alm-upg-buy-btn" ${canBuyStormSpd ? '' : 'disabled'} onclick="window.buyAuraLarpStormSpeedUpgrade()">
+                                ${isStormSpdMax ? 'Максимальна швидкість (0.03 сек)' : `Купити за ${formatLarpValue(stormSpdCost)} ${pluralizeLarp(stormSpdCost)}`}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // ---------------- КІМНАТА 90 СХОДИНКИ (ПРОКАЧКИ МОБІВ) ----------------
+        const isRoom90Unlocked = s.maxUnlockedStep >= 90;
+        const isCharacterAtRoom90 = s.currentStep === 90 && s.targetStep === 90;
+
+        const curMobDmg = getChickenClickDamage();
+        const isMobDmgMax = (s.mobDamageLvl || 0) >= MOB_DMG_MAX_LVL;
+        const mobDmgCost = getMobDamageUpgradeCost();
+        const canBuyMobDmg = !isMobDmgMax && isRoom90Unlocked && isCharacterAtRoom90 && s.larp >= mobDmgCost;
+
+        const curMobSpawnPct = Math.min(MOB_SPAWN_MAX_LVL, s.mobRespawnLvl || 0);
+        const curMobRespawnSec = getChickenRespawnDurationSec();
+        const isMobSpawnMax = (s.mobRespawnLvl || 0) >= MOB_SPAWN_MAX_LVL;
+        const mobSpawnCost = getMobRespawnUpgradeCost();
+        const canBuyMobSpawn = !isMobSpawnMax && isRoom90Unlocked && isCharacterAtRoom90 && s.larp >= mobSpawnCost;
+
+        let statusBanner90 = '';
+        if (!isRoom90Unlocked) {
+            statusBanner90 = `
+                <div class="alm-room-alert locked">
+                    🔒 <b>Кімната заблокована!</b> Відкрийте <b>90-ту сходинку</b> у вкладці «Сходи», щоб відкрити Кузню Мисливця!
+                </div>
+            `;
+        } else if (!isCharacterAtRoom90) {
+            statusBanner90 = `
+                <div class="alm-room-alert warning">
+                    <div>🚶 Щоб купувати прокачки мобів, персонаж має стояти на <b>90-й сходинці</b> (зараз: ${s.currentStep}).</div>
+                    <button class="alm-mini-go-btn" onclick="window.moveAuraLarpToStep(90); window.switchAuraLarpSubTab('stairs');">
+                        Піти на 90 сходинку
+                    </button>
+                </div>
+            `;
+        } else {
+            statusBanner90 = `
+                <div class="alm-room-alert ready">
+                    ✅ Персонаж у Кузні Мисливця 90-ї сходинки! Посилюйте урон по мобах та прискорюйте їх появу.
+                </div>
+            `;
+        }
+
+        return `
+            ${roomsNavHtml}
+            <div class="alm-room-card">
+                <div class="alm-room-header">
+                    <div class="alm-room-icon" style="border-color: #ef4444;">⚔️</div>
+                    <div>
+                        <div class="alm-room-title">Кузня Мисливця 90-ї Сходинки</div>
+                        <div class="alm-room-subtitle">Прокачки урону по мобах та швидкості їх відродження на 50-й сходинці</div>
+                    </div>
+                </div>
+
+                ${statusBanner90}
+
+                <div class="alm-upgrades-stack">
+                    <div class="alm-upgrade-box">
+                        <div class="alm-upg-top">
+                            <div class="alm-upg-name" style="color:#fca5a5;">⚔️ Урон по мобах (50 сходинка)</div>
+                            <div class="alm-upg-lvl">Рівень ${s.mobDamageLvl} / ${MOB_DMG_MAX_LVL}</div>
+                        </div>
+                        <div class="alm-upg-desc">
+                            Урон за удар: <b style="color:#fca5a5;">${curMobDmg} HP</b>
+                            ${isMobDmgMax ? '<span style="color:#4ade80;">(МАКСИМУМ)</span>' : `<span style="color:#94a3b8;">→</span> Наступний: <b style="color:#4ade80;">${curMobDmg + 1} HP</b>`}
+                        </div>
+                        <div class="alm-upg-note">
+                            Кожен рівень додає +1 одиницю урону за клік по мобу «${CHICKEN_MOB_NAME}».
+                        </div>
+                        <button id="alm-mob-dmg-btn" class="alm-upg-buy-btn" ${canBuyMobDmg ? '' : 'disabled'} onclick="window.buyAuraLarpMobDamageUpgrade()">
+                            ${isMobDmgMax ? 'Максимальний урон (100 HP)' : `Купити за ${formatLarpValue(mobDmgCost)} ${pluralizeLarp(mobDmgCost)}`}
+                        </button>
+                    </div>
+
+                    <div class="alm-upgrade-box">
+                        <div class="alm-upg-top">
+                            <div class="alm-upg-name" style="color:#fde047;">⏳ Швидкість появи мобів (50 сходинка)</div>
+                            <div class="alm-upg-lvl">Рівень ${s.mobRespawnLvl} / ${MOB_SPAWN_MAX_LVL}</div>
+                        </div>
+                        <div class="alm-upg-desc">
+                            Прискорення спавну: <b style="color:#fde047;">-${curMobSpawnPct}% (${formatDurationUk(curMobRespawnSec)})</b>
+                            ${isMobSpawnMax ? '<span style="color:#4ade80;">(МАКСИМУМ)</span>' : `<span style="color:#94a3b8;">→</span> Наступний: <b style="color:#4ade80;">-${curMobSpawnPct + 1}%</b>`}
+                        </div>
+                        <div class="alm-upg-note">
+                            Кожен рівень зменшує час відродження моба на 50-й сходинці на 1% (максимум -60%).
+                        </div>
+                        <button id="alm-mob-respawn-btn" class="alm-upg-buy-btn" ${canBuyMobSpawn ? '' : 'disabled'} onclick="window.buyAuraLarpMobRespawnUpgrade()">
+                            ${isMobSpawnMax ? 'Максимальне прискорення (-60%)' : `Купити за ${formatLarpValue(mobSpawnCost)} ${pluralizeLarp(mobSpawnCost)}`}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    function renderMultipliersTabHtml(s) {
+        const stairMult = getStairMultiplier();
+        const highestStepNum = getHighestUnlockedStepNumber();
+        const highestStairMult = getHighestStairMultiplier();
+        const roomMult = getRoomLarpMultiplier();
+        const snowLarpMult = getSnowLarpMultiplier();
+        const trashLarpMult = getTrashLarpMultiplier();
+        const featherLarpMult = getFeatherLarpMultiplier();
+        const mergeLarpMult = getMergeLarpMultiplier();
+        const totalMult = getTotalLarpMultiplier();
+        const highestTotalMult = getHighestStepTotalMultiplier();
+
+        const snowMult = getSnowMultiplier();
+        const trashMult = getTrashMultiplier();
+        const featherMult = getFeatherMultiplier();
+        const vitaminMult = getVitaminMultiplier();
+        const moveSpeed = getCharacterMoveSpeed();
+        const offlinePct = getOfflineLarpPercent();
+
+        return `
+            <div class="alm-room-card">
+                <div class="alm-room-header">
+                    <div class="alm-room-icon" style="border-color: #a855f7;">📊</div>
+                    <div>
+                        <div class="alm-room-title">Усі Ваші Множники та Бонуси</div>
+                        <div class="alm-room-subtitle">Детальна статистика активних підсилень</div>
+                    </div>
+                </div>
+
+                <div class="alm-mult-total-box">
+                    <div class="alm-mult-total-label">✨ Загальний множник Ларпів (поточна ${s.currentStep} сходинка)</div>
+                    <div class="alm-mult-total-value">x${formatMultValue(totalMult)}</div>
+                    <div class="alm-mult-total-rate">Поточний видобуток: <b>+${formatMultValue(getLarpPerSecond())}</b> ларп/сек</div>
+                    <div style="font-size:0.76rem;color:#cbd5e1;margin-top:6px;">
+                        👑 Рекордний дохід (найвища ${highestStepNum} сходинка): <b style="color:#facc15;">x${formatMultValue(highestTotalMult)} (+${formatMultValue(getHighestStepLarpPerSecond())}/сек)</b>
+                    </div>
+                </div>
+
+                <div class="alm-mult-section-title">Складові множника Ларпів (перемножуються)</div>
+                <div class="alm-mult-grid">
+                    <div class="alm-mult-item">
+                        <div class="alm-mult-item-name">🪜 Поточна сходинка (${s.currentStep})</div>
+                        <div class="alm-mult-item-val" style="color: #facc15;">x${formatMultValue(stairMult)}</div>
+                    </div>
+                    <div class="alm-mult-item">
+                        <div class="alm-mult-item-name">👑 Найвища сходинка (${highestStepNum})</div>
+                        <div class="alm-mult-item-val" style="color: #fde047;">x${formatMultValue(highestStairMult)}</div>
+                    </div>
+                    <div class="alm-mult-item">
+                        <div class="alm-mult-item-name">🚪 Кімната 10 сходинки (Lv.${s.roomMultLvl})</div>
+                        <div class="alm-mult-item-val" style="color: #38bdf8;">x${formatMultValue(roomMult)}</div>
+                    </div>
+                    <div class="alm-mult-item">
+                        <div class="alm-mult-item-name">❄️ Сніжний множник 20 ск. (Lv.${s.snowLarpMultLvl})</div>
+                        <div class="alm-mult-item-val" style="color: #7dd3fc;">x${formatMultValue(snowLarpMult)}</div>
+                    </div>
+                    <div class="alm-mult-item">
+                        <div class="alm-mult-item-name">🗑️ Еко-множник 30 ск. (Lv.${s.trashLarpMultLvl})</div>
+                        <div class="alm-mult-item-val" style="color: #4ade80;">x${formatMultValue(trashLarpMult)}</div>
+                    </div>
+                    <div class="alm-mult-item">
+                        <div class="alm-mult-item-name">🪶 Пір'яний множник 50 ск. (Lv.${s.featherLarpMultLvl})</div>
+                        <div class="alm-mult-item-val" style="color: #fdba74;">x${formatMultValue(featherLarpMult)}</div>
+                    </div>
+                    <div class="alm-mult-item">
+                        <div class="alm-mult-item-name">💊 Вітамінний множник 70 ск. (Lv.${s.mergeLarpMultLvl || 0})</div>
+                        <div class="alm-mult-item-val" style="color: #fb7185;">x${formatMultValue(mergeLarpMult)}</div>
+                    </div>
+                </div>
+
+                <div class="alm-mult-section-title">Множники ресурсів та характеристики</div>
+                <div class="alm-mult-grid">
+                    <div class="alm-mult-item">
+                        <div class="alm-mult-item-name">❄️ Множник збору сніжинок</div>
+                        <div class="alm-mult-item-val" style="color: #38bdf8;">x${snowMult}</div>
+                    </div>
+                    <div class="alm-mult-item">
+                        <div class="alm-mult-item-name">🗑️ Множник прибирання сміття</div>
+                        <div class="alm-mult-item-val" style="color: #4ade80;">x${trashMult}</div>
+                    </div>
+                    <div class="alm-mult-item">
+                        <div class="alm-mult-item-name">🪶 Множник дропу пір'я</div>
+                        <div class="alm-mult-item-val" style="color: #fdba74;">x${formatMultValue(featherMult)}</div>
+                    </div>
+                    <div class="alm-mult-item">
+                        <div class="alm-mult-item-name">💊 Множник вітамінів</div>
+                        <div class="alm-mult-item-val" style="color: #fb7185;">x${formatMultValue(vitaminMult)}</div>
+                    </div>
+                    <div class="alm-mult-item">
+                        <div class="alm-mult-item-name">✨ Шанс золотих (❄️ / 🗑️)</div>
+                        <div class="alm-mult-item-val" style="color: #facc15;">${getGoldSnowChancePct()}% / ${getGoldTrashChancePct()}%</div>
+                    </div>
+                    <div class="alm-mult-item">
+                        <div class="alm-mult-item-name">💎 Шанс смарагдових (❄️ / 🗑️)</div>
+                        <div class="alm-mult-item-val" style="color: #34d399;">${getEmeraldSnowChancePct()}% / ${getEmeraldTrashChancePct()}%</div>
+                    </div>
+                    <div class="alm-mult-item">
+                        <div class="alm-mult-item-name">⚔️ Урон по мобах / Спавн</div>
+                        <div class="alm-mult-item-val" style="color: #fca5a5;">${getChickenClickDamage()} HP / ${formatDurationUk(getChickenRespawnDurationSec())}</div>
+                    </div>
+                    <div class="alm-mult-item">
+                        <div class="alm-mult-item-name">🏃 Швидкість персонажа</div>
+                        <div class="alm-mult-item-val" style="color: #facc15;">x${moveSpeed} (+${(s.stepSpeedLvl || 0)}%)</div>
+                    </div>
+                    <div class="alm-mult-item">
+                        <div class="alm-mult-item-name">🌙 Офлайн-фарм Ларпів</div>
+                        <div class="alm-mult-item-val" style="color: #c084fc;">${offlinePct}%</div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    function renderLeaderboardTabHtml() {
+        return `
+            <div class="alm-room-card">
+                <div class="alm-room-header">
+                    <div class="alm-room-icon" style="border-color: #facc15;">🏆</div>
+                    <div>
+                        <div class="alm-room-title">Онлайн Топ Аура Ларп Монстер</div>
+                        <div class="alm-room-subtitle">Автоматичне оновлення в реальному часі кожні 3 сек</div>
+                    </div>
+                </div>
+
+                <div class="alm-lb-subtabs">
+                    <button class="alm-lb-pill ${activeLeaderboardType === 'highestStep' ? 'active' : ''}"
+                            onclick="window.switchAuraLarpLeaderboardType('highestStep')">
+                        🪜 Найвища сходинка
+                    </button>
+                    <button class="alm-lb-pill ${activeLeaderboardType === 'larpPerSec' ? 'active' : ''}"
+                            onclick="window.switchAuraLarpLeaderboardType('larpPerSec')">
+                        ⚡ Ларпів / сек
+                    </button>
+                    <button class="alm-lb-pill ${activeLeaderboardType === 'totalLarp' ? 'active' : ''}"
+                            onclick="window.switchAuraLarpLeaderboardType('totalLarp')">
+                        👑 Усього ларпів
+                    </button>
+                </div>
+
+                <div id="alm-leaderboard-list" class="alm-leaderboard-list">
+                    <div style="text-align: center; color: #94a3b8; padding: 24px;">Завантаження рейтингу...</div>
+                </div>
+            </div>
+        `;
+    }
+
+    function renderAuraLarpMonsterUI(autoScrollToPlayer) {
+        const container = document.getElementById('tab-aura-larp');
+        if (!container) return;
+
+        const s = initAuraLarpMonsterState();
+        const nextStep = s.maxUnlockedStep + 1;
+        const nextStepObj = nextStep <= MAX_STEP ? STAIRS_CONFIG.find(item => item.step === nextStep) : null;
+        const offlinePct = getOfflineLarpPercent();
+
+        let networkBannerHtml = '';
+        if (offlinePct > 0 && noInternetError) {
+            networkBannerHtml = `
+                <div class="alm-offline-banner error">
+                    <span>⚠️ <b>Немає підключення до інтернету!</b> Офлайн-фарм (${offlinePct}%) синхронізується після підключення до мережі.</span>
+                    <button class="alm-retry-btn" onclick="window.retryAuraLarpGlobalTime()">🔄 Оновити</button>
+                </div>
+            `;
+        } else if (offlinePct > 0 && isCheckingGlobalTime) {
+            networkBannerHtml = `
+                <div class="alm-offline-banner">
+                    <span>🌐 Перевірка глобального часу та офлайн-прогресу (${offlinePct}%)...</span>
+                </div>
+            `;
+        } else if (offlineRewardReport) {
+            networkBannerHtml = `
+                <div class="alm-offline-banner reward">
+                    <div>
+                        🌙 <b>Офлайн-заробіток (${offlineRewardReport.offlinePct}% від ${offlineRewardReport.highestStep || getHighestUnlockedStepNumber()} ск.)!</b> Поки вас не було (${formatDurationUk(offlineRewardReport.elapsedSec)}), накопичено:
+                        <b style="color:#4ade80;">+${formatLarpValue(offlineRewardReport.earnedOffline)} ${pluralizeLarp(offlineRewardReport.earnedOffline)}</b>
+                    </div>
+                    <button class="alm-retry-btn" onclick="window.dismissAuraLarpOfflineReport()">OK</button>
+                </div>
+            `;
+        }
+
+        let contentHtml = '';
+        if (activeLarpSubTab === 'stairs') {
+            let rowsHtml = '';
+            for (let stepNum = MAX_STEP; stepNum >= 1; stepNum--) {
+                const st = STAIRS_CONFIG[stepNum - 1];
+                const isUnlocked = stepNum <= s.maxUnlockedStep;
+                const isNext = stepNum === s.maxUnlockedStep + 1;
+                const isCurrent = stepNum === s.currentStep && s.currentStep === s.targetStep;
+                const isTarget = stepNum === s.targetStep && s.currentStep !== s.targetStep;
+                const hasRoom = ROOM_STEPS.includes(stepNum);
+
+                let rowStateClass = 'locked';
+                if (isUnlocked) rowStateClass = 'unlocked';
+                else if (isNext) rowStateClass = 'next-unlock';
+
+                if (isCurrent) rowStateClass += ' current-step';
+                if (isTarget) rowStateClass += ' target-step';
+
+                let actionText = '🔒';
+                if (isCurrent) actionText = 'ВИ ТУТ';
+                else if (isTarget) actionText = 'ЙДЕМО...';
+                else if (isUnlocked) actionText = 'ПЕРЕЙТИ';
+                else if (isNext) actionText = `ВІДКРИТИ (${formatLarpValue(st.cost)})`;
+
+                const leftPct = STEP_BASE_LEFT + (stepNum - 1) * STEP_INDENT_PER_LEVEL;
+
+                rowsHtml += `
+                    <div class="alm-stair-row ${rowStateClass}" data-step="${stepNum}" onclick="window.moveAuraLarpToStep(${stepNum})">
+                        <div class="alm-step-bar" style="left: ${leftPct}%; width: ${STEP_BAR_WIDTH}%;">
+                            <div class="alm-step-left">
+                                <span class="alm-step-num">${stepNum}</span>
+                                <span class="alm-step-mult">x${formatMultValue(st.mult)}</span>
+                            </div>
+                            <div class="alm-step-action">${actionText}</div>
+                        </div>
+                        ${hasRoom ? `
+                            <button class="alm-room-door-btn ${isUnlocked ? 'open' : 'closed'}"
+                                    title="Кімната ${stepNum}-ї сходинки"
+                                    onclick="event.stopPropagation(); window.openAuraLarpRoomAtStep(${stepNum});">
+                                ${isUnlocked ? '🚪 Кімната' : '🔒 Кімната'}
+                            </button>
+                        ` : ''}
+                    </div>
+                `;
+            }
+
+            const totalTrackHeight = MAX_STEP * ROW_HEIGHT + 70;
+            const visStep = getVisualStepPosition();
+            const charLeftPct = STEP_BASE_LEFT + (visStep - 1) * STEP_INDENT_PER_LEVEL + STEP_BAR_WIDTH * 0.5;
+            const charBottomPx = (visStep - 1) * ROW_HEIGHT + 30;
+            const isMoving = s.currentStep !== s.targetStep;
+
+            contentHtml = `
+                <div class="alm-stairs-viewport" id="alm-stairs-viewport">
+                    <div class="alm-stairs-track" id="alm-stairs-track" style="height: ${totalTrackHeight}px;">
+                        ${rowsHtml}
+                        <div id="alm-character" class="alm-character ${isMoving ? 'is-moving' : ''}" style="left: ${charLeftPct}%; bottom: ${charBottomPx}px;">
+                            <div id="alm-char-status" class="alm-char-status">${isMoving ? `🏃 На ${s.targetStep}` : `⚡ ${s.currentStep}`}</div>
+                            <div class="alm-char-avatar">🐷</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="alm-bottom-panel">
+                    <button id="alm-unlock-btn" class="alm-unlock-btn"
+                            ${!nextStepObj || s.larp < nextStepObj.cost ? 'disabled' : ''}
+                            onclick="window.unlockNextAuraLarpStep()">
+                        ${nextStepObj
+                            ? `⬆️ Відкрити ${nextStep} сходинку (x${formatMultValue(nextStepObj.mult)}) — ${formatLarpValue(nextStepObj.cost)} ${pluralizeLarp(nextStepObj.cost)}`
+                            : '🏆 Усі 100 сходинок відкрито!'}
+                    </button>
+                </div>
+            `;
+        } else if (activeLarpSubTab === 'room') {
+            contentHtml = renderRoomTabHtml(s);
+        } else if (activeLarpSubTab === 'multipliers') {
+            contentHtml = renderMultipliersTabHtml(s);
+        } else {
+            contentHtml = renderLeaderboardTabHtml();
+        }
+
+        container.innerHTML = `
+            <div class="alm-wrapper">
+                ${networkBannerHtml}
+
+                <div class="alm-header-card">
+                    <div class="alm-larp-main-row">
+                        <div class="alm-larp-balance-box">
+                            <span class="alm-larp-icon">🔮</span>
+                            <span id="alm-larp-balance" class="alm-larp-amount">${formatLarpValue(s.larp)}</span>
+                            <span id="alm-larp-word" class="alm-larp-label">${pluralizeLarp(s.larp)}</span>
+                        </div>
+                        <div id="alm-larp-rate" class="alm-larp-rate">+${formatMultValue(getLarpPerSecond())}/сек</div>
+                    </div>
+
+                    <div class="alm-stats-chips">
+                        <div class="alm-chip">
+                            🪜 Сходинка: <b id="alm-step-badge">${s.currentStep} / ${MAX_STEP}</b>
+                        </div>
+                        <div class="alm-chip">
+                            📈 Сходи: <b id="alm-stair-mult-val" style="color: #facc15;">x${formatMultValue(getStairMultiplier())}</b>
+                        </div>
+                        <div class="alm-chip">
+                            🚪 Кімната 10: <b id="alm-room-mult-val" style="color: #38bdf8;">x${formatMultValue(getRoomLarpMultiplier())}</b>
+                        </div>
+                        <div class="alm-chip">
+                            ✨ Разом: <b id="alm-total-mult-val" style="color: #4ade80;">x${formatMultValue(getTotalLarpMultiplier())}</b>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="alm-subtabs">
+                    <button class="alm-subtab-btn ${activeLarpSubTab === 'stairs' ? 'active' : ''}" onclick="window.switchAuraLarpSubTab('stairs')">
+                        🪜 Сходи (${s.maxUnlockedStep}/${MAX_STEP})
+                    </button>
+                    <button class="alm-subtab-btn ${activeLarpSubTab === 'room' ? 'active' : ''}" onclick="window.switchAuraLarpSubTab('room')">
+                        🚪 Кімнати (${activeRoomStep})
+                    </button>
+                    <button class="alm-subtab-btn ${activeLarpSubTab === 'multipliers' ? 'active' : ''}" onclick="window.switchAuraLarpSubTab('multipliers')">
+                        📊 Усі множники
+                    </button>
+                    <button class="alm-subtab-btn ${activeLarpSubTab === 'leaderboard' ? 'active' : ''}" onclick="window.switchAuraLarpSubTab('leaderboard')">
+                        🏆 Топи
+                    </button>
+                </div>
+
+                ${contentHtml}
+            </div>
+        `;
+
+        if (activeLarpSubTab === 'stairs') {
+            updateAllDynamicElements(false, autoScrollToPlayer);
+        } else if (activeLarpSubTab === 'room') {
+            if (activeRoomStep === 20) {
+                const zoneEl = document.getElementById('alm-snow-zone');
+                if (zoneEl && s.maxUnlockedStep >= 20) {
+                    zoneEl.innerHTML = '';
+                    activeSnowflakes.forEach(flake => {
+                        zoneEl.appendChild(createSnowflakeElement(flake));
+                    });
+                    zoneEl.addEventListener('touchmove', handleSnowZoneTouchMove, { passive: true });
+                }
+                renderSnowLeaderboardList();
+            } else if (activeRoomStep === 30) {
+                const zoneEl = document.getElementById('alm-trash-zone');
+                if (zoneEl && s.maxUnlockedStep >= 30) {
+                    const binHtml = `
+                        <div id="alm-trash-bin" class="alm-trash-bin">
+                            <span class="alm-trash-bin-icon">🗑️</span>
+                            <span class="alm-trash-bin-label">СМІТНИК</span>
+                        </div>
+                    `;
+                    zoneEl.innerHTML = binHtml;
+                    activeTrashItems.forEach(item => {
+                        zoneEl.appendChild(createTrashElement(item));
+                    });
+                }
+                renderTrashLeaderboardList();
+            } else if (activeRoomStep === 50) {
+                renderFeatherLeaderboardList();
+            } else if (activeRoomStep === 70) {
+                const zoneEl = document.getElementById('alm-merge-zone');
+                if (zoneEl && s.maxUnlockedStep >= 70) {
+                    zoneEl.innerHTML = '';
+                    activeMergeItems.forEach(item => {
+                        zoneEl.appendChild(createMergeElement(item));
+                    });
+                }
+                renderVitaminLeaderboardList();
+            }
+        } else if (activeLarpSubTab === 'leaderboard') {
+            renderLarpLeaderboardList();
+        }
+    }
+
+    // ------------------------------------------
+    // ПЕРЕМИКАННЯ НАВІГАЦІЇ ТА ІНТЕГРАЦІЯ В DOM
+    // ------------------------------------------
+    function updateNavVisibility() {
+        const nav = document.querySelector('.tab-nav');
+        if (!nav) return;
+
+        const homeBtn = document.getElementById('alm-nav-home');
+        const allTabBtns = nav.querySelectorAll('.tab-btn');
+
+        if (isAuraLarpModeActive) {
+            allTabBtns.forEach(btn => {
+                if (!btn.classList.contains('alm-mode-nav-btn')) {
+                    btn.style.display = 'none';
+                }
+            });
+            if (homeBtn) homeBtn.style.display = '';
+        } else {
+            allTabBtns.forEach(btn => {
+                if (!btn.classList.contains('alm-mode-nav-btn')) {
+                    btn.style.display = '';
+                }
+            });
+            if (homeBtn) homeBtn.style.display = 'none';
+        }
     }
 
     function enterAuraLarpMonsterMode() {
         ensureDomSetup();
         const s = initAuraLarpMonsterState();
         isAuraLarpModeActive = true;
-        activeLarpSubTab = s.savedSubTab || activeLarpSubTab || 'stairs';
-        activeRoomStep = s.savedRoomStep || (ROOM_STEPS.includes(s.currentStep) ? s.currentStep : 10);
+
+        activeLarpSubTab = s.savedSubTab || 'stairs';
+        activeRoomStep = s.savedRoomStep || 10;
 
         document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
         document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
@@ -4671,7 +4634,7 @@
         renderAuraLarpMonsterUI(true);
         startVisualAnimationLoop();
 
-        if (!isGlobalTimeVerified && !isCheckingGlobalTime) {
+        if (!isGlobalTimeVerified && !isCheckingGlobalTime && isMainGameReady()) {
             verifyGlobalTimeAndApplyOfflineProgress();
         }
     }
@@ -4688,1122 +4651,1229 @@
         if (typeof window.switchTab === 'function') {
             window.switchTab('clicker');
         }
+        if (typeof window.updateUI === 'function') {
+            window.updateUI();
+        }
     }
 
-    function switchAuraLarpSubTab(subTab) {
-        const s = initAuraLarpMonsterState();
-        activeLarpSubTab = subTab;
-        if (subTab === 'room') {
-            if (ROOM_STEPS.includes(s.targetStep)) {
-                activeRoomStep = s.targetStep;
-            } else if (ROOM_STEPS.includes(s.currentStep)) {
-                activeRoomStep = s.currentStep;
+    function injectStyles() {
+        if (document.getElementById('aura-larp-monster-styles')) return;
+
+        const style = document.createElement('style');
+        style.id = 'aura-larp-monster-styles';
+        style.textContent = `
+            #btn-tab-aura-larp {
+                border-color: #00d2d3;
+                background: linear-gradient(135deg, #16213e, #1a365d);
+                color: #7ef9ff;
             }
-        }
-        persistAuraLarpState(false);
-        renderAuraLarpMonsterUI(true);
-    }
+            #btn-tab-aura-larp.active {
+                background: linear-gradient(135deg, #00a8a8, #0077b6);
+                color: #fff;
+                box-shadow: 0 0 14px rgba(0, 210, 211, 0.75);
+            }
+            #alm-nav-home {
+                flex: 1 1 100%;
+                background: linear-gradient(135deg, #2b1d42, #3b1e54);
+                border-color: var(--accent-gold);
+                color: var(--accent-gold);
+                font-size: 0.95rem;
+                padding: 11px;
+                display: none;
+            }
+            #alm-nav-home:hover {
+                background: var(--accent-gold);
+                color: #120e1e;
+            }
+            #tab-aura-larp {
+                padding-bottom: 24px;
+            }
+            .alm-wrapper {
+                width: 100%;
+                display: flex;
+                flex-direction: column;
+                gap: 10px;
+            }
+            .alm-offline-banner {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 10px;
+                background: rgba(15, 23, 42, 0.9);
+                border: 1px solid rgba(56, 189, 248, 0.45);
+                border-radius: 12px;
+                padding: 9px 12px;
+                font-size: 0.8rem;
+                color: #e2e8f0;
+            }
+            .alm-offline-banner.error {
+                background: rgba(127, 29, 29, 0.35);
+                border-color: #ef4444;
+                color: #fecaca;
+            }
+            .alm-offline-banner.reward {
+                background: rgba(6, 78, 59, 0.45);
+                border-color: #22c55e;
+                color: #dcfce7;
+            }
+            .alm-retry-btn {
+                padding: 5px 10px;
+                border-radius: 8px;
+                border: 1px solid rgba(255,255,255,0.25);
+                background: rgba(255,255,255,0.12);
+                color: #fff;
+                font-size: 0.76rem;
+                font-weight: 800;
+                cursor: pointer;
+                white-space: nowrap;
+            }
+            .alm-header-card {
+                background: linear-gradient(145deg, #1b1530, #231942);
+                border: 2px solid #00d2d3;
+                border-radius: 16px;
+                padding: 12px 14px;
+                box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+            }
+            .alm-larp-main-row {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 10px;
+                margin-bottom: 10px;
+            }
+            .alm-larp-balance-box {
+                display: flex;
+                align-items: baseline;
+                gap: 6px;
+                flex-wrap: wrap;
+            }
+            .alm-larp-icon {
+                font-size: 1.4rem;
+            }
+            .alm-larp-amount {
+                font-size: 1.65rem;
+                font-weight: 900;
+                color: #7ef9ff;
+                text-shadow: 0 0 10px rgba(0, 210, 211, 0.5);
+            }
+            .alm-larp-label {
+                font-size: 0.95rem;
+                font-weight: 700;
+                color: #cbd5e1;
+            }
+            .alm-larp-rate {
+                background: rgba(34, 197, 94, 0.16);
+                border: 1px solid #22c55e;
+                color: #4ade80;
+                font-weight: 800;
+                font-size: 0.85rem;
+                padding: 5px 10px;
+                border-radius: 999px;
+                white-space: nowrap;
+            }
+            .alm-stats-chips {
+                display: grid;
+                grid-template-columns: repeat(2, 1fr);
+                gap: 6px;
+            }
+            .alm-chip {
+                background: rgba(0, 0, 0, 0.32);
+                border: 1px solid rgba(255, 255, 255, 0.08);
+                border-radius: 10px;
+                padding: 6px 10px;
+                font-size: 0.78rem;
+                color: #e2e8f0;
+                text-align: center;
+            }
+            .alm-subtabs {
+                display: grid;
+                grid-template-columns: repeat(4, 1fr);
+                gap: 6px;
+                width: 100%;
+            }
+            .alm-subtab-btn {
+                padding: 9px 4px;
+                background: var(--card-bg);
+                border: 1px solid rgba(0, 210, 211, 0.45);
+                color: #cbd5e1;
+                border-radius: 10px;
+                font-weight: bold;
+                font-size: 0.76rem;
+                cursor: pointer;
+                transition: all 0.2s;
+                text-align: center;
+            }
+            .alm-subtab-btn.active {
+                background: linear-gradient(135deg, #00a8a8, #0284c7);
+                color: #fff;
+                border-color: #7ef9ff;
+                box-shadow: 0 0 10px rgba(0, 210, 211, 0.45);
+            }
+            .alm-stairs-viewport {
+                width: 100%;
+                height: 365px;
+                overflow-y: auto;
+                overflow-x: hidden;
+                background: radial-gradient(circle at top, #1b1736 0%, #0f0c1d 100%);
+                border: 2px solid rgba(155, 89, 182, 0.55);
+                border-radius: 16px;
+                position: relative;
+                box-shadow: inset 0 0 25px rgba(0, 0, 0, 0.75);
+                scroll-behavior: smooth;
+            }
+            .alm-stairs-track {
+                position: relative;
+                width: 100%;
+                padding: 16px 0;
+            }
+            .alm-stair-row {
+                position: relative;
+                height: ${ROW_HEIGHT}px;
+                width: 100%;
+                display: flex;
+                align-items: center;
+                cursor: pointer;
+            }
+            .alm-step-bar {
+                position: absolute;
+                height: 36px;
+                border-radius: 10px;
+                padding: 0 8px;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 4px;
+                transition: transform 0.12s, box-shadow 0.15s, border-color 0.15s;
+            }
+            .alm-stair-row.unlocked .alm-step-bar {
+                background: linear-gradient(90deg, #2b214d, #3b2d6b);
+                border: 2px solid #8b5cf6;
+                color: #fff;
+            }
+            .alm-stair-row.unlocked:hover .alm-step-bar {
+                transform: translateY(-1px);
+                border-color: #c4b5fd;
+            }
+            .alm-stair-row.current-step .alm-step-bar {
+                background: linear-gradient(90deg, #0f766e, #0284c7);
+                border: 2px solid #5eead4;
+                box-shadow: 0 0 12px rgba(45, 212, 191, 0.55);
+            }
+            .alm-stair-row.target-step .alm-step-bar {
+                border: 2px dashed #facc15;
+            }
+            .alm-stair-row.next-unlock .alm-step-bar {
+                background: linear-gradient(90deg, #292218, #3d311c);
+                border: 2px dashed #f59e0b;
+                color: #fde68a;
+            }
+            .alm-stair-row.locked .alm-step-bar {
+                background: rgba(255, 255, 255, 0.04);
+                border: 1px solid rgba(255, 255, 255, 0.09);
+                color: #64748b;
+            }
+            .alm-step-left {
+                display: flex;
+                align-items: center;
+                gap: 5px;
+            }
+            .alm-step-num {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                min-width: 24px;
+                height: 20px;
+                padding: 0 3px;
+                border-radius: 6px;
+                background: rgba(0, 0, 0, 0.35);
+                font-weight: 900;
+                font-size: 0.72rem;
+            }
+            .alm-step-mult {
+                font-weight: 800;
+                font-size: 0.76rem;
+                color: #facc15;
+            }
+            .alm-stair-row.locked .alm-step-mult {
+                color: #64748b;
+            }
+            .alm-step-action {
+                font-size: 0.65rem;
+                font-weight: 800;
+                letter-spacing: 0.2px;
+                opacity: 0.92;
+                white-space: nowrap;
+            }
+            .alm-room-door-btn {
+                position: absolute;
+                right: 8px;
+                padding: 5px 8px;
+                border-radius: 8px;
+                font-size: 0.7rem;
+                font-weight: 800;
+                cursor: pointer;
+                z-index: 5;
+                transition: transform 0.12s;
+            }
+            .alm-room-door-btn.open {
+                background: linear-gradient(135deg, #f59e0b, #d97706);
+                border: 1px solid #fef08a;
+                color: #111827;
+                box-shadow: 0 0 10px rgba(245, 158, 11, 0.5);
+            }
+            .alm-room-door-btn.closed {
+                background: rgba(30, 41, 59, 0.85);
+                border: 1px solid rgba(148, 163, 184, 0.3);
+                color: #94a3b8;
+            }
+            .alm-room-door-btn:hover {
+                transform: scale(1.05);
+            }
+            .alm-character {
+                position: absolute;
+                transform: translateX(-50%);
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                pointer-events: none;
+                z-index: 15;
+                will-change: left, bottom;
+            }
+            .alm-char-status {
+                background: rgba(15, 23, 42, 0.92);
+                border: 1px solid #38bdf8;
+                color: #7dd3fc;
+                font-size: 0.65rem;
+                font-weight: 800;
+                padding: 2px 6px;
+                border-radius: 999px;
+                margin-bottom: 2px;
+                white-space: nowrap;
+            }
+            .alm-char-avatar {
+                width: 34px;
+                height: 34px;
+                border-radius: 50%;
+                background: radial-gradient(circle at 30% 30%, #fde047, #f59e0b);
+                border: 2px solid #fff;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 1.2rem;
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.7), 0 0 12px rgba(250, 204, 21, 0.7);
+            }
+            .alm-character.is-moving .alm-char-avatar {
+                animation: almHop 0.35s infinite alternate ease-in-out;
+            }
+            @keyframes almHop {
+                0% { transform: translateY(0) scale(1); }
+                100% { transform: translateY(-6px) scale(1.06); }
+            }
+            .alm-bottom-panel {
+                width: 100%;
+            }
+            .alm-unlock-btn {
+                width: 100%;
+                padding: 13px 16px;
+                border: none;
+                border-radius: 14px;
+                font-size: 0.92rem;
+                font-weight: 900;
+                color: #fff;
+                background: linear-gradient(180deg, #10b981, #059669);
+                box-shadow: 0 4px 14px rgba(16, 185, 129, 0.4);
+                cursor: pointer;
+                transition: transform 0.1s, opacity 0.2s;
+            }
+            .alm-unlock-btn:active:not(:disabled) {
+                transform: scale(0.98);
+            }
+            .alm-unlock-btn:disabled {
+                background: #334155;
+                color: #94a3b8;
+                box-shadow: none;
+                cursor: not-allowed;
+            }
 
-    // ------------------------------------------
-    // РЕНДЕР ІНТЕРФЕЙСУ
-    // ------------------------------------------
-    function renderAuraLarpMonsterUI(scrollToCharacter) {
-        ensureDomSetup();
-        const s = initAuraLarpMonsterState();
+            /* Перемикач кімнат */
+            .alm-room-selector {
+                display: flex;
+                gap: 6px;
+                flex-wrap: wrap;
+                margin-bottom: 4px;
+            }
+            .alm-room-pill {
+                flex: 1 1 30%;
+                padding: 8px 6px;
+                border-radius: 10px;
+                border: 1px solid rgba(255, 255, 255, 0.14);
+                background: rgba(15, 23, 42, 0.7);
+                color: #cbd5e1;
+                font-size: 0.74rem;
+                font-weight: 800;
+                cursor: pointer;
+                transition: all 0.15s;
+            }
+            .alm-room-pill.active {
+                background: linear-gradient(135deg, #2563eb, #0284c7);
+                border-color: #7dd3fc;
+                color: #fff;
+                box-shadow: 0 0 10px rgba(56, 189, 248, 0.45);
+            }
+            .alm-room-pill.locked {
+                opacity: 0.65;
+            }
 
-        const container = document.getElementById('tab-aura-larp');
-        if (!container) return;
+            /* Кімната */
+            .alm-room-card {
+                background: var(--card-bg);
+                border: 2px solid rgba(0, 210, 211, 0.35);
+                border-radius: 16px;
+                padding: 14px;
+                width: 100%;
+                box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
+            }
+            .alm-room-header {
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                margin-bottom: 12px;
+            }
+            .alm-room-icon {
+                font-size: 2rem;
+                width: 48px;
+                height: 48px;
+                border-radius: 12px;
+                background: rgba(245, 158, 11, 0.15);
+                border: 2px solid #f59e0b;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                flex-shrink: 0;
+            }
+            .alm-room-title {
+                font-size: 1rem;
+                font-weight: 900;
+                color: #fff;
+            }
+            .alm-room-subtitle {
+                font-size: 0.8rem;
+                color: #94a3b8;
+            }
+            .alm-room-alert {
+                border-radius: 12px;
+                padding: 10px 12px;
+                font-size: 0.82rem;
+                margin-bottom: 12px;
+                line-height: 1.4;
+            }
+            .alm-room-alert.locked {
+                background: rgba(239, 68, 68, 0.14);
+                border: 1px solid rgba(239, 68, 68, 0.45);
+                color: #fca5a5;
+            }
+            .alm-room-alert.warning {
+                background: rgba(245, 158, 11, 0.14);
+                border: 1px solid rgba(245, 158, 11, 0.45);
+                color: #fde68a;
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+            }
+            .alm-room-alert.ready {
+                background: rgba(34, 197, 94, 0.14);
+                border: 1px solid rgba(34, 197, 94, 0.45);
+                color: #86efac;
+            }
+            .alm-mini-go-btn {
+                align-self: flex-start;
+                padding: 6px 12px;
+                border-radius: 8px;
+                border: 1px solid #facc15;
+                background: rgba(250, 204, 21, 0.2);
+                color: #fef08a;
+                font-weight: 800;
+                font-size: 0.78rem;
+                cursor: pointer;
+            }
+            .alm-upgrades-stack {
+                display: flex;
+                flex-direction: column;
+                gap: 10px;
+            }
+            .alm-upgrade-box {
+                background: rgba(0, 0, 0, 0.28);
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                border-radius: 14px;
+                padding: 12px;
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+            }
+            .alm-upg-top {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                gap: 8px;
+            }
+            .alm-upg-name {
+                font-weight: 800;
+                font-size: 0.92rem;
+                color: #fff;
+            }
+            .alm-upg-lvl {
+                background: var(--accent-purple);
+                color: #fff;
+                font-size: 0.72rem;
+                font-weight: 800;
+                padding: 3px 8px;
+                border-radius: 8px;
+                white-space: nowrap;
+            }
+            .alm-upg-desc {
+                font-size: 0.84rem;
+                color: #e2e8f0;
+            }
+            .alm-upg-note {
+                font-size: 0.75rem;
+                color: #94a3b8;
+            }
+            .alm-upg-buy-btn {
+                width: 100%;
+                padding: 11px;
+                border: none;
+                border-radius: 10px;
+                background: linear-gradient(180deg, #f59e0b, #d97706);
+                color: #111827;
+                font-weight: 900;
+                font-size: 0.88rem;
+                cursor: pointer;
+                transition: transform 0.1s;
+            }
+            .alm-upg-buy-btn.snow-btn {
+                background: linear-gradient(180deg, #38bdf8, #0284c7);
+                color: #fff;
+            }
+            .alm-upg-buy-btn.trash-btn {
+                background: linear-gradient(180deg, #22c55e, #15803d);
+                color: #fff;
+            }
+            .alm-upg-buy-btn.feather-btn {
+                background: linear-gradient(180deg, #fb923c, #ea580c);
+                color: #fff;
+            }
+            .alm-upg-buy-btn.vitamin-btn {
+                background: linear-gradient(180deg, #fb7185, #e11d48);
+                color: #fff;
+            }
+            .alm-upg-buy-btn:active:not(:disabled) {
+                transform: scale(0.98);
+            }
+            .alm-upg-buy-btn:disabled {
+                background: #334155;
+                color: #94a3b8;
+                cursor: not-allowed;
+            }
 
-        const existingScrollEl = document.getElementById('alm-stairs-scroll');
-        const savedStairsScrollTop = existingScrollEl ? existingScrollEl.scrollTop : null;
+            /* Бойова Арена 50 сходинки (Курочка) */
+            .alm-chicken-arena {
+                position: relative;
+                width: 100%;
+                min-height: 215px;
+                border-radius: 14px;
+                background: radial-gradient(circle at center, #3b1d14 0%, #1c1017 100%);
+                border: 2px solid rgba(251, 146, 60, 0.55);
+                padding: 12px;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                gap: 10px;
+                overflow: hidden;
+            }
+            .alm-chicken-arena.locked {
+                opacity: 0.7;
+            }
+            .alm-mob-title-row {
+                width: 100%;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 6px;
+                flex-wrap: wrap;
+            }
+            .alm-mob-name {
+                font-weight: 900;
+                font-size: 0.92rem;
+                color: #fed7aa;
+            }
+            .alm-mob-reward-tag {
+                font-size: 0.76rem;
+                font-weight: 800;
+                color: #fdba74;
+                background: rgba(251, 146, 60, 0.16);
+                border: 1px solid rgba(251, 146, 60, 0.45);
+                padding: 2px 8px;
+                border-radius: 999px;
+            }
+            .alm-chicken-hp-wrap {
+                position: relative;
+                width: 100%;
+                height: 22px;
+                border-radius: 11px;
+                background: rgba(0, 0, 0, 0.55);
+                border: 1px solid rgba(248, 113, 113, 0.6);
+                overflow: hidden;
+            }
+            .alm-chicken-hp-fill {
+                height: 100%;
+                background: linear-gradient(90deg, #dc2626, #f97316);
+                transition: width 0.08s ease-out;
+            }
+            .alm-chicken-hp-text {
+                position: absolute;
+                inset: 0;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 0.76rem;
+                font-weight: 900;
+                color: #fff;
+                text-shadow: 0 1px 2px #000;
+            }
+            .alm-chicken-mob-btn {
+                width: 165px;
+                height: 125px;
+                border-radius: 20px;
+                border: 2px solid #fb923c;
+                background: radial-gradient(circle at 50% 35%, rgba(251, 146, 60, 0.28), rgba(15, 23, 42, 0.85));
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                gap: 6px;
+                cursor: pointer;
+                box-shadow: 0 6px 18px rgba(0, 0, 0, 0.55);
+                transition: transform 0.07s;
+                touch-action: manipulation;
+            }
+            .alm-chicken-mob-btn:active:not(:disabled) {
+                transform: scale(0.92);
+            }
+            .alm-chicken-mob-btn:disabled {
+                opacity: 0.6;
+                cursor: not-allowed;
+            }
+            .alm-chicken-mob-btn.hit {
+                animation: almChickenHit 0.16s ease-out;
+            }
+            @keyframes almChickenHit {
+                0% { transform: scale(1) rotate(0deg); }
+                40% { transform: scale(0.9) rotate(-6deg); }
+                80% { transform: scale(1.04) rotate(4deg); }
+                100% { transform: scale(1) rotate(0deg); }
+            }
+            .alm-chicken-emoji {
+                font-size: 3.4rem;
+                line-height: 1;
+                filter: drop-shadow(0 4px 8px rgba(0,0,0,0.65));
+            }
+            .alm-chicken-hit-hint {
+                font-size: 0.72rem;
+                font-weight: 900;
+                color: #fef08a;
+            }
+            .alm-chicken-respawn-box {
+                text-align: center;
+                padding: 12px;
+            }
+            .alm-respawn-countdown {
+                font-size: 1.5rem;
+                font-weight: 900;
+                color: #38bdf8;
+                margin-top: 6px;
+                text-shadow: 0 0 10px rgba(56, 189, 248, 0.5);
+            }
+            .alm-dmg-pop {
+                position: absolute;
+                transform: translate(-50%, -50%);
+                color: #fca5a5;
+                font-weight: 900;
+                font-size: 0.95rem;
+                text-shadow: 0 1px 4px #000;
+                pointer-events: none;
+                z-index: 25;
+                animation: almSnowFloat 0.6s ease-out forwards;
+            }
+            .alm-feather-loot-pop {
+                position: absolute;
+                left: 50%;
+                top: 45%;
+                transform: translate(-50%, -50%);
+                color: #fdba74;
+                font-weight: 900;
+                font-size: 1.2rem;
+                background: rgba(15, 23, 42, 0.9);
+                border: 1px solid #fb923c;
+                padding: 6px 14px;
+                border-radius: 999px;
+                pointer-events: none;
+                z-index: 30;
+                animation: almSnowFloat 1.1s ease-out forwards;
+            }
 
-        const isWideRoomOpen = activeLarpSubTab === 'room'
-            && [20, 30, 50, 70].includes(activeRoomStep)
-            && s.maxUnlockedStep >= activeRoomStep
-            && s.currentStep === activeRoomStep
-            && s.targetStep === activeRoomStep;
+            /* Кімната 20 / 30 / 50 / 70: Зона інтерактиву + бічний топ */
+            .alm-room20-layout {
+                display: flex;
+                flex-direction: column;
+                gap: 10px;
+                width: 100%;
+            }
+            @media (min-width: 500px) {
+                .alm-room20-layout {
+                    flex-direction: row;
+                    align-items: flex-start;
+                }
+                .alm-room20-main {
+                    flex: 1 1 64%;
+                    min-width: 0;
+                }
+                .alm-snow-side-lb {
+                    flex: 1 1 36%;
+                    min-width: 175px;
+                }
+            }
+            .alm-snow-stats-bar {
+                display: grid;
+                grid-template-columns: repeat(2, 1fr);
+                gap: 8px;
+                margin-bottom: 10px;
+            }
+            .alm-snow-stat-item {
+                background: rgba(14, 116, 144, 0.2);
+                border: 1px solid rgba(56, 189, 248, 0.35);
+                border-radius: 10px;
+                padding: 7px 10px;
+                display: flex;
+                flex-direction: column;
+                gap: 2px;
+            }
+            .alm-snow-stat-label {
+                font-size: 0.7rem;
+                color: #bae6fd;
+            }
+            .alm-snow-stat-val {
+                font-size: 1rem;
+                font-weight: 900;
+                color: #38bdf8;
+            }
+            .alm-snow-zone-wrap {
+                margin-bottom: 12px;
+            }
+            .alm-snow-zone-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                gap: 6px;
+                font-size: 0.74rem;
+                color: #cbd5e1;
+                margin-bottom: 6px;
+            }
+            .alm-snow-badge {
+                background: rgba(56, 189, 248, 0.2);
+                border: 1px solid rgba(56, 189, 248, 0.5);
+                color: #7dd3fc;
+                font-weight: 800;
+                padding: 2px 8px;
+                border-radius: 999px;
+                white-space: nowrap;
+            }
+            .alm-snow-zone {
+                position: relative;
+                width: 100%;
+                height: 185px;
+                border-radius: 14px;
+                background: radial-gradient(circle at top, #0c2d48 0%, #091526 100%);
+                border: 2px solid rgba(56, 189, 248, 0.55);
+                overflow: hidden;
+                touch-action: none;
+                box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.65);
+            }
+            .alm-snow-zone.locked {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                opacity: 0.65;
+            }
+            .alm-snow-locked-msg {
+                color: #94a3b8;
+                font-weight: 800;
+                font-size: 0.9rem;
+            }
+            .alm-snowflake-item {
+                position: absolute;
+                transform: translate(-50%, -50%);
+                font-size: 1.55rem;
+                cursor: pointer;
+                filter: drop-shadow(0 0 6px rgba(125, 211, 252, 0.85));
+                transition: transform 0.08s;
+                animation: almSnowPulse 1.6s infinite alternate ease-in-out;
+                line-height: 1;
+                padding: 4px;
+            }
+            .alm-snowflake-item.gold {
+                filter: drop-shadow(0 0 8px rgba(250, 204, 21, 0.95)) sepia(1) saturate(6) hue-rotate(5deg);
+            }
+            .alm-snowflake-item.emerald {
+                filter: drop-shadow(0 0 9px rgba(52, 211, 153, 0.95)) sepia(1) saturate(6) hue-rotate(95deg);
+            }
+            .alm-snowflake-item:hover {
+                transform: translate(-50%, -50%) scale(1.22);
+            }
+            @keyframes almSnowPulse {
+                0% { transform: translate(-50%, -50%) scale(0.95) rotate(-6deg); }
+                100% { transform: translate(-50%, -50%) scale(1.08) rotate(6deg); }
+            }
+            .alm-snow-pop {
+                position: absolute;
+                transform: translate(-50%, -50%);
+                color: #7dd3fc;
+                font-weight: 900;
+                font-size: 0.85rem;
+                text-shadow: 0 1px 4px #000;
+                pointer-events: none;
+                animation: almSnowFloat 0.65s ease-out forwards;
+                white-space: nowrap;
+            }
+            .alm-snow-pop.gold {
+                color: #facc15;
+            }
+            .alm-snow-pop.emerald {
+                color: #34d399;
+            }
+            @keyframes almSnowFloat {
+                0% { opacity: 1; transform: translate(-50%, -50%) scale(0.9); }
+                100% { opacity: 0; transform: translate(-50%, -140%) scale(1.15); }
+            }
 
-        if (isWideRoomOpen) {
-            container.classList.add('alm-wide-mode');
-        } else {
-            container.classList.remove('alm-wide-mode');
-        }
+            /* Зона прибирання сміття (30 сходинка) */
+            .alm-trash-zone {
+                position: relative;
+                width: 100%;
+                height: 215px;
+                border-radius: 14px;
+                background: radial-gradient(circle at top, #172a22 0%, #0b1612 100%);
+                border: 2px solid rgba(74, 222, 128, 0.5);
+                overflow: hidden;
+                touch-action: none;
+                box-shadow: inset 0 0 22px rgba(0, 0, 0, 0.7);
+            }
+            .alm-trash-zone.locked {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                opacity: 0.65;
+            }
+            .alm-trash-bin {
+                position: absolute;
+                left: 50%;
+                bottom: 8px;
+                transform: translateX(-50%);
+                width: 108px;
+                height: 46px;
+                border-radius: 12px;
+                background: linear-gradient(180deg, rgba(34, 197, 94, 0.25), rgba(21, 128, 61, 0.45));
+                border: 2px dashed #4ade80;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 6px;
+                pointer-events: none;
+                z-index: 2;
+                transition: transform 0.12s, background 0.12s, box-shadow 0.12s;
+            }
+            .alm-trash-bin.bin-highlight {
+                transform: translateX(-50%) scale(1.12);
+                background: rgba(34, 197, 94, 0.55);
+                border-style: solid;
+                box-shadow: 0 0 16px rgba(74, 222, 128, 0.75);
+            }
+            .alm-trash-bin-icon {
+                font-size: 1.35rem;
+            }
+            .alm-trash-bin-label {
+                font-size: 0.68rem;
+                font-weight: 900;
+                color: #dcfce7;
+                letter-spacing: 0.5px;
+            }
+            .alm-trash-item {
+                position: absolute;
+                transform: translate(-50%, -50%);
+                font-size: 1.65rem;
+                cursor: grab;
+                z-index: 5;
+                padding: 4px;
+                line-height: 1;
+                filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.75));
+                transition: transform 0.08s;
+                touch-action: none;
+            }
+            .alm-trash-item.gold {
+                filter: drop-shadow(0 0 8px rgba(250, 204, 21, 0.95));
+                background: rgba(250, 204, 21, 0.18);
+                border: 1px solid rgba(250, 204, 21, 0.65);
+                border-radius: 10px;
+            }
+            .alm-trash-item.emerald {
+                filter: drop-shadow(0 0 9px rgba(52, 211, 153, 0.95));
+                background: rgba(52, 211, 153, 0.22);
+                border: 1px solid rgba(52, 211, 153, 0.75);
+                border-radius: 10px;
+            }
+            .alm-trash-item.dragging {
+                cursor: grabbing;
+                transform: translate(-50%, -50%) scale(1.25);
+                z-index: 20;
+            }
+            .alm-trash-pop {
+                position: absolute;
+                transform: translate(-50%, -50%);
+                color: #4ade80;
+                font-weight: 900;
+                font-size: 0.9rem;
+                text-shadow: 0 1px 4px #000;
+                pointer-events: none;
+                z-index: 25;
+                animation: almSnowFloat 0.7s ease-out forwards;
+                white-space: nowrap;
+            }
+            .alm-trash-pop.gold {
+                color: #facc15;
+            }
+            .alm-trash-pop.emerald {
+                color: #34d399;
+            }
 
-        const isMoving = s.currentStep !== s.targetStep;
-        const visStep = getVisualStepPosition();
-        const moveSpeed = getCharacterMoveSpeed();
+            /* Зона об'єднання овочів/фруктів (70 сходинка) */
+            .alm-merge-zone {
+                position: relative;
+                width: 100%;
+                height: 225px;
+                border-radius: 14px;
+                background: radial-gradient(circle at top, #2d1625 0%, #150c18 100%);
+                border: 2px solid rgba(251, 113, 133, 0.55);
+                overflow: hidden;
+                touch-action: none;
+                box-shadow: inset 0 0 22px rgba(0, 0, 0, 0.72);
+            }
+            .alm-merge-zone.locked {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                opacity: 0.65;
+            }
+            .alm-merge-item {
+                position: absolute;
+                transform: translate(-50%, -50%);
+                width: 44px;
+                height: 44px;
+                border-radius: 12px;
+                background: rgba(30, 27, 46, 0.92);
+                border: 2px solid rgba(251, 113, 133, 0.6);
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                cursor: grab;
+                z-index: 5;
+                box-shadow: 0 3px 8px rgba(0, 0, 0, 0.6);
+                transition: transform 0.08s, border-color 0.1s, box-shadow 0.1s;
+                touch-action: none;
+            }
+            .alm-merge-item.dragging {
+                cursor: grabbing;
+                transform: translate(-50%, -50%) scale(1.2);
+                border-color: #facc15;
+                z-index: 20;
+            }
+            .alm-merge-item.merge-target-highlight {
+                border-color: #4ade80;
+                box-shadow: 0 0 14px rgba(74, 222, 128, 0.85);
+                transform: translate(-50%, -50%) scale(1.12);
+            }
+            .alm-merge-item.merge-pop-in {
+                animation: almMergePopIn 0.25s ease-out;
+            }
+            @keyframes almMergePopIn {
+                0% { transform: translate(-50%, -50%) scale(0.5); }
+                70% { transform: translate(-50%, -50%) scale(1.18); }
+                100% { transform: translate(-50%, -50%) scale(1); }
+            }
+            .alm-merge-emoji {
+                font-size: 1.35rem;
+                line-height: 1;
+            }
+            .alm-merge-lvl-badge {
+                font-size: 0.58rem;
+                font-weight: 900;
+                color: #fda4af;
+                margin-top: 1px;
+            }
+            .alm-merge-pop {
+                position: absolute;
+                transform: translate(-50%, -50%);
+                color: #fda4af;
+                font-weight: 900;
+                font-size: 0.92rem;
+                background: rgba(15, 23, 42, 0.88);
+                border: 1px solid #fb7185;
+                padding: 3px 9px;
+                border-radius: 999px;
+                pointer-events: none;
+                z-index: 30;
+                white-space: nowrap;
+                animation: almSnowFloat 0.8s ease-out forwards;
+            }
 
-        const posLabel = isMoving
-            ? `${visStep.toFixed(1)} → ${s.targetStep}`
-            : `${s.currentStep}`;
+            /* Бічний топ */
+            .alm-snow-side-lb {
+                background: var(--card-bg);
+                border: 2px solid rgba(56, 189, 248, 0.35);
+                border-radius: 16px;
+                padding: 12px;
+                width: 100%;
+                box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+            }
+            .alm-snow-lb-title {
+                font-size: 0.92rem;
+                font-weight: 900;
+                color: #7dd3fc;
+                text-align: center;
+            }
+            .alm-snow-lb-sub {
+                font-size: 0.7rem;
+                color: #94a3b8;
+                text-align: center;
+                margin-bottom: 8px;
+            }
+            .alm-snow-lb-list {
+                display: flex;
+                flex-direction: column;
+                gap: 6px;
+                max-height: 360px;
+                overflow-y: auto;
+            }
+            .alm-snow-lb-row {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 6px;
+                padding: 7px 9px;
+                border-radius: 9px;
+                background: rgba(0, 0, 0, 0.28);
+                border: 1px solid rgba(255, 255, 255, 0.08);
+                font-size: 0.78rem;
+            }
+            .alm-snow-lb-row.is-player {
+                border-color: #38bdf8;
+                background: rgba(14, 116, 144, 0.28);
+            }
+            .alm-snow-lb-rank {
+                font-weight: 900;
+                color: #facc15;
+                min-width: 24px;
+            }
+            .alm-snow-lb-name {
+                flex: 1;
+                color: #fff;
+                font-weight: 700;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+            .alm-snow-lb-val {
+                color: #7dd3fc;
+                font-weight: 800;
+                white-space: nowrap;
+            }
 
-        let bannersHtml = '';
+            /* Вкладка Усі множники */
+            .alm-mult-total-box {
+                background: linear-gradient(135deg, rgba(168, 85, 247, 0.18), rgba(14, 165, 233, 0.18));
+                border: 2px solid #a855f7;
+                border-radius: 14px;
+                padding: 14px;
+                text-align: center;
+                margin-bottom: 14px;
+            }
+            .alm-mult-total-label {
+                font-size: 0.82rem;
+                color: #e2e8f0;
+                margin-bottom: 4px;
+            }
+            .alm-mult-total-value {
+                font-size: 2rem;
+                font-weight: 900;
+                color: #4ade80;
+                text-shadow: 0 0 12px rgba(74, 222, 128, 0.5);
+            }
+            .alm-mult-total-rate {
+                font-size: 0.84rem;
+                color: #cbd5e1;
+                margin-top: 4px;
+            }
+            .alm-mult-section-title {
+                font-size: 0.8rem;
+                font-weight: 800;
+                color: #94a3b8;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+                margin: 10px 0 8px 0;
+            }
+            .alm-mult-grid {
+                display: grid;
+                grid-template-columns: repeat(2, 1fr);
+                gap: 8px;
+            }
+            .alm-mult-item {
+                background: rgba(0, 0, 0, 0.28);
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                border-radius: 10px;
+                padding: 9px 10px;
+                display: flex;
+                flex-direction: column;
+                gap: 4px;
+            }
+            .alm-mult-item-name {
+                font-size: 0.74rem;
+                color: #cbd5e1;
+            }
+            .alm-mult-item-val {
+                font-size: 1.05rem;
+                font-weight: 900;
+            }
 
-        if (noInternetError && getOfflineLarpPercent() > 0) {
-            bannersHtml += `
-                <div class="alm-offline-banner">
-                    <span>📡 Немає інтернету! Не вдалося отримати глобальний час для підрахунку офлайн-заробітку Ларпів.</span>
-                    <button class="alm-banner-btn" ${isCheckingGlobalTime ? 'disabled' : ''} onclick="window.AuraLarpMonster.retryGlobalTime()">
-                        ${isCheckingGlobalTime ? 'Перевірка...' : '🔄 Перевірити знову'}
-                    </button>
-                </div>
-            `;
-        } else if (isCheckingGlobalTime && getOfflineLarpPercent() > 0) {
-            bannersHtml += `
-                <div class="alm-offline-banner" style="border-color: #38bdf8; background: #0e1b2e; color: #bae6fd;">
-                    <span>⏳ Отримання глобального часу для підрахунку офлайн-фарму Ларпів...</span>
-                </div>
-            `;
-        }
-
-        if (offlineRewardReport && Math.floor(offlineRewardReport.earnedOffline) > 0) {
-            bannersHtml += `
-                <div class="alm-offline-banner reward">
-                    <span>
-                        🎉 Поки вас не було (<b>${formatDurationUk(offlineRewardReport.elapsedSec)}</b>, ${offlineRewardReport.offlinePct}% від ${offlineRewardReport.highestStep || getHighestUnlockedStepNumber()}-ї сходинки), зароблено:
-                        <b style="color: #f5b82e;">+${formatLarpValue(offlineRewardReport.earnedOffline)} ${pluralizeLarp(offlineRewardReport.earnedOffline)}</b>!
-                    </span>
-                    <button class="alm-banner-btn" onclick="window.AuraLarpMonster.dismissOfflineReport()">Забрати</button>
-                </div>
-            `;
-        }
-
-        let html = `
-            ${bannersHtml}
-            <div class="alm-top-panel">
-                <div class="alm-top-stats">
-                    <div class="alm-balance-group">
-                        <span class="alm-balance-num" id="alm-top-balance">${formatLarpValue(s.larp)}</span>
-                        <span class="alm-balance-unit">ларпів</span>
-                        <span class="alm-rate-pill">
-                            <span class="alm-rate-pill-num" id="alm-top-rate">${formatMultValue(getLarpPerSecond())}</span>
-                            <span>ларп/сек</span>
-                        </span>
-                    </div>
-                    <div class="alm-pos-pill">
-                        <span class="alm-pos-dot"></span>
-                        <span id="alm-top-pos">${posLabel}</span>
-                    </div>
-                </div>
-
-                <div class="alm-subtabs-bar">
-                    <button class="alm-subtab-btn ${activeLarpSubTab === 'stairs' ? 'active' : ''}" onclick="window.AuraLarpMonster.switchSubTab('stairs')">
-                        Сходи
-                    </button>
-                    <button class="alm-subtab-btn ${activeLarpSubTab === 'room' ? 'active' : ''}" onclick="window.AuraLarpMonster.switchSubTab('room')">
-                        Кімнати
-                        <span id="alm-room-tab-dot" class="alm-room-dot" style="display: ${s.maxUnlockedStep >= 10 ? 'inline-block' : 'none'};"></span>
-                    </button>
-                    <button class="alm-subtab-btn ${activeLarpSubTab === 'multipliers' ? 'active' : ''}" onclick="window.AuraLarpMonster.switchSubTab('multipliers')">
-                        Множники
-                    </button>
-                    <button class="alm-subtab-btn ${activeLarpSubTab === 'leaderboard' ? 'active' : ''}" onclick="window.AuraLarpMonster.switchSubTab('leaderboard')">
-                        Топ
-                    </button>
-                </div>
-            </div>
+            /* Топ */
+            .alm-lb-subtabs {
+                display: grid;
+                grid-template-columns: repeat(3, 1fr);
+                gap: 6px;
+                margin-bottom: 12px;
+            }
+            .alm-lb-pill {
+                padding: 8px 4px;
+                border-radius: 10px;
+                border: 1px solid rgba(250, 204, 21, 0.35);
+                background: rgba(0, 0, 0, 0.28);
+                color: #cbd5e1;
+                font-size: 0.73rem;
+                font-weight: 800;
+                cursor: pointer;
+                transition: all 0.15s;
+            }
+            .alm-lb-pill.active {
+                background: linear-gradient(135deg, #f59e0b, #d97706);
+                border-color: #fef08a;
+                color: #111827;
+            }
+            .alm-leaderboard-list {
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+                max-height: 360px;
+                overflow-y: auto;
+            }
+            .alm-lb-row {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 10px;
+                padding: 10px 12px;
+                border-radius: 12px;
+                background: rgba(0, 0, 0, 0.3);
+                border: 1px solid rgba(255, 255, 255, 0.08);
+            }
+            .alm-lb-row.is-player {
+                border: 2px solid var(--accent-gold);
+                background: linear-gradient(135deg, #1e1730, #2c1d47);
+            }
+            .alm-lb-rank {
+                font-weight: 900;
+                font-size: 1rem;
+                color: var(--accent-gold);
+                min-width: 34px;
+            }
+            .alm-lb-name {
+                font-weight: 700;
+                font-size: 0.9rem;
+                color: #fff;
+                flex: 1;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+            .alm-lb-val {
+                font-weight: 800;
+                font-size: 0.85rem;
+                color: #4ade80;
+                white-space: nowrap;
+            }
         `;
+        document.head.appendChild(style);
+    }
 
-        if (activeLarpSubTab === 'stairs') {
-            const nextStep = s.maxUnlockedStep + 1;
-            const nextStepObj = STAIRS_CONFIG.find(item => item.step === nextStep);
+    function ensureDomSetup() {
+        injectStyles();
 
-            html += `
-                <div class="alm-main-box">
-                    <div class="alm-stairs-scroll" id="alm-stairs-scroll">
-                        <div class="alm-stairs-stage" id="alm-stairs-stage">
-                            <div class="alm-stairs-divider"></div>
-            `;
-
-            for (let i = STAIRS_CONFIG.length - 1; i >= 0; i--) {
-                const st = STAIRS_CONFIG[i];
-                const isUnlocked = st.step <= s.maxUnlockedStep;
-                const isNextBuy = st.step === nextStep;
-                const isCurrentStatic = st.step === s.currentStep && !isMoving;
-
-                const barLeft = STEP_BASE_LEFT + (st.step - 1) * STEP_INDENT_PER_LEVEL;
-
-                let rowClasses = 'alm-stair-row';
-                if (isUnlocked) rowClasses += ' alm-row-unlocked';
-                if (st.step === 10) rowClasses += ' alm-row-room';
-                else if (st.step === 20) rowClasses += ' alm-row-room-20';
-                else if (st.step === 30) rowClasses += ' alm-row-room-30';
-                else if (st.step === 40) rowClasses += ' alm-row-room-40';
-                else if (st.step === 50) rowClasses += ' alm-row-room-50';
-                else if (st.step === 60) rowClasses += ' alm-row-room-60';
-                else if (st.step === 70) rowClasses += ' alm-row-room-70';
-                else if (st.step === 80) rowClasses += ' alm-row-room-80';
-                else if (st.step === 90) rowClasses += ' alm-row-room-90';
-                if (isCurrentStatic) rowClasses += ' alm-row-current';
-
-                let barClasses = 'alm-step-bar';
-                if (st.step === 90 && isUnlocked) barClasses += ' room-bar-90';
-                else if (st.step === 80 && isUnlocked) barClasses += ' room-bar-80';
-                else if (st.step === 70 && isUnlocked) barClasses += ' room-bar-70';
-                else if (st.step === 60 && isUnlocked) barClasses += ' room-bar-60';
-                else if (st.step === 50 && isUnlocked) barClasses += ' room-bar-50';
-                else if (st.step === 40 && isUnlocked) barClasses += ' room-bar-40';
-                else if (st.step === 30 && isUnlocked) barClasses += ' room-bar-30';
-                else if (st.step === 20 && isUnlocked) barClasses += ' room-bar-20';
-                else if (st.step === 10 && isUnlocked) barClasses += ' room-bar';
-                else if (isUnlocked) barClasses += ' unlocked';
-                else if (isNextBuy) barClasses += ' next-buy';
-
-                let rightActionHtml = '';
-                if (isNextBuy) {
-                    rightActionHtml = `
-                        <button id="alm-inline-buy-btn" class="alm-inline-buy-btn" ${s.larp < st.cost ? 'disabled' : ''} onclick="event.stopPropagation(); window.AuraLarpMonster.unlockNextStep()">
-                            ${formatLarpValue(st.cost)} ${pluralizeLarp(st.cost)}
-                        </button>
-                    `;
-                } else if (st.step === 10 && isUnlocked) {
-                    rightActionHtml = `
-                        <button class="alm-room-chip-btn" onclick="event.stopPropagation(); window.AuraLarpMonster.openRoom(10)">
-                            Кімната
-                        </button>
-                    `;
-                } else if (st.step === 20 && isUnlocked) {
-                    rightActionHtml = `
-                        <button class="alm-room-chip-btn ice" onclick="event.stopPropagation(); window.AuraLarpMonster.openRoom(20)">
-                            ❄️ Сніг
-                        </button>
-                    `;
-                } else if (st.step === 30 && isUnlocked) {
-                    rightActionHtml = `
-                        <button class="alm-room-chip-btn trash" onclick="event.stopPropagation(); window.AuraLarpMonster.openRoom(30)">
-                            🗑️ Сміття
-                        </button>
-                    `;
-                } else if (st.step === 40 && isUnlocked) {
-                    rightActionHtml = `
-                        <button class="alm-room-chip-btn purple" onclick="event.stopPropagation(); window.AuraLarpMonster.openRoom(40)">
-                            ⚡ Прокачки
-                        </button>
-                    `;
-                } else if (st.step === 50 && isUnlocked) {
-                    rightActionHtml = `
-                        <button class="alm-room-chip-btn boss" onclick="event.stopPropagation(); window.AuraLarpMonster.openRoom(50)">
-                            🐔 Курочка
-                        </button>
-                    `;
-                } else if (st.step === 60 && isUnlocked) {
-                    rightActionHtml = `
-                        <button class="alm-room-chip-btn gold" onclick="event.stopPropagation(); window.AuraLarpMonster.openRoom(60)">
-                            ✨ Шанси
-                        </button>
-                    `;
-                } else if (st.step === 70 && isUnlocked) {
-                    rightActionHtml = `
-                        <button class="alm-room-chip-btn garden" onclick="event.stopPropagation(); window.AuraLarpMonster.openRoom(70)">
-                            🥒 Овочі
-                        </button>
-                    `;
-                } else if (st.step === 80 && isUnlocked) {
-                    rightActionHtml = `
-                        <button class="alm-room-chip-btn storm" onclick="event.stopPropagation(); window.AuraLarpMonster.openRoom(80)">
-                            🌨️ Буря
-                        </button>
-                    `;
-                } else if (st.step === 90 && isUnlocked) {
-                    rightActionHtml = `
-                        <button class="alm-room-chip-btn combat" onclick="event.stopPropagation(); window.AuraLarpMonster.openRoom(90)">
-                            ⚔️ Моби
-                        </button>
-                    `;
-                }
-
-                html += `
-                    <div id="alm-stair-row-${st.step}" class="${rowClasses}" onclick="${isUnlocked ? `window.AuraLarpMonster.moveToStep(${st.step})` : (isNextBuy ? 'window.AuraLarpMonster.unlockNextStep()' : '')}">
-                        <div class="alm-stair-left">
-                            ${st.step < MAX_STEP ? `<div class="alm-step-connector ${st.step + 1 <= s.maxUnlockedStep ? 'unlocked' : ''}" style="left: ${barLeft + STEP_INDENT_PER_LEVEL + 4}px;"></div>` : ''}
-                            <div class="${barClasses}" style="left: ${barLeft}px;"></div>
-                        </div>
-                        <div class="alm-stair-right">
-                            <div class="alm-stair-info-left">
-                                <span class="alm-step-number ${(isUnlocked || isNextBuy) ? 'bright' : ''}">${st.step}</span>
-                                ${(isUnlocked || isNextBuy) ? `<span class="alm-mult-chip">x${formatMultValue(st.mult)}</span>` : ''}
-                            </div>
-                            <div>${rightActionHtml}</div>
-                        </div>
-                    </div>
-                `;
+        const nav = document.querySelector('.tab-nav');
+        if (nav) {
+            if (!document.getElementById('btn-tab-aura-larp')) {
+                const mainBtn = document.createElement('button');
+                mainBtn.id = 'btn-tab-aura-larp';
+                mainBtn.className = 'tab-btn';
+                mainBtn.type = 'button';
+                mainBtn.innerHTML = '👾 Аура Ларп Монстер';
+                mainBtn.onclick = function () {
+                    enterAuraLarpMonsterMode();
+                };
+                nav.appendChild(mainBtn);
             }
 
-            html += `
-                            <div id="alm-character-pin" class="alm-character-pin" title="Персонаж">
-                                <svg viewBox="0 0 24 24"><path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/></svg>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            `;
-
-            if (nextStepObj) {
-                html += `
-                    <div class="alm-bottom-bar">
-                        <div class="alm-bottom-meta">
-                            Сходинка: <strong>${nextStepObj.step}</strong> &nbsp;•&nbsp; Множник: <span class="cyan">x${formatMultValue(nextStepObj.mult)}</span>
-                        </div>
-                        <button id="alm-bottom-buy-btn" class="alm-bottom-buy-btn" ${s.larp < nextStepObj.cost ? 'disabled' : ''} onclick="window.AuraLarpMonster.unlockNextStep()">
-                            Купити — ${formatLarpValue(nextStepObj.cost)} ${pluralizeLarp(nextStepObj.cost)}
-                        </button>
-                    </div>
-                `;
-            } else {
-                const curStair = STAIRS_CONFIG.find(item => item.step === s.currentStep) || STAIRS_CONFIG[MAX_STEP - 1];
-                html += `
-                    <div class="alm-bottom-bar">
-                        <div class="alm-bottom-meta">
-                            Поточна сходинка: <strong>${s.currentStep}</strong> &nbsp;•&nbsp; Множник: <span class="cyan">x${formatMultValue(curStair.mult)}</span>
-                        </div>
-                        <button class="alm-bottom-buy-btn" disabled>Усі ${MAX_STEP} сходинок відкрито</button>
-                    </div>
-                `;
+            if (!document.getElementById('alm-nav-home')) {
+                const homeBtn = document.createElement('button');
+                homeBtn.id = 'alm-nav-home';
+                homeBtn.className = 'tab-btn alm-mode-nav-btn';
+                homeBtn.type = 'button';
+                homeBtn.innerHTML = '🏠 Додому';
+                homeBtn.onclick = exitAuraLarpMonsterMode;
+                nav.appendChild(homeBtn);
             }
-        } else if (activeLarpSubTab === 'room') {
-            html += `<div class="alm-main-box">`;
-
-            // Перемикач усіх 8 кімнат (10, 20, 30, 40, 50, 60, 70, 80)
-            html += `
-                <div class="alm-room-selector">
-                    <button class="alm-room-sel-btn ${activeRoomStep === 10 ? 'active' : ''}" onclick="window.AuraLarpMonster.openRoom(10)">
-                        🚪 10 сх.
-                    </button>
-                    <button class="alm-room-sel-btn ${activeRoomStep === 20 ? 'active' : ''}" onclick="window.AuraLarpMonster.openRoom(20)">
-                        ❄️ 20 сх.
-                    </button>
-                    <button class="alm-room-sel-btn ${activeRoomStep === 30 ? 'active' : ''}" onclick="window.AuraLarpMonster.openRoom(30)">
-                        🗑️ 30 сх.
-                    </button>
-                    <button class="alm-room-sel-btn ${activeRoomStep === 40 ? 'active' : ''}" onclick="window.AuraLarpMonster.openRoom(40)">
-                        ⚡ 40 сх.
-                    </button>
-                    <button class="alm-room-sel-btn ${activeRoomStep === 50 ? 'active' : ''}" onclick="window.AuraLarpMonster.openRoom(50)">
-                        🐔 50 сх.
-                    </button>
-                    <button class="alm-room-sel-btn ${activeRoomStep === 60 ? 'active' : ''}" onclick="window.AuraLarpMonster.openRoom(60)">
-                        ✨ 60 сх.
-                    </button>
-                    <button class="alm-room-sel-btn ${activeRoomStep === 70 ? 'active' : ''}" onclick="window.AuraLarpMonster.openRoom(70)">
-                        🥒 70 сх.
-                    </button>
-                    <button class="alm-room-sel-btn ${activeRoomStep === 80 ? 'active' : ''}" onclick="window.AuraLarpMonster.openRoom(80)">
-                        🌨️ 80 сх.
-                    </button>
-                    <button class="alm-room-sel-btn ${activeRoomStep === 90 ? 'active' : ''}" onclick="window.AuraLarpMonster.openRoom(90)">
-                        ⚔️ 90 сх.
-                    </button>
-                </div>
-            `;
-
-            const roomNames = {
-                10: 'КІМНАТА — 10 СХОДИНКА',
-                20: 'ЗОНА СНІЖИНОК — 20 СХОДИНКА',
-                30: 'ПРИБИРАННЯ СМІТТЯ — 30 СХОДИНКА',
-                40: 'ЗАЛ ПРИСКОРЕННЯ ТА ОФЛАЙНУ — 40 СХОДИНКА',
-                50: `АРЕНА «${CHICKEN_MOB_NAME.toUpperCase()}» — 50 СХОДИНКА`,
-                60: 'ЗАЛ РІДКІСНИХ ШАНСІВ — 60 СХОДИНКА',
-                70: 'ОРАНЖЕРЕЯ ОВОЧІВ І ФРУКТІВ — 70 СХОДИНКА',
-                80: 'БАШТА СНІЖНОЇ БУРІ — 80 СХОДИНКА',
-                90: 'ЗАЛ ПРОКАЧКИ МОБІВ — 90 СХОДИНКА'
-            };
-
-            if (s.maxUnlockedStep < activeRoomStep) {
-                html += `
-                    <div class="alm-room-viewport">
-                        <div class="alm-room-subtitle">${roomNames[activeRoomStep]}</div>
-                        <div style="color: #94a3b8; font-size: 0.95rem; max-width: 340px; line-height: 1.5; margin-bottom: 16px;">
-                            Відкрийте та підніміться на <b style="color: #38bdf8;">${activeRoomStep} сходинку</b> у вкладці «Сходи», щоб увійти до цієї кімнати.
-                        </div>
-                        <button class="alm-walk-status-btn" onclick="window.AuraLarpMonster.switchSubTab('stairs')">
-                            Перейти до сходів
-                        </button>
-                    </div>
-                `;
-            } else if (s.currentStep !== activeRoomStep || s.targetStep !== activeRoomStep) {
-                const distSteps = Math.abs(activeRoomStep - visStep);
-                const timeLeftSec = distSteps / moveSpeed;
-                const totalDist = Math.max(1, activeRoomStep - 1);
-                const pct = Math.min(100, Math.max(0, (1 - distSteps / totalDist) * 100));
-                const isHeadingToRoom = s.targetStep === activeRoomStep;
-
-                html += `
-                    <div class="alm-room-viewport">
-                        <div style="font-size: 1.05rem; font-weight: 800; color: #f8fafc;">
-                            ${isHeadingToRoom ? `Персонаж іде до ${activeRoomStep}-ї сходинки` : `Персонаж на ${s.currentStep}-й сходинці`}
-                        </div>
-                        <div class="alm-walk-box">
-                            <div class="alm-walk-header">
-                                <span>Позиція: <strong id="alm-room-walk-pos" style="color: #38bdf8;">${visStep.toFixed(1)}</strong> / ${activeRoomStep}</span>
-                                <span id="alm-room-walk-sec">${timeLeftSec.toFixed(1)} сек</span>
-                            </div>
-                            <div class="alm-walk-track">
-                                <div id="alm-room-walk-fill" class="alm-walk-fill" style="width: ${pct.toFixed(1)}%;"></div>
-                            </div>
-                        </div>
-                        ${isHeadingToRoom
-                            ? `<button class="alm-walk-status-btn" disabled>Персонаж у дорозі...</button>`
-                            : `<button class="alm-walk-status-btn" onclick="window.AuraLarpMonster.moveToStep(${activeRoomStep}); window.AuraLarpMonster.render(false);">Піти до ${activeRoomStep}-ї сходинки</button>`
-                        }
-                    </div>
-                `;
-            } else if (activeRoomStep === 10) {
-                // КІМНАТА 10 СХОДИНКИ
-                const curMult = getRoomLarpMultiplier();
-                const nextMult = getNextRoomLarpMultiplier();
-                const cost = getRoomUpgradeCost();
-
-                html += `
-                    <div class="alm-room-viewport">
-                        <div class="alm-room-subtitle">${roomNames[10]}</div>
-                        <button id="alm-room-upgrade-card" class="alm-room-upgrade-card" ${s.larp < cost ? 'disabled' : ''} onclick="window.AuraLarpMonster.buyRoomMultiplierUpgrade()">
-                            <div class="alm-room-card-label">ПРОКАЧКА МНОЖНИКА ЛАРПІВ</div>
-                            <div class="alm-room-lvl-badge">Рів. ${s.roomMultLvl}</div>
-                            <div class="alm-room-mult-transition">x${formatMultValue(curMult)}&gt;x${formatMultValue(nextMult)}</div>
-                            <div class="alm-room-cost-text">${formatLarpValue(cost)} ${pluralizeLarp(cost)}</div>
-                        </button>
-                    </div>
-                `;
-            } else if (activeRoomStep === 20) {
-                // КІМНАТА 20 СХОДИНКИ — ЗОНА СНІЖИНОК
-                const snowMultCur = getSnowMultiplier();
-                const snowMultNext = getNextSnowMultiplier();
-                const snowMultCost = getSnowMultUpgradeCost();
-
-                const speedLvl = s.snowSpeedLvl || 0;
-                const isSpeedMax = speedLvl >= SNOW_SPEED_MAX_LVL;
-                const speedCur = getSnowSpawnInterval();
-                const speedNext = getNextSnowSpawnInterval();
-                const speedCost = getSnowSpeedUpgradeCost();
-
-                const snowLarpCur = getSnowLarpMultiplier();
-                const snowLarpNext = getNextSnowLarpMultiplier();
-                const snowLarpCost = getSnowLarpUpgradeCost();
-
-                const stormActive = isSnowstormActive();
-                const stormRemSec = stormActive ? Math.max(0, (s.stormActiveEndMs - getCurrentNowMs()) / 1000) : 0;
-
-                let snowflakesDom = '';
-                activeSnowflakes.forEach(sf => {
-                    const rClass = sf.rarity && sf.rarity !== 'normal' ? sf.rarity : '';
-                    snowflakesDom += `<div id="alm-sf-${sf.id}" class="alm-snowflake-item ${rClass}" style="left: ${sf.xPct}%; top: ${sf.yPct}%;">❄️</div>`;
-                });
-
-                html += `
-                    <div class="alm-snow-layout">
-                        <div class="alm-snow-zone-col">
-                            <div id="alm-snow-storm-banner" class="alm-storm-active-strip" style="display: ${stormActive ? 'flex' : 'none'};">
-                                🌨️ СНІЖНА БУРЯ АКТИВНА! Залишилось: ${formatTimerMmSs(stormRemSec)} (спавн кожні ${getStormSnowSpawnInterval()}с)
-                            </div>
-
-                            <div class="alm-snow-hud">
-                                <div class="alm-snow-stat">❄️ Сніжинок: <strong id="alm-snow-balance">${formatSnowValue(s.snow)}</strong></div>
-                                <div class="alm-snow-stat">На полі: <strong id="alm-snow-active-count">${activeSnowflakes.length} / ${MAX_SNOWFLAKES}</strong></div>
-                                <div class="alm-snow-stat">Всього: <strong id="alm-snow-total">${formatSnowValue(s.totalSnow)}</strong></div>
-                            </div>
-
-                            <div id="alm-snow-field" class="alm-snow-field">
-                                ${snowflakesDom}
-                                <div class="alm-snow-hint">Проведіть пальцем по сніжинках, щоб зібрати</div>
-                            </div>
-                        </div>
-
-                        <div class="alm-snow-sidebar">
-                            <div class="alm-snow-side-box">
-                                <div class="alm-snow-side-title">
-                                    <span>⬆️ Прокачки зони</span>
-                                </div>
-
-                                <button id="alm-snow-upg-1" class="alm-snow-upg-btn" ${s.snow < snowMultCost ? 'disabled' : ''} onclick="window.AuraLarpMonster.buySnowMultUpgrade()">
-                                    <div class="alm-snow-upg-top">
-                                        <span>1) Множник сніжинок</span>
-                                        <span class="alm-snow-upg-lvl">Рів. ${s.snowMultLvl || 0}</span>
-                                    </div>
-                                    <div class="alm-snow-upg-bot">
-                                        <span class="alm-snow-upg-val">x${snowMultCur} → x${snowMultNext}</span>
-                                        <span class="alm-snow-upg-cost">❄️ ${formatSnowValue(snowMultCost)}</span>
-                                    </div>
-                                </button>
-
-                                <button id="alm-snow-upg-2" class="alm-snow-upg-btn" ${(isSpeedMax || s.snow < speedCost) ? 'disabled' : ''} onclick="window.AuraLarpMonster.buySnowSpeedUpgrade()">
-                                    <div class="alm-snow-upg-top">
-                                        <span>2) Швидкість спавну</span>
-                                        <span class="alm-snow-upg-lvl">${speedLvl}/${SNOW_SPEED_MAX_LVL}</span>
-                                    </div>
-                                    <div class="alm-snow-upg-bot">
-                                        <span class="alm-snow-upg-val">${isSpeedMax ? `${speedCur}с (МАКС)` : `${speedCur}с → ${speedNext}с`}</span>
-                                        <span class="alm-snow-upg-cost">${isSpeedMax ? 'МАКС' : `❄️ ${formatSnowValue(speedCost)}`}</span>
-                                    </div>
-                                </button>
-
-                                <button id="alm-snow-upg-3" class="alm-snow-upg-btn" ${s.snow < snowLarpCost ? 'disabled' : ''} onclick="window.AuraLarpMonster.buySnowLarpUpgrade()">
-                                    <div class="alm-snow-upg-top">
-                                        <span>3) Множник Ларпів</span>
-                                        <span class="alm-snow-upg-lvl">Рів. ${s.snowLarpMultLvl || 0}</span>
-                                    </div>
-                                    <div class="alm-snow-upg-bot">
-                                        <span class="alm-snow-upg-val">x${formatMultValue(snowLarpCur)} → x${formatMultValue(snowLarpNext)}</span>
-                                        <span class="alm-snow-upg-cost">❄️ ${formatSnowValue(snowLarpCost)}</span>
-                                    </div>
-                                </button>
-                            </div>
-
-                            <div class="alm-snow-side-box">
-                                <div class="alm-snow-side-title">
-                                    <span>🏆 Топ зібраного снігу</span>
-                                </div>
-                                <div id="alm-snow-lb-list" class="alm-snow-lb-list">
-                                    <div style="color:#94a3b8;font-size:0.78rem;text-align:center;padding:8px;">Завантаження...</div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            } else if (activeRoomStep === 30) {
-                // КІМНАТА 30 СХОДИНКИ — ПРИБИРАННЯ СМІТТЯ
-                const trMultCur = getTrashMultiplier();
-                const trMultNext = getNextTrashMultiplier();
-                const trMultCost = getTrashMultUpgradeCost();
-
-                const trSpeedLvl = s.trashSpeedLvl || 0;
-                const isTrSpeedMax = trSpeedLvl >= TRASH_SPEED_MAX_LVL;
-                const trSpeedCur = getTrashSpawnInterval();
-                const trSpeedNext = getNextTrashSpawnInterval();
-                const trSpeedCost = getTrashSpeedUpgradeCost();
-
-                const trLarpCur = getTrashLarpMultiplier();
-                const trLarpNext = getNextTrashLarpMultiplier();
-                const trLarpCost = getTrashLarpUpgradeCost();
-
-                let trashDom = '';
-                activeTrashItems.forEach(tr => {
-                    const rClass = tr.rarity && tr.rarity !== 'normal' ? tr.rarity : '';
-                    trashDom += `<div id="alm-tr-${tr.id}" class="alm-trash-item ${rClass}" style="left: ${tr.xPct}%; top: ${tr.yPct}%;">${tr.icon}</div>`;
-                });
-
-                html += `
-                    <div class="alm-snow-layout">
-                        <div class="alm-snow-zone-col">
-                            <div class="alm-snow-hud" style="border-color: #78350f;">
-                                <div class="alm-snow-stat">🗑️ Сміття: <strong id="alm-trash-balance" style="color: #fbbf24;">${formatTrashValue(s.trash)}</strong></div>
-                                <div class="alm-snow-stat">На полі: <strong id="alm-trash-active-count" style="color: #fbbf24;">${activeTrashItems.length} / ${MAX_TRASH_ITEMS}</strong></div>
-                                <div class="alm-snow-stat">Всього: <strong id="alm-trash-total" style="color: #fbbf24;">${formatTrashValue(s.totalTrash)}</strong></div>
-                            </div>
-
-                            <div id="alm-trash-field" class="alm-trash-field">
-                                <div class="alm-trash-center-bin">
-                                    <div class="alm-trash-center-icon">♻️</div>
-                                    <div class="alm-trash-center-label">Сюди</div>
-                                </div>
-                                ${trashDom}
-                                <div class="alm-snow-hint" style="color: #fde68a; border-color: rgba(245, 158, 11, 0.35);">Перетягніть сміття в центр зони</div>
-                            </div>
-                        </div>
-
-                        <div class="alm-snow-sidebar">
-                            <div class="alm-snow-side-box">
-                                <div class="alm-snow-side-title" style="color: #fcd34d;">
-                                    <span>⬆️ Прокачки прибирання</span>
-                                </div>
-
-                                <button id="alm-trash-upg-1" class="alm-snow-upg-btn" ${s.trash < trMultCost ? 'disabled' : ''} onclick="window.AuraLarpMonster.buyTrashMultUpgrade()">
-                                    <div class="alm-snow-upg-top">
-                                        <span>1) Множник сміття</span>
-                                        <span class="alm-snow-upg-lvl" style="color: #fbbf24;">Рів. ${s.trashMultLvl || 0}</span>
-                                    </div>
-                                    <div class="alm-snow-upg-bot">
-                                        <span class="alm-snow-upg-val">x${trMultCur} → x${trMultNext}</span>
-                                        <span class="alm-snow-upg-cost" style="color: #fcd34d;">🗑️ ${formatTrashValue(trMultCost)}</span>
-                                    </div>
-                                </button>
-
-                                <button id="alm-trash-upg-2" class="alm-snow-upg-btn" ${(isTrSpeedMax || s.trash < trSpeedCost) ? 'disabled' : ''} onclick="window.AuraLarpMonster.buyTrashSpeedUpgrade()">
-                                    <div class="alm-snow-upg-top">
-                                        <span>2) Швидкість спавну</span>
-                                        <span class="alm-snow-upg-lvl" style="color: #fbbf24;">${trSpeedLvl}/${TRASH_SPEED_MAX_LVL}</span>
-                                    </div>
-                                    <div class="alm-snow-upg-bot">
-                                        <span class="alm-snow-upg-val">${isTrSpeedMax ? `${trSpeedCur}с (МАКС)` : `${trSpeedCur}с → ${trSpeedNext}с`}</span>
-                                        <span class="alm-snow-upg-cost" style="color: #fcd34d;">${isTrSpeedMax ? 'МАКС' : `🗑️ ${formatTrashValue(trSpeedCost)}`}</span>
-                                    </div>
-                                </button>
-
-                                <button id="alm-trash-upg-3" class="alm-snow-upg-btn" ${s.trash < trLarpCost ? 'disabled' : ''} onclick="window.AuraLarpMonster.buyTrashLarpUpgrade()">
-                                    <div class="alm-snow-upg-top">
-                                        <span>3) Множник Ларпів</span>
-                                        <span class="alm-snow-upg-lvl" style="color: #fbbf24;">Рів. ${s.trashLarpMultLvl || 0}</span>
-                                    </div>
-                                    <div class="alm-snow-upg-bot">
-                                        <span class="alm-snow-upg-val">x${formatMultValue(trLarpCur)} → x${formatMultValue(trLarpNext)}</span>
-                                        <span class="alm-snow-upg-cost" style="color: #fcd34d;">🗑️ ${formatTrashValue(trLarpCost)}</span>
-                                    </div>
-                                </button>
-                            </div>
-
-                            <div class="alm-snow-side-box">
-                                <div class="alm-snow-side-title" style="color: #fcd34d;">
-                                    <span>🏆 Топ зібраного сміття</span>
-                                </div>
-                                <div id="alm-trash-lb-list" class="alm-snow-lb-list">
-                                    <div style="color:#94a3b8;font-size:0.78rem;text-align:center;padding:8px;">Завантаження...</div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            } else if (activeRoomStep === 40) {
-                // КІМНАТА 40 СХОДИНКИ — ШВИДКІСТЬ ПЕРСОНАЖА ТА ОФЛАЙН-ЗАРОБІТОК
-                const curSpd = getCharacterMoveSpeed();
-                const nextSpd = getNextCharacterMoveSpeed();
-                const spdCost = getSpeedUpgradeCost();
-
-                const curOffPct = getOfflineLarpPercent();
-                const nextOffPct = getNextOfflineLarpPercent();
-                const offCost = getOfflineUpgradeCost();
-
-                html += `
-                    <div class="alm-room-viewport">
-                        <div class="alm-room-subtitle">${roomNames[40]}</div>
-                        <div class="alm-r40-grid">
-                            <button id="alm-r40-speed-btn" class="alm-r40-card" ${s.larp < spdCost ? 'disabled' : ''} onclick="window.AuraLarpMonster.buyStepSpeedUpgrade()">
-                                <div class="alm-room-card-label">1) ШВИДКІСТЬ ПО СХОДИНКАХ</div>
-                                <div class="alm-r40-badge">Рів. ${s.stepSpeedLvl || 0} (+${(s.stepSpeedLvl || 0) * SPEED_UPG_STEP_PCT}%)</div>
-                                <div class="alm-r40-val">${formatMultValue(curSpd)} → ${formatMultValue(nextSpd)}<div style="font-size:0.82rem;color:#c084fc;margin-top:2px;">сходинок / сек</div></div>
-                                <div class="alm-room-cost-text">${formatLarpValue(spdCost)} ${pluralizeLarp(spdCost)}</div>
-                            </button>
-
-                            <button id="alm-r40-offline-btn" class="alm-r40-card" ${s.larp < offCost ? 'disabled' : ''} onclick="window.AuraLarpMonster.buyOfflineLarpUpgrade()">
-                                <div class="alm-room-card-label">2) ЗАРОБІТОК ЛАРПІВ ОФЛАЙН</div>
-                                <div class="alm-r40-badge">Рів. ${s.offlineLarpLvl || 0}</div>
-                                <div class="alm-r40-val">${curOffPct}% → ${nextOffPct}%<div style="font-size:0.82rem;color:#c084fc;margin-top:2px;">від доходу найвищої сходинки</div></div>
-                                <div class="alm-room-cost-text">${formatLarpValue(offCost)} ${pluralizeLarp(offCost)}</div>
-                            </button>
-                        </div>
-                    </div>
-                `;
-            } else if (activeRoomStep === 50) {
-                // КІМНАТА 50 СХОДИНКИ — МОБ БОЙОВА КВОЧКА РЯБА
-                const fMultCur = getFeatherMultiplier();
-                const fMultNext = getNextFeatherMultiplier();
-                const fMultCost = getFeatherMultUpgradeCost();
-
-                const fLarpCur = getFeatherLarpMultiplier();
-                const fLarpNext = getNextFeatherLarpMultiplier();
-                const fLarpCost = getFeatherLarpUpgradeCost();
-
-                const isRespawning = Boolean(s.chickenRespawnEndMs);
-                const remSec = isRespawning ? Math.max(0, (s.chickenRespawnEndMs - getCurrentNowMs()) / 1000) : 0;
-                const hpPct = Math.max(0, Math.min(100, (s.chickenHp / CHICKEN_MAX_HP) * 100));
-                const currentDrop = Math.round(CHICKEN_BASE_FEATHER_DROP * fMultCur);
-                const currentDmg = getChickenClickDamage();
-
-                html += `
-                    <div class="alm-snow-layout">
-                        <div class="alm-snow-zone-col">
-                            <div class="alm-snow-hud" style="border-color: #7f1d1d;">
-                                <div class="alm-snow-stat">🪶 Пір'їн: <strong id="alm-feather-balance" style="color: #fde047;">${formatFeatherValue(s.feathers)}</strong></div>
-                                <div class="alm-snow-stat">Дроп: <strong style="color: #fde047;">${formatFeatherValue(currentDrop)} 🪶</strong></div>
-                                <div class="alm-snow-stat">Всього: <strong id="alm-feather-total" style="color: #fde047;">${formatFeatherValue(s.totalFeathers)}</strong></div>
-                            </div>
-
-                            <div id="alm-chicken-arena" class="alm-chicken-arena">
-                                <div class="alm-chicken-title">🐔 ${CHICKEN_MOB_NAME}</div>
-
-                                ${isRespawning ? `
-                                    <div style="font-size: 3.4rem; opacity: 0.45;">🥚</div>
-                                    <div style="font-size: 0.95rem; font-weight: 800; color: #fca5a5;">
-                                        Моб переможений! Поява через:
-                                    </div>
-                                    <div id="alm-chicken-respawn-timer" style="font-size: 2rem; font-weight: 900; color: #fde047;">
-                                        ${formatTimerMmSs(remSec)}
-                                    </div>
-                                ` : `
-                                    <div class="alm-chicken-hp-wrap">
-                                        <div class="alm-chicken-hp-bar">
-                                            <div id="alm-chicken-hp-fill" class="alm-chicken-hp-fill" style="width: ${hpPct.toFixed(1)}%;"></div>
-                                        </div>
-                                        <div id="alm-chicken-hp-text" class="alm-chicken-hp-text">${Math.ceil(s.chickenHp)} / ${CHICKEN_MAX_HP} HP</div>
-                                    </div>
-
-                                    <button id="alm-chicken-mob-btn" class="alm-chicken-mob-btn" onclick="window.AuraLarpMonster.attackChicken(event)">
-                                        🐔
-                                    </button>
-
-                                    <div style="font-size: 0.8rem; font-weight: 800; color: #fecaca;">
-                                        Клікайте по мобу, щоб атакувати (<b>-${currentDmg} HP</b> за клік)
-                                    </div>
-                                `}
-                            </div>
-                        </div>
-
-                        <div class="alm-snow-sidebar">
-                            <div class="alm-snow-side-box">
-                                <div class="alm-snow-side-title" style="color: #fde047;">
-                                    <span>⬆️ Прокачки пір'я</span>
-                                </div>
-
-                                <button id="alm-feather-upg-1" class="alm-snow-upg-btn" ${s.feathers < fMultCost ? 'disabled' : ''} onclick="window.AuraLarpMonster.buyFeatherMultUpgrade()">
-                                    <div class="alm-snow-upg-top">
-                                        <span>1) Множник пір'я</span>
-                                        <span class="alm-snow-upg-lvl" style="color: #fde047;">Рів. ${s.featherMultLvl || 0}</span>
-                                    </div>
-                                    <div class="alm-snow-upg-bot">
-                                        <span class="alm-snow-upg-val">x${formatMultValue(fMultCur)} → x${formatMultValue(fMultNext)}</span>
-                                        <span class="alm-snow-upg-cost" style="color: #fde047;">🪶 ${formatFeatherValue(fMultCost)}</span>
-                                    </div>
-                                </button>
-
-                                <button id="alm-feather-upg-2" class="alm-snow-upg-btn" ${s.feathers < fLarpCost ? 'disabled' : ''} onclick="window.AuraLarpMonster.buyFeatherLarpUpgrade()">
-                                    <div class="alm-snow-upg-top">
-                                        <span>2) Множник Ларпів</span>
-                                        <span class="alm-snow-upg-lvl" style="color: #fde047;">Рів. ${s.featherLarpMultLvl || 0}</span>
-                                    </div>
-                                    <div class="alm-snow-upg-bot">
-                                        <span class="alm-snow-upg-val">x${formatMultValue(fLarpCur)} → x${formatMultValue(fLarpNext)}</span>
-                                        <span class="alm-snow-upg-cost" style="color: #fde047;">🪶 ${formatFeatherValue(fLarpCost)}</span>
-                                    </div>
-                                </button>
-                            </div>
-
-                            <div class="alm-snow-side-box">
-                                <div class="alm-snow-side-title" style="color: #fde047;">
-                                    <span>🏆 Топ зібраного пір'я</span>
-                                </div>
-                                <div id="alm-feather-lb-list" class="alm-snow-lb-list">
-                                    <div style="color:#94a3b8;font-size:0.78rem;text-align:center;padding:8px;">Завантаження...</div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            } else if (activeRoomStep === 60) {
-                // КІМНАТА 60 СХОДИНКИ — ШАНСИ ЗОЛОТИХ ТА СМАРАГДОВИХ СНІЖИНОК І СМІТТЯ
-                const gSnowLvl = s.goldSnowLvl || 0;
-                const gSnowCur = getGoldSnowChancePct();
-                const gSnowNext = Number(Math.min(100, gSnowCur + GOLD_SNOW_STEP_PCT).toFixed(2));
-                const gSnowCost = getGoldSnowUpgradeCost();
-                const gSnowMax = gSnowLvl >= GOLD_SNOW_MAX_LVL;
-
-                const eSnowLvl = s.emeraldSnowLvl || 0;
-                const eSnowCur = getEmeraldSnowChancePct();
-                const eSnowNext = Number(Math.min(100, eSnowCur + EMERALD_SNOW_STEP_PCT).toFixed(2));
-                const eSnowCost = getEmeraldSnowUpgradeCost();
-                const eSnowMax = eSnowLvl >= EMERALD_SNOW_MAX_LVL;
-
-                const gTrashLvl = s.goldTrashLvl || 0;
-                const gTrashCur = getGoldTrashChancePct();
-                const gTrashNext = Number(Math.min(100, gTrashCur + GOLD_TRASH_STEP_PCT).toFixed(2));
-                const gTrashCost = getGoldTrashUpgradeCost();
-                const gTrashMax = gTrashLvl >= GOLD_TRASH_MAX_LVL;
-
-                const eTrashLvl = s.emeraldTrashLvl || 0;
-                const eTrashCur = getEmeraldTrashChancePct();
-                const eTrashNext = Number(Math.min(100, eTrashCur + EMERALD_TRASH_STEP_PCT).toFixed(2));
-                const eTrashCost = getEmeraldTrashUpgradeCost();
-                const eTrashMax = eTrashLvl >= EMERALD_TRASH_MAX_LVL;
-
-                html += `
-                    <div class="alm-room-viewport" style="min-height: auto; padding: 12px 6px;">
-                        <div class="alm-room-subtitle">${roomNames[60]}</div>
-                        <div class="alm-r40-grid">
-                            <button id="alm-r60-btn-1" class="alm-r40-card gold-theme" ${(gSnowMax || s.larp < gSnowCost) ? 'disabled' : ''} onclick="window.AuraLarpMonster.buyGoldSnowUpgrade()">
-                                <div class="alm-room-card-label">1) ШАНС ЗОЛОТОЇ СНІЖИНКИ</div>
-                                <div class="alm-r40-badge gold">Рів. ${gSnowLvl}</div>
-                                <div class="alm-r40-val">${gSnowMax ? `${gSnowCur}% (МАКС)` : `${gSnowCur}% → ${gSnowNext}%`}</div>
-                                <div class="alm-room-cost-text">${gSnowMax ? 'МАКС' : `${formatLarpValue(gSnowCost)} ${pluralizeLarp(gSnowCost)}`}</div>
-                            </button>
-
-                            <button id="alm-r60-btn-2" class="alm-r40-card emerald-theme" ${(eSnowMax || s.larp < eSnowCost) ? 'disabled' : ''} onclick="window.AuraLarpMonster.buyEmeraldSnowUpgrade()">
-                                <div class="alm-room-card-label">2) ШАНС СМАРАГДОВОЇ СНІЖИНКИ</div>
-                                <div class="alm-r40-badge emerald">Рів. ${eSnowLvl}</div>
-                                <div class="alm-r40-val">${eSnowMax ? `${eSnowCur.toFixed(2)}% (МАКС)` : `${eSnowCur.toFixed(2)}% → ${eSnowNext.toFixed(2)}%`}</div>
-                                <div class="alm-room-cost-text">${eSnowMax ? 'МАКС' : `${formatLarpValue(eSnowCost)} ${pluralizeLarp(eSnowCost)}`}</div>
-                            </button>
-
-                            <button id="alm-r60-btn-3" class="alm-r40-card gold-theme" ${(gTrashMax || s.larp < gTrashCost) ? 'disabled' : ''} onclick="window.AuraLarpMonster.buyGoldTrashUpgrade()">
-                                <div class="alm-room-card-label">3) ШАНС ЗОЛОТОГО СМІТТЯ</div>
-                                <div class="alm-r40-badge gold">Рів. ${gTrashLvl}</div>
-                                <div class="alm-r40-val">${gTrashMax ? `${gTrashCur}% (МАКС)` : `${gTrashCur}% → ${gTrashNext}%`}</div>
-                                <div class="alm-room-cost-text">${gTrashMax ? 'МАКС' : `${formatLarpValue(gTrashCost)} ${pluralizeLarp(gTrashCost)}`}</div>
-                            </button>
-
-                            <button id="alm-r60-btn-4" class="alm-r40-card emerald-theme" ${(eTrashMax || s.larp < eTrashCost) ? 'disabled' : ''} onclick="window.AuraLarpMonster.buyEmeraldTrashUpgrade()">
-                                <div class="alm-room-card-label">4) ШАНС СМАРАГДОВОГО СМІТТЯ</div>
-                                <div class="alm-r40-badge emerald">Рів. ${eTrashLvl}</div>
-                                <div class="alm-r40-val">${eTrashMax ? `${eTrashCur.toFixed(2)}% (МАКС)` : `${eTrashCur.toFixed(2)}% → ${eTrashNext.toFixed(2)}%`}</div>
-                                <div class="alm-room-cost-text">${eTrashMax ? 'МАКС' : `${formatLarpValue(eTrashCost)} ${pluralizeLarp(eTrashCost)}`}</div>
-                            </button>
-                        </div>
-                    </div>
-                `;
-            } else if (activeRoomStep === 70) {
-                // КІМНАТА 70 СХОДИНКИ — ОБ'ЄДНАННЯ ОВОЧІВ І ФРУКТІВ (ВІТАМІНИ)
-                const vitMultCur = getVitaminMultiplier();
-                const vitMultNext = getNextVitaminMultiplier();
-                const vitMultCost = getVitaminMultUpgradeCost();
-
-                const lv2Lvl = s.mergeLv2ChanceLvl || 0;
-                const isLv2Max = lv2Lvl >= MERGE_LV2_MAX_LVL;
-                const lv2Cur = getMergeLv2ChancePct();
-                const lv2Next = getNextMergeLv2ChancePct();
-                const lv2Cost = getMergeLv2UpgradeCost();
-
-                const mgLarpCur = getMergeLarpMultiplier();
-                const mgLarpNext = getNextMergeLarpMultiplier();
-                const mgLarpCost = getMergeLarpUpgradeCost();
-
-                let mergeItemsDom = '';
-                activeMergeItems.forEach(it => {
-                    const tier = getMergeTierInfo(it.level);
-                    mergeItemsDom += `
-                        <div id="alm-mg-${it.id}" class="alm-merge-item lvl-${it.level}" style="left: ${it.xPct}%; top: ${it.yPct}%;">
-                            <span class="alm-merge-emoji">${tier.icon}</span>
-                            <span class="alm-merge-badge">${it.level}</span>
-                        </div>
-                    `;
-                });
-
-                html += `
-                    <div class="alm-snow-layout">
-                        <div class="alm-snow-zone-col">
-                            <div class="alm-snow-hud" style="border-color: #065f46;">
-                                <div class="alm-snow-stat">💊 Вітамінів: <strong id="alm-vitamin-balance" style="color: #34d399;">${formatVitaminValue(s.vitamins)}</strong></div>
-                                <div class="alm-snow-stat">На полі: <strong id="alm-merge-active-count" style="color: #34d399;">${activeMergeItems.length} / ${MAX_MERGE_ITEMS}</strong></div>
-                                <div class="alm-snow-stat">Всього: <strong id="alm-vitamin-total" style="color: #34d399;">${formatVitaminValue(s.totalVitamins)}</strong></div>
-                            </div>
-
-                            <div id="alm-merge-field" class="alm-merge-field">
-                                ${mergeItemsDom}
-                                <div class="alm-snow-hint" style="color: #a7f3d0; border-color: rgba(16, 185, 129, 0.35);">Перетягніть однаковий овоч/фрукт один на одного (до 16 рівня)</div>
-                            </div>
-                        </div>
-
-                        <div class="alm-snow-sidebar">
-                            <div class="alm-snow-side-box">
-                                <div class="alm-snow-side-title" style="color: #6ee7b7;">
-                                    <span>⬆️ Прокачки оранжереї</span>
-                                </div>
-
-                                <button id="alm-merge-upg-1" class="alm-snow-upg-btn" ${s.vitamins < vitMultCost ? 'disabled' : ''} onclick="window.AuraLarpMonster.buyVitaminMultUpgrade()">
-                                    <div class="alm-snow-upg-top">
-                                        <span>1) Множник вітамінів</span>
-                                        <span class="alm-snow-upg-lvl" style="color: #34d399;">Рів. ${s.vitaminMultLvl || 0}</span>
-                                    </div>
-                                    <div class="alm-snow-upg-bot">
-                                        <span class="alm-snow-upg-val">x${formatMultValue(vitMultCur)} → x${formatMultValue(vitMultNext)}</span>
-                                        <span class="alm-snow-upg-cost" style="color: #6ee7b7;">💊 ${formatVitaminValue(vitMultCost)}</span>
-                                    </div>
-                                </button>
-
-                                <button id="alm-merge-upg-2" class="alm-snow-upg-btn" ${(isLv2Max || s.vitamins < lv2Cost) ? 'disabled' : ''} onclick="window.AuraLarpMonster.buyMergeLv2Upgrade()">
-                                    <div class="alm-snow-upg-top">
-                                        <span>2) Шанс на помідор (2 рів.)</span>
-                                        <span class="alm-snow-upg-lvl" style="color: #34d399;">${lv2Lvl}/${MERGE_LV2_MAX_LVL}</span>
-                                    </div>
-                                    <div class="alm-snow-upg-bot">
-                                        <span class="alm-snow-upg-val">${isLv2Max ? `${lv2Cur}% (МАКС)` : `${lv2Cur}% → ${lv2Next}%`}</span>
-                                        <span class="alm-snow-upg-cost" style="color: #6ee7b7;">${isLv2Max ? 'МАКС' : `💊 ${formatVitaminValue(lv2Cost)}`}</span>
-                                    </div>
-                                </button>
-
-                                <button id="alm-merge-upg-3" class="alm-snow-upg-btn" ${s.vitamins < mgLarpCost ? 'disabled' : ''} onclick="window.AuraLarpMonster.buyMergeLarpUpgrade()">
-                                    <div class="alm-snow-upg-top">
-                                        <span>3) Множник Ларпів</span>
-                                        <span class="alm-snow-upg-lvl" style="color: #34d399;">Рів. ${s.mergeLarpMultLvl || 0}</span>
-                                    </div>
-                                    <div class="alm-snow-upg-bot">
-                                        <span class="alm-snow-upg-val">x${formatMultValue(mgLarpCur)} → x${formatMultValue(mgLarpNext)}</span>
-                                        <span class="alm-snow-upg-cost" style="color: #6ee7b7;">💊 ${formatVitaminValue(mgLarpCost)}</span>
-                                    </div>
-                                </button>
-                            </div>
-
-                            <div class="alm-snow-side-box">
-                                <div class="alm-snow-side-title" style="color: #6ee7b7;">
-                                    <span>🏆 Топ зібраних вітамінів</span>
-                                </div>
-                                <div id="alm-vitamin-lb-list" class="alm-snow-lb-list">
-                                    <div style="color:#94a3b8;font-size:0.78rem;text-align:center;padding:8px;">Завантаження...</div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            } else if (activeRoomStep === 80) {
-                // КІМНАТА 80 СХОДИНКИ — СНІЖНА БУРЯ
-                const now = getCurrentNowMs();
-                const stormActive = Boolean(s.stormActiveEndMs && now < s.stormActiveEndMs);
-                const stormOnCd = Boolean(s.stormCooldownEndMs && now < s.stormCooldownEndMs);
-
-                const durCur = getStormDurationMinutes();
-                const durNext = getNextStormDurationMinutes();
-                const durCost = getStormDurationUpgradeCost();
-
-                const cdLvl = s.stormCooldownLvl || 0;
-                const isCdMax = cdLvl >= STORM_COOLDOWN_MAX_LVL;
-                const cdCur = getStormCooldownHours();
-                const cdNext = getNextStormCooldownHours();
-                const cdCost = getStormCooldownUpgradeCost();
-
-                const stSpdLvl = s.stormSpeedLvl || 0;
-                const isStSpdMax = stSpdLvl >= STORM_SPAWN_MAX_LVL;
-                const stSpdCur = getStormSnowSpawnInterval();
-                const stSpdNext = getNextStormSnowSpawnInterval();
-                const stSpdCost = getStormSpeedUpgradeCost();
-
-                let statusText = `✅ Готова до виклику (${durCur} хв, спавн ${stSpdCur}с)`;
-                let statusColor = '#2ecc71';
-                let timerText = `Кулдаун після виклику: ${cdCur} год`;
-
-                if (stormActive) {
-                    const remSec = Math.max(0, (s.stormActiveEndMs - now) / 1000);
-                    statusText = `🌨️ Сніжна буря вирує! Сніжинки спавняться кожні ${stSpdCur}с`;
-                    statusColor = '#7dd3fc';
-                    timerText = `Активна: ${formatTimerMmSs(remSec)}`;
-                } else if (stormOnCd) {
-                    const cdSec = Math.max(0, (s.stormCooldownEndMs - now) / 1000);
-                    statusText = '⏳ Перезарядка виклику сніжної бурі';
-                    statusColor = '#94a3b8';
-                    timerText = `Доступно через: ${formatTimerMmSs(cdSec)}`;
-                }
-
-                html += `
-                    <div class="alm-room-viewport" style="min-height: auto; padding: 10px 6px;">
-                        <div class="alm-room-subtitle">${roomNames[80]}</div>
-
-                        <div class="alm-storm-hero-card">
-                            <div style="font-size: 1.15rem; font-weight: 900; color: #e0e7ff;">🌨️ Виклик сніжної бурі (для 20 сходинки)</div>
-                            <div id="alm-storm-status-text" style="font-size: 0.88rem; font-weight: 800; color: ${statusColor};">${statusText}</div>
-                            <div id="alm-storm-timer-text" style="font-size: 1.05rem; font-weight: 900; color: #f5b82e;">${timerText}</div>
-                            <div style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: center;">
-                                <button id="alm-storm-activate-btn" class="alm-storm-activate-btn" ${stormOnCd ? 'disabled' : ''} onclick="window.AuraLarpMonster.activateSnowstorm()">
-                                    ${stormActive ? '🌨️ Буря триває!' : (stormOnCd ? '⏳ На перезарядці' : '🌨️ Викликати сніжну бурю')}
-                                </button>
-                                <button class="alm-walk-status-btn" onclick="window.AuraLarpMonster.openRoom(20)">
-                                    ❄️ До сніжинок (20 сх.)
-                                </button>
-                            </div>
-                        </div>
-
-                        <div class="alm-r80-section-title">🌨️ Прокачки сніжної бурі</div>
-                        <div class="alm-r80-list">
-                            <button id="alm-r80-upg-1" class="alm-snow-upg-btn" ${s.larp < durCost ? 'disabled' : ''} onclick="window.AuraLarpMonster.buyStormDurationUpgrade()">
-                                <div class="alm-snow-upg-top">
-                                    <span>1) Тривалість бурі (+0.1 хв)</span>
-                                    <span class="alm-snow-upg-lvl">Рів. ${s.stormDurationLvl || 0}</span>
-                                </div>
-                                <div class="alm-snow-upg-bot">
-                                    <span class="alm-snow-upg-val">${durCur} хв → ${durNext} хв</span>
-                                    <span class="alm-snow-upg-cost" style="color: #f5b82e;">${formatLarpValue(durCost)} ${pluralizeLarp(durCost)}</span>
-                                </div>
-                            </button>
-
-                            <button id="alm-r80-upg-2" class="alm-snow-upg-btn" ${(isCdMax || s.larp < cdCost) ? 'disabled' : ''} onclick="window.AuraLarpMonster.buyStormCooldownUpgrade()">
-                                <div class="alm-snow-upg-top">
-                                    <span>2) Частіший виклик бурі (-0.1 год)</span>
-                                    <span class="alm-snow-upg-lvl">Рів. ${cdLvl}</span>
-                                </div>
-                                <div class="alm-snow-upg-bot">
-                                    <span class="alm-snow-upg-val">${isCdMax ? `${cdCur} год (МАКС)` : `${cdCur} год → ${cdNext} год`}</span>
-                                    <span class="alm-snow-upg-cost" style="color: #f5b82e;">${isCdMax ? 'МАКС' : `${formatLarpValue(cdCost)} ${pluralizeLarp(cdCost)}`}</span>
-                                </div>
-                            </button>
-
-                            <button id="alm-r80-upg-3" class="alm-snow-upg-btn" ${(isStSpdMax || s.larp < stSpdCost) ? 'disabled' : ''} onclick="window.AuraLarpMonster.buyStormSpeedUpgrade()">
-                                <div class="alm-snow-upg-top">
-                                    <span>3) Швидкість спавну сніжинок у бурю (-0.005 сек)</span>
-                                    <span class="alm-snow-upg-lvl">${stSpdLvl}/${STORM_SPAWN_MAX_LVL}</span>
-                                </div>
-                                <div class="alm-snow-upg-bot">
-                                    <span class="alm-snow-upg-val">${isStSpdMax ? `${stSpdCur}с (МАКС)` : `${stSpdCur}с → ${stSpdNext}с`}</span>
-                                    <span class="alm-snow-upg-cost" style="color: #f5b82e;">${isStSpdMax ? 'МАКС' : `${formatLarpValue(stSpdCost)} ${pluralizeLarp(stSpdCost)}`}</span>
-                                </div>
-                            </button>
-                        </div>
-                    </div>
-                `;
-            } else if (activeRoomStep === 90) {
-                // КІМНАТА 90 СХОДИНКИ — ПРОКАЧКИ МОБІВ (ШКОДА ТА ШВИДКІСТЬ СПАВНУ)
-                const dmgLvl = s.mobDamageLvl || 0;
-                const isDmgMax = dmgLvl >= MOB_DMG_MAX_LVL;
-                const dmgCur = getChickenClickDamage();
-                const dmgNext = dmgCur + 1;
-                const dmgCost = getMobDamageUpgradeCost();
-
-                const mobSpdLvl = s.mobRespawnLvl || 0;
-                const isMobSpdMax = mobSpdLvl >= MOB_SPAWN_MAX_LVL;
-                const mobSpdCost = getMobRespawnUpgradeCost();
-
-                html += `
-                    <div class="alm-room-viewport">
-                        <div class="alm-room-subtitle">${roomNames[90]}</div>
-                        <div class="alm-r40-grid">
-                            <button id="alm-r90-upg-1" class="alm-r40-card combat-theme" ${(isDmgMax || s.larp < dmgCost) ? 'disabled' : ''} onclick="window.AuraLarpMonster.buyMobDamageUpgrade()">
-                                <div class="alm-room-card-label">1) ШКОДА МОБАМ (+1)</div>
-                                <div class="alm-r40-badge combat">Рів. ${dmgLvl} / ${MOB_DMG_MAX_LVL}</div>
-                                <div class="alm-r40-val">${isDmgMax ? `${dmgCur} шкоди (МАКС)` : `${dmgCur} → ${dmgNext}`}<div style="font-size:0.82rem;color:#fda4af;margin-top:2px;">шкоди за клік</div></div>
-                                <div class="alm-room-cost-text">${isDmgMax ? 'МАКС' : `${formatLarpValue(dmgCost)} ${pluralizeLarp(dmgCost)}`}</div>
-                            </button>
-
-                            <button id="alm-r90-upg-2" class="alm-r40-card combat-theme" ${(isMobSpdMax || s.larp < mobSpdCost) ? 'disabled' : ''} onclick="window.AuraLarpMonster.buyMobRespawnUpgrade()">
-                                <div class="alm-room-card-label">2) ШВИДКІСТЬ СПАВНУ МОБІВ (-1%)</div>
-                                <div class="alm-r40-badge combat">Рів. ${mobSpdLvl} / ${MOB_SPAWN_MAX_LVL}</div>
-                                <div class="alm-r40-val">${isMobSpdMax ? `-${mobSpdLvl}% (МАКС)` : `-${mobSpdLvl}% → -${mobSpdLvl + 1}%`}<div style="font-size:0.82rem;color:#fda4af;margin-top:2px;">часу появи моба</div></div>
-                                <div class="alm-room-cost-text">${isMobSpdMax ? 'МАКС' : `${formatLarpValue(mobSpdCost)} ${pluralizeLarp(mobSpdCost)}`}</div>
-                            </button>
-                        </div>
-                    </div>
-                `;
-            }
-
-            html += `</div>`;
-        } else if (activeLarpSubTab === 'multipliers') {
-            const stairMult = getStairMultiplier();
-            const roomMult = getRoomLarpMultiplier();
-            const snowLarpMult = getSnowLarpMultiplier();
-            const trashLarpMult = getTrashLarpMultiplier();
-            const featherLarpMult = getFeatherLarpMultiplier();
-            const mergeLarpMult = getMergeLarpMultiplier();
-            const totalMult = getTotalLarpMultiplier();
-            const perSec = getLarpPerSecond();
-            const highestStepNum = getHighestUnlockedStepNumber();
-            const highestPerSec = getHighestStepLarpPerSecond();
-
-            html += `
-                <div class="alm-main-box">
-                    <div class="alm-mult-container">
-                        <div class="alm-mult-row">
-                            <div>
-                                <div style="font-weight: 800; color: #f8fafc; font-size: 0.92rem;">Множник поточної сходинки</div>
-                                <div style="font-size: 0.8rem; color: #94a3b8; margin-top: 2px;">Ви зараз на ${s.currentStep}-й сходинці (найвища: ${highestStepNum})</div>
-                            </div>
-                            <div style="font-size: 1.15rem; font-weight: 900; color: #38bdf8;">x${formatMultValue(stairMult)}</div>
-                        </div>
-
-                        <div class="alm-mult-row">
-                            <div>
-                                <div style="font-weight: 800; color: #f8fafc; font-size: 0.92rem;">Множник кімнати (10 сходинка)</div>
-                                <div style="font-size: 0.8rem; color: #94a3b8; margin-top: 2px;">Рівень прокачки: ${s.roomMultLvl}</div>
-                            </div>
-                            <div style="font-size: 1.15rem; font-weight: 900; color: #2ecc71;">x${formatMultValue(roomMult)}</div>
-                        </div>
-
-                        <div class="alm-mult-row">
-                            <div>
-                                <div style="font-weight: 800; color: #f8fafc; font-size: 0.92rem;">Множник сніжної зони (20 сходинка)</div>
-                                <div style="font-size: 0.8rem; color: #94a3b8; margin-top: 2px;">Рівень прокачки: ${s.snowLarpMultLvl || 0}</div>
-                            </div>
-                            <div style="font-size: 1.15rem; font-weight: 900; color: #7dd3fc;">x${formatMultValue(snowLarpMult)}</div>
-                        </div>
-
-                        <div class="alm-mult-row">
-                            <div>
-                                <div style="font-weight: 800; color: #f8fafc; font-size: 0.92rem;">Множник прибирання (30 сходинка)</div>
-                                <div style="font-size: 0.8rem; color: #94a3b8; margin-top: 2px;">Рівень прокачки: ${s.trashLarpMultLvl || 0}</div>
-                            </div>
-                            <div style="font-size: 1.15rem; font-weight: 900; color: #fbbf24;">x${formatMultValue(trashLarpMult)}</div>
-                        </div>
-
-                        <div class="alm-mult-row">
-                            <div>
-                                <div style="font-weight: 800; color: #f8fafc; font-size: 0.92rem;">Множник пір'я курочки (50 сходинка)</div>
-                                <div style="font-size: 0.8rem; color: #94a3b8; margin-top: 2px;">Рівень прокачки: ${s.featherLarpMultLvl || 0}</div>
-                            </div>
-                            <div style="font-size: 1.15rem; font-weight: 900; color: #fde047;">x${formatMultValue(featherLarpMult)}</div>
-                        </div>
-
-                        <div class="alm-mult-row">
-                            <div>
-                                <div style="font-weight: 800; color: #f8fafc; font-size: 0.92rem;">Множник оранжереї (70 сходинка)</div>
-                                <div style="font-size: 0.8rem; color: #94a3b8; margin-top: 2px;">Рівень прокачки: ${s.mergeLarpMultLvl || 0}</div>
-                            </div>
-                            <div style="font-size: 1.15rem; font-weight: 900; color: #34d399;">x${formatMultValue(mergeLarpMult)}</div>
-                        </div>
-
-                        <div class="alm-mult-summary">
-                            <div style="font-size: 0.78rem; font-weight: 800; color: #94a3b8; text-transform: uppercase;">Поточний множник (x${formatMultValue(stairMult)} × x${formatMultValue(roomMult)} × x${formatMultValue(snowLarpMult)} × x${formatMultValue(trashLarpMult)} × x${formatMultValue(featherLarpMult)} × x${formatMultValue(mergeLarpMult)})</div>
-                            <div style="font-size: 1.55rem; font-weight: 900; color: #f5b82e;">x${formatMultValue(totalMult)}</div>
-                            <div id="alm-mult-total-rate" style="font-size: 0.95rem; font-weight: 800; color: #2ecc71;">${formatMultValue(perSec)} ларп/сек</div>
-                            <div style="font-size: 0.8rem; font-weight: 700; color: #cbd5e1; margin-top: 4px;">
-                                Дохід за найвищою сходинкою (${highestStepNum} сх., для топу та офлайну): <b style="color: #38bdf8;">${formatMultValue(highestPerSec)} ларп/сек</b>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            `;
-        } else if (activeLarpSubTab === 'leaderboard') {
-            html += `
-                <div class="alm-main-box">
-                    <div class="alm-lb-filters">
-                        <button class="alm-lb-filter-btn ${activeLeaderboardType === 'highestStep' ? 'active' : ''}" onclick="window.AuraLarpMonster.switchLeaderboard('highestStep')">
-                            🪜 Найвища сходинка
-                        </button>
-                        <button class="alm-lb-filter-btn ${activeLeaderboardType === 'larpPerSec' ? 'active' : ''}" onclick="window.AuraLarpMonster.switchLeaderboard('larpPerSec')">
-                            ⚡ Дохід Ларпів
-                        </button>
-                        <button class="alm-lb-filter-btn ${activeLeaderboardType === 'totalLarp' ? 'active' : ''}" onclick="window.AuraLarpMonster.switchLeaderboard('totalLarp')">
-                            💰 Всього Ларпів
-                        </button>
-                    </div>
-                    <div id="alm-leaderboard-list" class="alm-lb-list">
-                        <div style="text-align: center; color: #94a3b8; padding: 24px;">⏳ Завантаження таблиці лідерів...</div>
-                    </div>
-                </div>
-            `;
         }
 
-        container.innerHTML = html;
-
-        if (activeLarpSubTab === 'stairs') {
-            updateCharacterPinPosition();
-            const scrollEl = document.getElementById('alm-stairs-scroll');
-            if (scrollEl) {
-                if (scrollToCharacter) {
-                    const rowIdx = MAX_STEP - visStep;
-                    const targetScroll = rowIdx * ROW_HEIGHT - (scrollEl.clientHeight / 2) + (ROW_HEIGHT / 2);
-                    scrollEl.scrollTop = Math.max(0, targetScroll);
-                } else if (savedStairsScrollTop !== null) {
-                    scrollEl.scrollTop = savedStairsScrollTop;
-                }
-            }
-        } else if (activeLarpSubTab === 'room') {
-            if (activeRoomStep === 20 && s.currentStep === 20 && s.targetStep === 20) {
-                bindSnowFieldEvents();
-                renderSnowLeaderboardList();
-            } else if (activeRoomStep === 30 && s.currentStep === 30 && s.targetStep === 30) {
-                bindTrashFieldEvents();
-                renderTrashLeaderboardList();
-            } else if (activeRoomStep === 50 && s.currentStep === 50 && s.targetStep === 50) {
-                renderFeatherLeaderboardList();
-            } else if (activeRoomStep === 70 && s.currentStep === 70 && s.targetStep === 70) {
-                bindMergeFieldEvents();
-                renderVitaminLeaderboardList();
-            }
-        } else if (activeLarpSubTab === 'leaderboard') {
-            renderLarpLeaderboardList();
+        const gameScreen = document.getElementById('game-screen');
+        if (gameScreen && !document.getElementById('tab-aura-larp')) {
+            const tabDiv = document.createElement('div');
+            tabDiv.id = 'tab-aura-larp';
+            tabDiv.className = 'tab-content';
+            gameScreen.appendChild(tabDiv);
         }
     }
 
-    // ------------------------------------------
-    // ІНТЕГРАЦІЯ З ОСНОВНИМИ ВКЛАДКАМИ, ТАЙМЕРАМИ ТА ЗБЕРЕЖЕННЯМ
-    // ------------------------------------------
     function hookMainGameFunctions() {
         if (typeof window.switchTab === 'function' && !window.switchTab._auraLarpHooked) {
             const origSwitchTab = window.switchTab;
             window.switchTab = function (tabName) {
-                if (tabName === 'aura-larp') {
-                    enterAuraLarpMonsterMode();
-                    return;
-                }
-                if (isAuraLarpModeActive) {
+                if (isAuraLarpModeActive && tabName !== 'aura-larp') {
                     isAuraLarpModeActive = false;
                     if (rafId) {
                         cancelAnimationFrame(rafId);
                         rafId = null;
                     }
                     updateNavVisibility();
+                    persistAuraLarpState(false);
                 }
-                origSwitchTab.apply(this, arguments);
+                return origSwitchTab.apply(this, arguments);
             };
             window.switchTab._auraLarpHooked = true;
         }
@@ -5833,17 +5903,40 @@
         }
     }
 
-    function bootstrapAuraLarpMonster() {
+    function handleMainGameReady() {
         const s = initAuraLarpMonsterState();
         ensureDomSetup();
         hookMainGameFunctions();
 
-        // Плавний тік логіки кожні 100 мс
+        if (s.wasActive && !isAuraLarpModeActive) {
+            enterAuraLarpMonsterMode();
+        } else if (!isGlobalTimeVerified && !isCheckingGlobalTime) {
+            verifyGlobalTimeAndApplyOfflineProgress();
+        }
+    }
+
+    function bootstrapAuraLarpMonster() {
+        initAuraLarpMonsterState();
+        ensureDomSetup();
+        hookMainGameFunctions();
+
+        window.addEventListener('pointerup', () => {
+            isPointerSwipingSnow = false;
+        });
+        window.addEventListener('pointercancel', () => {
+            isPointerSwipingSnow = false;
+        });
+
+        window.onMainGameLoaded = function () {
+            handleMainGameReady();
+        };
+
+        lastLarpTickTime = Date.now();
         setInterval(() => {
             const now = Date.now();
-            const dt = (now - lastLarpTickTime) / 1000;
+            const dt = Math.min(1.0, Math.max(0, (now - lastLarpTickTime) / 1000));
             lastLarpTickTime = now;
-            updateAuraLarpMonsterLogic(dt);
+            tickAuraLarpLogic(dt);
         }, 100);
 
         // Автозбереження та синхронізація всіх топів кожні 3 секунди
@@ -5855,76 +5948,68 @@
                 if (activeLarpSubTab === 'leaderboard') {
                     renderLarpLeaderboardList();
                 } else if (activeLarpSubTab === 'room') {
-                    if (activeRoomStep === 20 && s.currentStep === 20 && s.targetStep === 20) {
-                        renderSnowLeaderboardList();
-                    } else if (activeRoomStep === 30 && s.currentStep === 30 && s.targetStep === 30) {
-                        renderTrashLeaderboardList();
-                    } else if (activeRoomStep === 50 && s.currentStep === 50 && s.targetStep === 50) {
-                        renderFeatherLeaderboardList();
-                    } else if (activeRoomStep === 70 && s.currentStep === 70 && s.targetStep === 70) {
-                        renderVitaminLeaderboardList();
-                    }
+                    if (activeRoomStep === 20) renderSnowLeaderboardList();
+                    else if (activeRoomStep === 30) renderTrashLeaderboardList();
+                    else if (activeRoomStep === 50) renderFeatherLeaderboardList();
+                    else if (activeRoomStep === 70) renderVitaminLeaderboardList();
                 }
             }
         }, 3000);
 
-        // Миттєве збереження при виході/переході у фон
-        window.addEventListener('beforeunload', () => {
-            persistAuraLarpState(false);
-        });
         document.addEventListener('visibilitychange', () => {
             if (document.visibilityState === 'hidden') {
                 persistAuraLarpState(false);
-            } else if (document.visibilityState === 'visible' && isAuraLarpModeActive) {
+            } else if (document.visibilityState === 'visible' && isAuraLarpModeActive && isMainGameReady()) {
                 verifyGlobalTimeAndApplyOfflineProgress();
             }
         });
 
-        // Якщо гравець перезавантажив сторінку всередині вкладки "Аура Ларп Монстер", повертаємо його туди ж
-        if (s.wasActive) {
-            enterAuraLarpMonsterMode();
+        window.addEventListener('beforeunload', () => {
+            persistAuraLarpState(false);
+        });
+
+        // Якщо основна гра вже встигла завантажитись до запуску bootstrapAuraLarpMonster
+        if (isMainGameReady()) {
+            handleMainGameReady();
         }
     }
 
-    // Публічний API модуля
-    window.AuraLarpMonster = {
-        enter: enterAuraLarpMonsterMode,
-        exit: exitAuraLarpMonsterMode,
-        switchSubTab: switchAuraLarpSubTab,
-        switchLeaderboard: switchLeaderboardType,
-        unlockNextStep: unlockNextStep,
-        moveToStep: moveToStep,
-        openRoom: openRoomAtStep,
-        buyRoomMultiplierUpgrade: buyRoomMultiplierUpgrade,
-        buySnowMultUpgrade: buySnowMultUpgrade,
-        buySnowSpeedUpgrade: buySnowSpeedUpgrade,
-        buySnowLarpUpgrade: buySnowLarpUpgrade,
-        buyTrashMultUpgrade: buyTrashMultUpgrade,
-        buyTrashSpeedUpgrade: buyTrashSpeedUpgrade,
-        buyTrashLarpUpgrade: buyTrashLarpUpgrade,
-        buyStepSpeedUpgrade: buyStepSpeedUpgrade,
-        buyOfflineLarpUpgrade: buyOfflineLarpUpgrade,
-        buyFeatherMultUpgrade: buyFeatherMultUpgrade,
-        buyFeatherLarpUpgrade: buyFeatherLarpUpgrade,
-        attackChicken: attackChickenMob,
-        buyGoldSnowUpgrade: buyGoldSnowUpgrade,
-        buyEmeraldSnowUpgrade: buyEmeraldSnowUpgrade,
-        buyGoldTrashUpgrade: buyGoldTrashUpgrade,
-        buyEmeraldTrashUpgrade: buyEmeraldTrashUpgrade,
-        buyVitaminMultUpgrade: buyVitaminMultUpgrade,
-        buyMergeLv2Upgrade: buyMergeLv2Upgrade,
-        buyMergeLarpUpgrade: buyMergeLarpUpgrade,
-        activateSnowstorm: activateSnowstorm,
-        buyStormDurationUpgrade: buyStormDurationUpgrade,
-        buyStormCooldownUpgrade: buyStormCooldownUpgrade,
-        buyStormSpeedUpgrade: buyStormSpeedUpgrade,
-        buyMobDamageUpgrade: buyMobDamageUpgrade,
-        buyMobRespawnUpgrade: buyMobRespawnUpgrade,
-        retryGlobalTime: verifyGlobalTimeAndApplyOfflineProgress,
-        dismissOfflineReport: dismissOfflineReport,
-        render: renderAuraLarpMonsterUI,
-        getState: initAuraLarpMonsterState
-    };
+    // Експорт глобальних функцій модуля
+    window.enterAuraLarpMonsterMode = enterAuraLarpMonsterMode;
+    window.exitAuraLarpMonsterMode = exitAuraLarpMonsterMode;
+    window.switchAuraLarpSubTab = switchLarpSubTab;
+    window.switchAuraLarpLeaderboardType = switchLeaderboardType;
+    window.moveAuraLarpToStep = moveToStep;
+    window.unlockNextAuraLarpStep = unlockNextStep;
+    window.openAuraLarpRoomAtStep = openRoomAtStep;
+    window.buyAuraLarpRoomUpgrade = buyRoomMultiplierUpgrade;
+    window.buyAuraLarpSnowMultUpgrade = buySnowMultUpgrade;
+    window.buyAuraLarpSnowSpeedUpgrade = buySnowSpeedUpgrade;
+    window.buyAuraLarpSnowLarpUpgrade = buySnowLarpUpgrade;
+    window.buyAuraLarpTrashMultUpgrade = buyTrashMultUpgrade;
+    window.buyAuraLarpTrashSpeedUpgrade = buyTrashSpeedUpgrade;
+    window.buyAuraLarpTrashLarpUpgrade = buyTrashLarpUpgrade;
+    window.buyAuraLarpStepSpeedUpgrade = buyStepSpeedUpgrade;
+    window.buyAuraLarpOfflineUpgrade = buyOfflineLarpUpgrade;
+    window.buyAuraLarpFeatherMultUpgrade = buyFeatherMultUpgrade;
+    window.buyAuraLarpFeatherLarpUpgrade = buyFeatherLarpUpgrade;
+    window.attackAuraLarpChicken = attackChickenMob;
+    window.buyAuraLarpGoldSnowUpgrade = buyGoldSnowUpgrade;
+    window.buyAuraLarpEmeraldSnowUpgrade = buyEmeraldSnowUpgrade;
+    window.buyAuraLarpGoldTrashUpgrade = buyGoldTrashUpgrade;
+    window.buyAuraLarpEmeraldTrashUpgrade = buyEmeraldTrashUpgrade;
+    window.buyAuraLarpVitaminMultUpgrade = buyVitaminMultUpgrade;
+    window.buyAuraLarpMergeLv2Upgrade = buyMergeLv2Upgrade;
+    window.buyAuraLarpMergeLarpUpgrade = buyMergeLarpUpgrade;
+    window.sellAuraLarpMergeItem = sellHighestOrRandomMergeItem;
+    window.activateAuraLarpSnowstorm = activateSnowstorm;
+    window.buyAuraLarpStormDurationUpgrade = buyStormDurationUpgrade;
+    window.buyAuraLarpStormCooldownUpgrade = buyStormCooldownUpgrade;
+    window.buyAuraLarpStormSpeedUpgrade = buyStormSpeedUpgrade;
+    window.buyAuraLarpMobDamageUpgrade = buyMobDamageUpgrade;
+    window.buyAuraLarpMobRespawnUpgrade = buyMobRespawnUpgrade;
+    window.retryAuraLarpGlobalTime = verifyGlobalTimeAndApplyOfflineProgress;
+    window.dismissAuraLarpOfflineReport = dismissOfflineReport;
 
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', bootstrapAuraLarpMonster);
