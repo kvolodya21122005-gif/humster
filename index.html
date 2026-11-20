@@ -781,6 +781,8 @@
         let serverTimeOffset = 0;
         let timeApiOffset = 0;
         let isTimeApiSynced = false;
+        let isGameLoaded = false;
+        window.isMainGameLoaded = false;
 
         async function syncWorldTime() {
             try {
@@ -937,6 +939,7 @@
             noCdUntil: 0,
             lastSaveTime: Date.now()
         };
+        window.state = state;
 
         let offlineReport = null;
         let currentLeaderboardSort = 'cps';
@@ -1032,6 +1035,8 @@
         }
 
         function resetAccount() {
+            isGameLoaded = false;
+            window.isMainGameLoaded = false;
             window.removeEventListener('beforeunload', saveGame);
 
             if (dbAvailable && state.playerId) {
@@ -1342,7 +1347,7 @@
         }
 
         function syncToCloudLeaderboard() {
-            if (!dbAvailable || !state.playerId || !state.nickname) return;
+            if (!isGameLoaded || !dbAvailable || !state.playerId || !state.nickname) return;
             firebase.database().ref('leaderboard/' + state.playerId).set({
                 name: state.nickname,
                 cps: getTotalCps(),
@@ -1353,7 +1358,27 @@
         }
 
         function saveGame() {
+            if (!isGameLoaded) {
+                return;
+            }
+
+            // Захист від випадкового перезапису існуючого збереження порожнім станом
+            if (!state.nickname) {
+                try {
+                    const existingRaw = localStorage.getItem("hrundel_clicker_save_v10");
+                    if (existingRaw) {
+                        const existing = JSON.parse(existingRaw);
+                        if (existing && existing.nickname && (existing.totalAura > 0 || existing.aura > 0 || (existing.passives && Object.keys(existing.passives).length > 0))) {
+                            state = Object.assign(state, existing);
+                            window.state = state;
+                            return;
+                        }
+                    }
+                } catch (e) {}
+            }
+
             state.lastSaveTime = getServerTime();
+            window.state = state;
             localStorage.setItem("hrundel_clicker_save_v10", JSON.stringify(state));
             syncToCloudLeaderboard();
             if (typeof syncBloodLeaderboard === 'function') {
@@ -1393,6 +1418,10 @@
             if (state.energy > getMaxEnergy()) {
                 state.energy = getMaxEnergy();
             }
+
+            window.state = state;
+            isGameLoaded = true;
+            window.isMainGameLoaded = true;
         }
 
         function saveNickname() {
@@ -1797,7 +1826,10 @@
             document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
             document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
 
-            const targetBtn = Array.from(document.querySelectorAll('.tab-btn')).find(b => b.getAttribute('onclick').includes(tabName));
+            const targetBtn = Array.from(document.querySelectorAll('.tab-btn')).find(b => {
+                const attr = b.getAttribute('onclick');
+                return attr && attr.includes(tabName);
+            });
             if (targetBtn) targetBtn.classList.add('active');
 
             const targetContent = document.getElementById(`tab-${tabName}`);
@@ -1915,6 +1947,10 @@
             updateUI();
             renderStatuesTabUI();
 
+            if (typeof window.onMainGameLoaded === 'function') {
+                window.onMainGameLoaded(state);
+            }
+
             let lastTick = Date.now();
             setInterval(() => {
                 const now = Date.now();
@@ -1937,7 +1973,6 @@
                     updateEventLogic(dt);
                 }
 
-                // ВАЖЛИВО: Оновлення логіки та таймера міні-ігор у реальному часі
                 if (typeof updateMinigamesLogic === 'function') {
                     updateMinigamesLogic(dt);
                 }
