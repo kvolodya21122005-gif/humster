@@ -4379,11 +4379,11 @@
                     <button class="alm-home-top-btn" onclick="window.exitAuraLarpMonster()">
                         🏠 Додому
                     </button>
-                    
+                    <!--
                     <button id="alm-reset-test-btn" class="alm-reset-test-btn ${resetConfirmPending ? 'confirming' : ''}" onclick="window.handleResetAuraLarpClick()">
                         ${resetConfirmPending ? '⚠️ Підтвердити скидання?' : '🔄 Скинути прогрес'}
                     </button>
-                    
+                    -->
                 </div>
 
                 <div class="alm-header-card">
