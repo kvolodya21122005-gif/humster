@@ -335,6 +335,12 @@
         return window.state;
     }
 
+    function isLarperNickname() {
+        const root = getRootState();
+        const nick = root && typeof root.nickname === 'string' ? root.nickname.trim() : '';
+        return nick === 'Ларпер';
+    }
+
     function getDefaultModuleState() {
         return {
             larp: 0,
@@ -1347,6 +1353,16 @@
         return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
     }
 
+    function pluralizeLarp(val) {
+        const whole = Math.floor(Math.abs(Number(val) || 0));
+        const n = whole % 100;
+        const n1 = n % 10;
+        if (n > 10 && n < 20) return 'ларпів';
+        if (n1 === 1) return 'ларп';
+        if (n1 >= 2 && n1 <= 4) return 'ларпи';
+        return 'ларпів';
+    }
+
     // Повертає дані про валюту кімнати для поточної сходинки персонажа (якщо така існує)
     function getRoomCurrencyForStep(stepNumber) {
         const s = initAuraLarpMonsterState();
@@ -1459,7 +1475,7 @@
             if (activeLeaderboardType === 'larpPerSec') {
                 return `${formatMultValue(player.larpPerSec || 0)} ларп/сек`;
             }
-            return `${formatLarpValue(player.totalLarp || 0)} ларп`;
+            return `${formatLarpValue(player.totalLarp || 0)} ${pluralizeLarp(player.totalLarp || 0)}`;
         }
 
         function sortPlayers(arr) {
@@ -3128,6 +3144,15 @@
         updateTopGameHeader();
         if (!isAuraLarpModeActive) return;
 
+        const topActionsRow = document.getElementById('alm-top-actions-row');
+        if (topActionsRow) {
+            const hasResetBtn = Boolean(document.getElementById('alm-reset-test-btn'));
+            if (hasResetBtn !== isLarperNickname()) {
+                renderAuraLarpMonsterUI(false);
+                return;
+            }
+        }
+
         const s = initAuraLarpMonsterState();
 
         const larpValEl = document.getElementById('alm-larp-balance');
@@ -3136,7 +3161,7 @@
         const stepBadgeEl = document.getElementById('alm-step-badge');
 
         if (larpValEl) larpValEl.textContent = formatLarpValue(s.larp);
-        if (larpWordEl) larpWordEl.textContent = 'ларп';
+        if (larpWordEl) larpWordEl.textContent = pluralizeLarp(s.larp);
         if (larpRateEl) larpRateEl.textContent = `${formatMultValue(getLarpPerSecond())} ларп/сек`;
         if (stepBadgeEl) stepBadgeEl.textContent = `${s.currentStep}`;
 
@@ -3279,7 +3304,7 @@
                             <div class="alm-hero-upg-title">ПРОКАЧКА МНОЖНИКА ЛАРПІВ</div>
                             <div class="alm-hero-upg-badge emerald">Рів. ${s.roomMultLvl}</div>
                             <div class="alm-hero-upg-compare">x${formatMultValue(currentRoomMult)} &gt; x${formatMultValue(nextRoomMult)}</div>
-                            <div class="alm-hero-upg-price">${formatLarpValue(upgradeCost)} ларп</div>
+                            <div class="alm-hero-upg-price">${formatLarpValue(upgradeCost)} ${pluralizeLarp(upgradeCost)}</div>
                         </button>
                     </div>
                 </div>
@@ -3606,7 +3631,7 @@
                                 <div class="alm-hero-upg-badge purple">Рів. ${s.stepSpeedLvl} (+${curSpeedBonusPct}%)</div>
                                 <div class="alm-hero-upg-compare">${curSpeedMult} → ${nextSpeedMult}</div>
                                 <div class="alm-hero-upg-subtext purple">сходинок / сек</div>
-                                <div class="alm-hero-upg-price">${formatLarpValue(speedCost)} ларп</div>
+                                <div class="alm-hero-upg-price">${formatLarpValue(speedCost)} ${pluralizeLarp(speedCost)}</div>
                             </button>
 
                             <button id="alm-offline-larp-btn" class="alm-hero-upg-card purple-theme" ${canBuyOffline ? '' : 'disabled'} onclick="window.buyAuraLarpOfflineUpgrade()">
@@ -3614,7 +3639,7 @@
                                 <div class="alm-hero-upg-badge purple">Рів. ${s.offlineLarpLvl}</div>
                                 <div class="alm-hero-upg-compare">${curOfflinePct}% → ${nextOfflinePct}%</div>
                                 <div class="alm-hero-upg-subtext purple">від доходу найвищої сходинки</div>
-                                <div class="alm-hero-upg-price">${formatLarpValue(offlineCost)} ларп</div>
+                                <div class="alm-hero-upg-price">${formatLarpValue(offlineCost)} ${pluralizeLarp(offlineCost)}</div>
                             </button>
                         </div>
                     </div>
@@ -3808,28 +3833,28 @@
                                 <div class="alm-hero-upg-title">1) ЗОЛОТА СНІЖИНКА (x10)</div>
                                 <div class="alm-hero-upg-badge gold">Рів. ${s.goldSnowLvl}/${GOLD_SNOW_MAX_LVL}</div>
                                 <div class="alm-hero-upg-compare">${isGoldSnowMax ? '100%' : `${curGoldSnow}% → ${Number((curGoldSnow + 1).toFixed(2))}%`}</div>
-                                <div class="alm-hero-upg-price">${isGoldSnowMax ? 'МАКСИМУМ' : `${formatLarpValue(goldSnowCost)} ларп`}</div>
+                                <div class="alm-hero-upg-price">${isGoldSnowMax ? 'МАКСИМУМ' : `${formatLarpValue(goldSnowCost)} ${pluralizeLarp(goldSnowCost)}`}</div>
                             </button>
 
                             <button id="alm-emerald-snow-btn" class="alm-hero-upg-card emerald-theme" ${canBuyEmeraldSnow ? '' : 'disabled'} onclick="window.buyAuraLarpEmeraldSnowUpgrade()">
                                 <div class="alm-hero-upg-title">2) СМАРАГДОВА СНІЖИНКА (x1000)</div>
                                 <div class="alm-hero-upg-badge emerald">Рів. ${s.emeraldSnowLvl}/${EMERALD_SNOW_MAX_LVL}</div>
                                 <div class="alm-hero-upg-compare">${isEmeraldSnowMax ? '100%' : `${curEmeraldSnow}% → ${Number((curEmeraldSnow + 0.01).toFixed(2))}%`}</div>
-                                <div class="alm-hero-upg-price">${isEmeraldSnowMax ? 'МАКСИМУМ' : `${formatLarpValue(emeraldSnowCost)} ларп`}</div>
+                                <div class="alm-hero-upg-price">${isEmeraldSnowMax ? 'МАКСИМУМ' : `${formatLarpValue(emeraldSnowCost)} ${pluralizeLarp(emeraldSnowCost)}`}</div>
                             </button>
 
                             <button id="alm-gold-trash-btn" class="alm-hero-upg-card gold-theme" ${canBuyGoldTrash ? '' : 'disabled'} onclick="window.buyAuraLarpGoldTrashUpgrade()">
                                 <div class="alm-hero-upg-title">3) ЗОЛОТЕ СМІТТЯ (x10)</div>
                                 <div class="alm-hero-upg-badge gold">Рів. ${s.goldTrashLvl}/${GOLD_TRASH_MAX_LVL}</div>
                                 <div class="alm-hero-upg-compare">${isGoldTrashMax ? '100%' : `${curGoldTrash}% → ${Number((curGoldTrash + 1).toFixed(2))}%`}</div>
-                                <div class="alm-hero-upg-price">${isGoldTrashMax ? 'МАКСИМУМ' : `${formatLarpValue(goldTrashCost)} ларп`}</div>
+                                <div class="alm-hero-upg-price">${isGoldTrashMax ? 'МАКСИМУМ' : `${formatLarpValue(goldTrashCost)} ${pluralizeLarp(goldTrashCost)}`}</div>
                             </button>
 
                             <button id="alm-emerald-trash-btn" class="alm-hero-upg-card emerald-theme" ${canBuyEmeraldTrash ? '' : 'disabled'} onclick="window.buyAuraLarpEmeraldTrashUpgrade()">
                                 <div class="alm-hero-upg-title">4) СМАРАГДОВЕ СМІТТЯ (x1000)</div>
                                 <div class="alm-hero-upg-badge emerald">Рів. ${s.emeraldTrashLvl}/${EMERALD_TRASH_MAX_LVL}</div>
                                 <div class="alm-hero-upg-compare">${isEmeraldTrashMax ? '100%' : `${curEmeraldTrash}% → ${Number((curEmeraldTrash + 0.01).toFixed(2))}%`}</div>
-                                <div class="alm-hero-upg-price">${isEmeraldTrashMax ? 'МАКСИМУМ' : `${formatLarpValue(emeraldTrashCost)} ларп`}</div>
+                                <div class="alm-hero-upg-price">${isEmeraldTrashMax ? 'МАКСИМУМ' : `${formatLarpValue(emeraldTrashCost)} ${pluralizeLarp(emeraldTrashCost)}`}</div>
                             </button>
                         </div>
                     </div>
@@ -4054,21 +4079,21 @@
                                 <div class="alm-hero-upg-title">1) ТРИВАЛІСТЬ БУРІ</div>
                                 <div class="alm-hero-upg-badge snow">Рів. ${s.stormDurationLvl}</div>
                                 <div class="alm-hero-upg-compare">${curDurMin} хв → ${nextDurMin} хв</div>
-                                <div class="alm-hero-upg-price">${formatLarpValue(durCost)} ларп</div>
+                                <div class="alm-hero-upg-price">${formatLarpValue(durCost)} ${pluralizeLarp(durCost)}</div>
                             </button>
 
                             <button id="alm-storm-cd-btn" class="alm-hero-upg-card snow-theme" ${canBuyCd ? '' : 'disabled'} onclick="window.buyAuraLarpStormCooldownUpgrade()">
                                 <div class="alm-hero-upg-title">2) ПЕРЕЗАРЯДКА БУРІ</div>
                                 <div class="alm-hero-upg-badge snow">Рів. ${s.stormCooldownLvl}/${STORM_COOLDOWN_MAX_LVL}</div>
                                 <div class="alm-hero-upg-compare">${isCdMax ? '0.5 год (МАКС)' : `${curCdHr} год → ${nextCdHr} год`}</div>
-                                <div class="alm-hero-upg-price">${isCdMax ? 'МАКСИМУМ' : `${formatLarpValue(cdCost)} ларп`}</div>
+                                <div class="alm-hero-upg-price">${isCdMax ? 'МАКСИМУМ' : `${formatLarpValue(cdCost)} ${pluralizeLarp(cdCost)}`}</div>
                             </button>
 
                             <button id="alm-storm-spd-btn" class="alm-hero-upg-card snow-theme" ${canBuyStormSpd ? '' : 'disabled'} onclick="window.buyAuraLarpStormSpeedUpgrade()">
                                 <div class="alm-hero-upg-title">3) ШВИДКІСТЬ У БУРІ</div>
                                 <div class="alm-hero-upg-badge snow">Рів. ${s.stormSpeedLvl}/${STORM_SPAWN_MAX_LVL}</div>
                                 <div class="alm-hero-upg-compare">${isStormSpdMax ? `${curStormSpd}с (МАКС)` : `${curStormSpd}с → ${nextStormSpd}с`}</div>
-                                <div class="alm-hero-upg-price">${isStormSpdMax ? 'МАКСИМУМ' : `${formatLarpValue(stormSpdCost)} ларп`}</div>
+                                <div class="alm-hero-upg-price">${isStormSpdMax ? 'МАКСИМУМ' : `${formatLarpValue(stormSpdCost)} ${pluralizeLarp(stormSpdCost)}`}</div>
                             </button>
                         </div>
                     </div>
@@ -4122,7 +4147,7 @@
                             <div class="alm-hero-upg-badge crimson">Рів. ${s.mobDamageLvl}/${MOB_DMG_MAX_LVL}</div>
                             <div class="alm-hero-upg-compare">${isDmgMax ? `${curDmg} HP (МАКС)` : `${curDmg} → ${curDmg + 1} HP`}</div>
                             <div class="alm-hero-upg-subtext crimson">урон за клік по Квочці Рябій</div>
-                            <div class="alm-hero-upg-price">${isDmgMax ? 'МАКСИМУМ' : `${formatLarpValue(dmgCost)} ларп`}</div>
+                            <div class="alm-hero-upg-price">${isDmgMax ? 'МАКСИМУМ' : `${formatLarpValue(dmgCost)} ${pluralizeLarp(dmgCost)}`}</div>
                         </button>
 
                         <button id="alm-mob-respawn-btn" class="alm-hero-upg-card crimson-theme" ${canBuyRespawn ? '' : 'disabled'} onclick="window.buyAuraLarpMobRespawnUpgrade()">
@@ -4130,7 +4155,7 @@
                             <div class="alm-hero-upg-badge crimson">Рів. ${s.mobRespawnLvl}/${MOB_SPAWN_MAX_LVL} (-${curRespawnReduction}%)</div>
                             <div class="alm-hero-upg-compare">${isRespawnMax ? `${formatDurationUk(curRespawnSec)} (МАКС)` : `${formatDurationUk(curRespawnSec)} → ${formatDurationUk(nextRespawnSec)}`}</div>
                             <div class="alm-hero-upg-subtext crimson">час відродження Бойової Квочки</div>
-                            <div class="alm-hero-upg-price">${isRespawnMax ? 'МАКСИМУМ' : `${formatLarpValue(respawnCost)} ларп`}</div>
+                            <div class="alm-hero-upg-price">${isRespawnMax ? 'МАКСИМУМ' : `${formatLarpValue(respawnCost)} ${pluralizeLarp(respawnCost)}`}</div>
                         </button>
                     </div>
                 </div>
@@ -4238,7 +4263,7 @@
                             <span>Множник: <b style="color:#38bdf8;">x${formatMultValue(nextStepObj.mult)}</b></span>
                         </div>
                         <button id="alm-unlock-btn" class="alm-unlock-gold-btn" ${s.larp >= nextStepObj.cost ? '' : 'disabled'} onclick="window.unlockNextAuraLarpStep()">
-                            Купити — ${formatLarpValue(nextStepObj.cost)} ларп
+                            Купити — ${formatLarpValue(nextStepObj.cost)} ${pluralizeLarp(nextStepObj.cost)}
                         </button>
                     ` : `
                         <div class="alm-unlock-summary" style="width:100%;justify-content:center;color:#4ade80;font-weight:900;">
@@ -4362,7 +4387,7 @@
                         🌙 Офлайн-заробіток (${offlineRewardReport.offlinePct}% від ${offlineRewardReport.highestStep}-ї сх.)
                     </div>
                     <div style="font-size: 0.82rem; color: #e2e8f0; margin-bottom: 8px;">
-                        Вас не було: <b>${formatDurationUk(offlineRewardReport.elapsedSec)}</b> • Отримано: <b style="color: #4ade80;">+${formatLarpValue(offlineRewardReport.earnedOffline)} ларп</b>
+                        Вас не було: <b>${formatDurationUk(offlineRewardReport.elapsedSec)}</b> • Отримано: <b style="color: #4ade80;">+${formatLarpValue(offlineRewardReport.earnedOffline)} ${pluralizeLarp(offlineRewardReport.earnedOffline)}</b>
                     </div>
                     <button class="alm-mini-go-btn" style="background: #22c55e; color: #052e16; border: none;" onclick="window.dismissAuraLarpOfflineReport()">
                         Забрати
@@ -4372,25 +4397,26 @@
         }
 
         const hasRoomsUnlocked = s.maxUnlockedStep >= 10;
+        const canResetProgress = isLarperNickname();
 
         container.innerHTML = `
             <div class="alm-wrapper">
-                <div class="alm-top-actions-row">
+                <div id="alm-top-actions-row" class="alm-top-actions-row ${canResetProgress ? '' : 'single-btn'}">
                     <button class="alm-home-top-btn" onclick="window.exitAuraLarpMonster()">
                         🏠 Додому
                     </button>
-                    <!--
-                    <button id="alm-reset-test-btn" class="alm-reset-test-btn ${resetConfirmPending ? 'confirming' : ''}" onclick="window.handleResetAuraLarpClick()">
-                        ${resetConfirmPending ? '⚠️ Підтвердити скидання?' : '🔄 Скинути прогрес'}
-                    </button>
-                    -->
+                    ${canResetProgress ? `
+                        <button id="alm-reset-test-btn" class="alm-reset-test-btn ${resetConfirmPending ? 'confirming' : ''}" onclick="window.handleResetAuraLarpClick()">
+                            ${resetConfirmPending ? '⚠️ Підтвердити скидання?' : '🔄 Скинути прогрес'}
+                        </button>
+                    ` : ''}
                 </div>
 
                 <div class="alm-header-card">
                     <div class="alm-top-bar">
                         <div class="alm-larp-counter-group">
                             <span class="alm-larp-value" id="alm-larp-balance">${formatLarpValue(s.larp)}</span>
-                            <span class="alm-larp-word" id="alm-larp-word">ларп</span>
+                            <span class="alm-larp-word" id="alm-larp-word">${pluralizeLarp(s.larp)}</span>
                             <span class="alm-larp-rate-pill" id="alm-larp-rate">${formatMultValue(currentRate)} ларп/сек</span>
                         </div>
                         <div class="alm-step-pill" id="alm-step-pill">
@@ -4450,12 +4476,27 @@
         } else if (activeLarpSubTab === 'leaderboard') {
             renderLarpLeaderboardList();
         }
+
+        syncAuraLarpViewportHeight();
+    }
+
+    function syncAuraLarpViewportHeight() {
+        if (!isAuraLarpModeActive) return;
+        const view = document.getElementById('aura-larp-monster-view');
+        if (!view || view.style.display === 'none') return;
+
+        const rect = view.getBoundingClientRect();
+        const availableHeight = Math.max(260, Math.floor(window.innerHeight - rect.top));
+        view.style.height = `${availableHeight}px`;
+        view.style.maxHeight = `${availableHeight}px`;
     }
 
     // ------------------------------------------
-    // СКИДАННЯ ПРОГРЕСУ (КНОПКА ДЛЯ ТЕСТУВАННЯ)
+    // СКИДАННЯ ПРОГРЕСУ (КНОПКА ДЛЯ НІКУ "Ларпер")
     // ------------------------------------------
     function handleResetAuraLarpClick() {
+        if (!isLarperNickname()) return;
+
         if (!resetConfirmPending) {
             resetConfirmPending = true;
             if (resetConfirmTimer) clearTimeout(resetConfirmTimer);
@@ -4526,6 +4567,8 @@
         const gameScreen = document.getElementById('game-screen');
         if (!gameScreen) return;
 
+        gameScreen.classList.add('alm-active-screen');
+
         const tabNav = gameScreen.querySelector('.tab-nav');
         if (tabNav) tabNav.style.display = 'none';
 
@@ -4542,6 +4585,7 @@
         view.style.display = 'flex';
 
         updateTopGameHeader();
+        syncAuraLarpViewportHeight();
         renderAuraLarpMonsterUI(true);
         startVisualAnimationLoop();
         verifyGlobalTimeAndApplyOfflineProgress();
@@ -4567,8 +4611,14 @@
         const gameScreen = document.getElementById('game-screen');
         if (!gameScreen) return;
 
+        gameScreen.classList.remove('alm-active-screen');
+
         const view = document.getElementById('aura-larp-monster-view');
-        if (view) view.style.display = 'none';
+        if (view) {
+            view.style.display = 'none';
+            view.style.height = '';
+            view.style.maxHeight = '';
+        }
 
         const tabNav = gameScreen.querySelector('.tab-nav');
         if (tabNav) tabNav.style.display = '';
@@ -4675,29 +4725,61 @@
                     background: rgba(250, 204, 21, 0.14);
                 }
 
-                /* Верхня панель у режимі Аура Ларп Монстер */
-                #game-screen header .alm-top-badge.alm-top-larp {
-                    color: #facc15;
-                    border-color: #eab308;
+                /* Бейджі у верхній шапці гри під час перебування в Аура Ларп Монстер */
+                .alm-top-badge {
+                    flex-direction: column;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 1px;
+                    min-width: 108px;
                 }
-                #game-screen header .alm-top-badge.alm-top-room {
-                    font-weight: 800;
+                .alm-top-larp {
+                    border-color: rgba(168, 85, 247, 0.65) !important;
+                    color: #e9d5ff !important;
+                }
+                .alm-top-room {
+                    border-color: rgba(56, 189, 248, 0.65);
+                }
+
+                #game-screen.alm-active-screen {
+                    display: flex !important;
+                    flex-direction: column !important;
+                    height: 100vh !important;
+                    height: 100dvh !important;
+                    max-height: 100vh !important;
+                    max-height: 100dvh !important;
+                    overflow: hidden !important;
+                }
+
+                #game-screen.alm-active-screen > header {
+                    flex-shrink: 0 !important;
                 }
 
                 #aura-larp-monster-view {
-                    width: 100%;
-                    max-width: 680px;
-                    padding: 10px 12px 24px 12px;
                     display: none;
                     flex-direction: column;
-                    align-items: center;
+                    flex: 1 1 auto;
+                    min-height: 0;
+                    padding: 8px 10px 10px;
+                    background: radial-gradient(circle at top, #171738 0%, #090916 100%);
+                    color: #f8fafc;
+                    overflow: hidden;
+                    box-sizing: border-box;
+                    user-select: none;
+                    -webkit-user-select: none;
                 }
 
                 .alm-wrapper {
-                    width: 100%;
                     display: flex;
                     flex-direction: column;
-                    gap: 10px;
+                    flex: 1 1 auto;
+                    min-height: 0;
+                    height: 100%;
+                    max-width: 1080px;
+                    width: 100%;
+                    margin: 0 auto;
+                    gap: 8px;
+                    overflow: hidden;
                 }
 
                 .alm-top-actions-row {
@@ -4705,457 +4787,226 @@
                     grid-template-columns: 1fr auto;
                     gap: 8px;
                     width: 100%;
+                    flex-shrink: 0;
                 }
-
-                /* Верхня кнопка Додому як на скріншотах */
-                .alm-home-top-btn {
-                    width: 100%;
-                    background: linear-gradient(180deg, #191326 0%, #120e1c 100%);
-                    border: 1.5px solid #7e22ce;
-                    color: #f8fafc;
-                    padding: 10px 14px;
-                    border-radius: 12px;
-                    font-weight: 800;
-                    font-size: 0.9rem;
-                    cursor: pointer;
-                    text-align: center;
-                    transition: transform 0.1s, border-color 0.2s, background 0.2s;
-                    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
-                }
-
-                .alm-home-top-btn:hover {
-                    border-color: #a855f7;
-                    background: #1f1730;
-                }
-
-                .alm-home-top-btn:active {
-                    transform: scale(0.985);
-                }
-
-                .alm-reset-test-btn {
-                    background: linear-gradient(180deg, #291318 0%, #1a0b0e 100%);
-                    border: 1.5px solid rgba(239, 68, 68, 0.55);
-                    color: #fca5a5;
-                    padding: 10px 12px;
-                    border-radius: 12px;
-                    font-weight: 800;
-                    font-size: 0.82rem;
-                    cursor: pointer;
-                    white-space: nowrap;
-                    transition: transform 0.1s, border-color 0.2s, background 0.2s;
-                    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
-                }
-
-                .alm-reset-test-btn:hover {
-                    border-color: #ef4444;
-                    background: #35151c;
-                }
-
-                .alm-reset-test-btn.confirming {
-                    background: #dc2626;
-                    border-color: #fca5a5;
-                    color: #ffffff;
-                }
-
-                /* Шапка режиму */
                 .alm-header-card {
-                    background: #131726;
-                    border: 1px solid rgba(255, 255, 255, 0.08);
-                    border-radius: 16px;
-                    padding: 12px 14px;
-                    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
-                }
-
-                .alm-top-bar {
-                    display: flex;
-                    align-items: center;
-                    justify-content: space-between;
-                    gap: 10px;
-                }
-
-                .alm-larp-counter-group {
-                    display: flex;
-                    align-items: baseline;
-                    gap: 6px;
-                    flex-wrap: wrap;
-                }
-
-                .alm-larp-value {
-                    font-size: 1.65rem;
-                    font-weight: 900;
-                    color: #facc15;
-                    line-height: 1.1;
-                }
-
-                .alm-larp-word {
-                    font-size: 0.9rem;
-                    font-weight: 700;
-                    color: #eab308;
-                }
-
-                .alm-larp-rate-pill {
-                    font-size: 0.82rem;
-                    font-weight: 800;
-                    color: #4ade80;
-                    background: rgba(15, 23, 42, 0.85);
-                    border: 1px solid rgba(255, 255, 255, 0.08);
-                    padding: 3px 10px;
-                    border-radius: 8px;
-                    margin-left: 2px;
-                }
-
-                .alm-step-pill {
-                    display: inline-flex;
-                    align-items: center;
-                    gap: 7px;
-                    background: #0d111c;
-                    border: 1px solid rgba(255, 255, 255, 0.1);
-                    padding: 6px 12px;
-                    border-radius: 10px;
-                    font-weight: 900;
-                    color: #f8fafc;
-                    font-size: 0.95rem;
-                    white-space: nowrap;
-                }
-
-                .alm-step-dot {
-                    width: 9px;
-                    height: 9px;
-                    border-radius: 50%;
-                    background: #38bdf8;
-                    box-shadow: 0 0 8px #38bdf8;
-                }
-
-                /* Сегментовані підвкладки */
-                .alm-subtabs {
-                    display: grid;
-                    grid-template-columns: repeat(4, 1fr);
-                    gap: 4px;
-                    margin-top: 10px;
-                    background: #0b0e17;
-                    border: 1px solid rgba(255, 255, 255, 0.07);
-                    border-radius: 12px;
-                    padding: 4px;
-                }
-
-                .alm-subtab-btn {
-                    background: transparent;
-                    border: none;
-                    color: #e2e8f0;
-                    padding: 8px 4px;
-                    border-radius: 9px;
-                    font-weight: 800;
-                    font-size: 0.8rem;
-                    cursor: pointer;
-                    transition: all 0.15s;
-                    white-space: nowrap;
-                }
-
-                .alm-subtab-btn:hover:not(.active) {
-                    background: rgba(255, 255, 255, 0.05);
-                }
-
-                .alm-subtab-btn.active {
-                    background: #facc15;
-                    color: #0f172a;
-                    box-shadow: 0 2px 10px rgba(250, 204, 21, 0.35);
-                }
-
-                .alm-tab-green-dot {
-                    color: #22c55e;
-                    font-size: 0.7rem;
-                    vertical-align: middle;
-                }
-
-                .alm-subtab-btn.active .alm-tab-green-dot {
-                    color: #15803d;
-                }
-
-                /* Банери офлайну */
-                .alm-offline-banner {
-                    display: flex;
-                    align-items: center;
-                    justify-content: space-between;
-                    gap: 8px;
-                    padding: 8px 12px;
-                    border-radius: 12px;
-                    font-size: 0.8rem;
-                    font-weight: 700;
-                    background: rgba(239, 68, 68, 0.14);
-                    border: 1px solid rgba(239, 68, 68, 0.4);
-                    color: #fecaca;
-                }
-
-                .alm-offline-banner.info {
-                    background: rgba(56, 189, 248, 0.12);
-                    border-color: rgba(56, 189, 248, 0.35);
-                    color: #bae6fd;
-                }
-
-                .alm-offline-reward-card {
-                    background: linear-gradient(135deg, #1b1829, #131726);
-                    border: 1.5px solid #eab308;
+                    background: #121226;
+                    border: 1.5px solid #26264a;
                     border-radius: 14px;
-                    padding: 12px 14px;
-                    text-align: center;
+                    padding: 8px 10px;
+                    display: flex;
+                    flex-direction: column;
+                    gap: 8px;
+                    flex-shrink: 0;
+                    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
                 }
-
-                /* ==================== ВКЛАДКА СХОДИ (Всі 100 поміщаються) ==================== */
+                /* Сходи */
                 .alm-stairs-viewport {
-                    position: relative;
-                    width: 100%;
-                    height: 390px;
-                    background-color: #0d121f;
-                    background-image:
-                        linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-                        linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
-                    background-size: 22px 22px;
-                    border: 1.5px solid rgba(255, 255, 255, 0.09);
-                    border-radius: 16px;
+                    flex: 1 1 auto;
+                    min-height: 0;
                     overflow-y: auto;
                     overflow-x: hidden;
-                    box-shadow: inset 0 0 28px rgba(0, 0, 0, 0.65);
-                }
-
-                .alm-stairs-track {
+                    background: linear-gradient(180deg, #0e0e22 0%, #13132d 100%);
+                    border: 1.5px solid #242449;
+                    border-radius: 14px;
                     position: relative;
-                    width: 100%;
-                    display: flex;
-                    flex-direction: column-reverse;
-                    padding-bottom: 16px;
-                }
-
-                .alm-stair-row {
-                    position: relative;
-                    width: 100%;
-                    display: flex;
-                    align-items: center;
-                    cursor: pointer;
-                    transition: background 0.15s;
-                    border-bottom: 1px solid rgba(255, 255, 255, 0.02);
-                }
-
-                .alm-stair-row.unlocked:hover {
-                    background: rgba(56, 189, 248, 0.07);
-                }
-
-                .alm-stair-row.current-step {
-                    background: rgba(56, 189, 248, 0.13);
                 }
 
                 .alm-stair-row.target-step {
-                    background: rgba(250, 204, 21, 0.09);
+                    background: rgba(250, 204, 21, 0.08);
                 }
 
                 .alm-step-connector {
                     position: absolute;
-                    bottom: 22px;
-                    width: 1.5px;
-                    height: 44px;
-                    background: rgba(56, 189, 248, 0.35);
+                    bottom: 20px;
+                    width: 2px;
+                    height: 36px;
+                    background: rgba(148, 163, 184, 0.16);
                     transform: translateX(-50%);
                     pointer-events: none;
                     z-index: 1;
                 }
 
-                .alm-stair-row.locked .alm-step-connector {
-                    background: rgba(148, 163, 184, 0.18);
+                .alm-stair-row.unlocked .alm-step-connector {
+                    background: rgba(56, 189, 248, 0.35);
                 }
 
                 .alm-step-bar {
                     position: absolute;
-                    top: 50%;
-                    transform: translateY(-50%);
-                    height: 12px;
-                    border-radius: 6px;
-                    background: rgba(14, 116, 144, 0.32);
-                    border: 1.5px solid #0284c7;
-                    transition: all 0.15s;
+                    bottom: 14px;
+                    height: 10px;
+                    border-radius: 5px;
+                    background: #222244;
+                    border: 1px solid #353566;
                     z-index: 2;
+                    transition: all 0.2s ease;
                 }
 
-                .alm-stair-row.room-step .alm-step-bar {
-                    background: rgba(22, 163, 74, 0.32);
-                    border-color: #22c55e;
+                .alm-stair-row.unlocked .alm-step-bar {
+                    background: linear-gradient(90deg, #0284c7, #38bdf8);
+                    border-color: #7dd3fc;
+                    box-shadow: 0 0 10px rgba(56, 189, 248, 0.4);
                 }
 
-                .alm-stair-row.current-step .alm-step-bar {
-                    background: rgba(56, 189, 248, 0.45);
-                    border-color: #38bdf8;
-                    box-shadow: 0 0 10px rgba(56, 189, 248, 0.5);
+                .alm-stair-row.room-step.unlocked .alm-step-bar {
+                    background: linear-gradient(90deg, #16a34a, #4ade80);
+                    border-color: #86efac;
+                    box-shadow: 0 0 12px rgba(74, 222, 128, 0.55);
                 }
 
                 .alm-stair-row.next-unlock .alm-step-bar {
-                    background: rgba(234, 179, 8, 0.18);
-                    border: 1.5px dashed #eab308;
+                    background: rgba(250, 204, 21, 0.22);
+                    border: 1.5px dashed #facc15;
                 }
 
                 .alm-stair-row.locked .alm-step-bar {
-                    background: rgba(30, 41, 59, 0.45);
-                    border-color: rgba(148, 163, 184, 0.25);
+                    opacity: 0.45;
                 }
 
-                /* Центральний номер сходинки + синій бейдж множника як на скріншоті 1 */
                 .alm-step-center-info {
                     position: absolute;
-                    left: 51%;
-                    transform: translateX(-35%);
-                    display: inline-flex;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    display: flex;
                     align-items: center;
-                    gap: 8px;
+                    gap: 6px;
                     z-index: 3;
                     pointer-events: none;
+                    background: rgba(11, 11, 26, 0.72);
+                    padding: 2px 8px;
+                    border-radius: 999px;
+                    border: 1px solid rgba(148, 163, 184, 0.14);
                 }
 
                 .alm-step-num-center {
-                    font-size: 0.92rem;
-                    font-weight: 800;
-                    color: #f8fafc;
+                    font-weight: 900;
+                    font-size: 0.85rem;
+                    color: #94a3b8;
                     min-width: 24px;
                     text-align: right;
                 }
 
-                .alm-stair-row.locked .alm-step-num-center {
-                    color: #64748b;
+                .alm-stair-row.unlocked .alm-step-num-center {
+                    color: #ffffff;
                 }
 
                 .alm-step-mult-pill {
-                    background: rgba(29, 78, 216, 0.28);
-                    border: 1px solid #2563eb;
+                    background: rgba(56, 189, 248, 0.12);
+                    border: 1px solid rgba(56, 189, 248, 0.3);
                     color: #38bdf8;
-                    border-radius: 8px;
-                    padding: 2px 9px;
-                    font-size: 0.78rem;
                     font-weight: 800;
-                    white-space: nowrap;
+                    font-size: 0.74rem;
+                    padding: 1px 6px;
+                    border-radius: 6px;
                 }
 
                 .alm-stair-row.locked .alm-step-mult-pill {
-                    background: rgba(30, 41, 59, 0.55);
-                    border-color: rgba(148, 163, 184, 0.2);
-                    color: #64748b;
+                    opacity: 0.55;
                 }
 
-                /* Права кнопка Кімната на сходинках 10, 20, ..., 90 */
                 .alm-step-right-slot {
-                    position: absolute;
-                    right: 12px;
-                    top: 50%;
-                    transform: translateY(-50%);
+                    margin-left: auto;
+                    padding-right: 10px;
+                    display: flex;
+                    align-items: center;
                     z-index: 4;
                 }
 
                 .alm-room-pill-btn {
-                    display: inline-flex;
-                    align-items: center;
-                    justify-content: center;
-                    border-radius: 8px;
-                    padding: 5px 12px;
-                    font-size: 0.78rem;
+                    border-radius: 999px;
+                    padding: 4px 10px;
+                    font-size: 0.72rem;
                     font-weight: 900;
-                    white-space: nowrap;
+                    border: none;
                     cursor: pointer;
                 }
 
                 .alm-room-pill-btn.unlocked {
-                    background: #22c55e;
-                    color: #052e16;
-                    border: none;
-                    box-shadow: 0 2px 8px rgba(34, 197, 94, 0.35);
-                }
-
-                .alm-room-pill-btn.unlocked:hover {
-                    background: #4ade80;
+                    background: linear-gradient(180deg, #22c55e 0%, #15803d 100%);
+                    color: #ffffff;
+                    box-shadow: 0 0 10px rgba(34, 197, 94, 0.5);
                 }
 
                 .alm-room-pill-btn.locked {
-                    background: rgba(30, 41, 59, 0.7);
+                    background: rgba(148, 163, 184, 0.12);
                     color: #64748b;
-                    border: 1px solid rgba(255, 255, 255, 0.08);
+                    border: 1px solid rgba(148, 163, 184, 0.25);
                     cursor: default;
                 }
 
                 .alm-unlock-tag {
-                    font-size: 0.72rem;
+                    font-size: 0.7rem;
                     font-weight: 800;
                     color: #facc15;
                     background: rgba(250, 204, 21, 0.14);
                     border: 1px solid rgba(250, 204, 21, 0.4);
-                    padding: 3px 8px;
-                    border-radius: 7px;
+                    padding: 2px 7px;
+                    border-radius: 6px;
                 }
 
-                /* Персонаж на сходинці */
                 .alm-character {
                     position: absolute;
-                    width: 28px;
-                    height: 28px;
                     transform: translateX(-50%);
-                    z-index: 15;
+                    z-index: 10;
                     pointer-events: none;
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
                 }
 
                 .alm-char-avatar {
                     width: 28px;
                     height: 28px;
                     border-radius: 50%;
-                    background: radial-gradient(circle at 35% 35%, #e0f2fe, #38bdf8 68%, #0284c7);
+                    background: radial-gradient(circle at 30% 30%, #fde047, #f59e0b);
                     border: 2px solid #ffffff;
                     display: flex;
                     align-items: center;
                     justify-content: center;
-                    font-size: 0.85rem;
-                    box-shadow: 0 0 14px rgba(56, 189, 248, 0.95);
+                    font-size: 0.9rem;
+                    box-shadow: 0 3px 10px rgba(245, 158, 11, 0.75);
                 }
 
                 .alm-character.is-moving .alm-char-avatar {
-                    animation: almCharBounce 0.32s infinite alternate ease-in-out;
+                    animation: almCharHop 0.35s infinite alternate ease-in-out;
                 }
 
-                @keyframes almCharBounce {
-                    0% { transform: translateY(0) scale(1); }
-                    100% { transform: translateY(-4px) scale(1.06); }
+                @keyframes almCharHop {
+                    from { transform: translateY(0px) scale(1); }
+                    to { transform: translateY(-4px) scale(1.06); }
                 }
 
                 .alm-char-status {
-                    position: absolute;
-                    bottom: 31px;
-                    left: 50%;
-                    transform: translateX(-50%);
-                    background: rgba(15, 23, 42, 0.95);
-                    border: 1px solid #38bdf8;
-                    color: #e0f2fe;
-                    font-size: 0.65rem;
+                    background: rgba(15, 23, 42, 0.92);
+                    border: 1px solid #facc15;
+                    color: #fde047;
+                    font-size: 0.64rem;
                     font-weight: 800;
-                    padding: 1px 6px;
-                    border-radius: 6px;
+                    padding: 1px 5px;
+                    border-radius: 999px;
+                    margin-bottom: 2px;
                     white-space: nowrap;
                 }
 
-                /* Нижня панель покупки сходинки як на скріншоті 1 */
                 .alm-bottom-unlock-card {
-                    background: #131726;
-                    border: 1px solid rgba(255, 255, 255, 0.08);
-                    border-radius: 16px;
-                    padding: 12px 14px;
+                    background: #121226;
+                    border: 1.5px solid #292952;
+                    border-radius: 14px;
+                    padding: 8px 12px;
                     display: flex;
                     align-items: center;
                     justify-content: space-between;
                     gap: 10px;
                     flex-wrap: wrap;
+                    flex-shrink: 0;
                 }
 
                 .alm-unlock-summary {
                     display: flex;
                     align-items: center;
-                    gap: 8px;
-                    font-size: 0.88rem;
-                    color: #94a3b8;
-                }
-
-                .alm-unlock-summary b {
-                    color: #f8fafc;
-                    font-weight: 900;
+                    gap: 7px;
+                    font-size: 0.86rem;
+                    color: #e2e8f0;
                 }
 
                 .alm-dot-sep {
@@ -5163,382 +5014,379 @@
                 }
 
                 .alm-unlock-gold-btn {
-                    background: #facc15;
+                    background: linear-gradient(180deg, #facc15 0%, #eab308 100%);
+                    color: #1e1b04;
                     border: none;
-                    color: #0f172a;
-                    padding: 11px 18px;
-                    border-radius: 12px;
+                    border-radius: 10px;
+                    padding: 9px 14px;
                     font-weight: 900;
-                    font-size: 0.88rem;
+                    font-size: 0.86rem;
                     cursor: pointer;
-                    transition: transform 0.1s, background 0.15s;
-                    white-space: nowrap;
+                    box-shadow: 0 4px 12px rgba(234, 179, 8, 0.35);
+                    transition: transform 0.1s ease, opacity 0.15s ease;
                 }
 
-                .alm-unlock-gold-btn:hover:not(:disabled) {
-                    background: #fde047;
-                    transform: translateY(-1px);
+                .alm-unlock-gold-btn:active:not(:disabled) {
+                    transform: scale(0.97);
                 }
 
                 .alm-unlock-gold-btn:disabled {
-                    background: #1e293b;
+                    background: #272742;
                     color: #64748b;
+                    box-shadow: none;
                     cursor: not-allowed;
                 }
 
-                /* ==================== ВКЛАДКА КІМНАТИ ==================== */
+                /* Кімнати: зовнішній контейнер та навігація */
                 .alm-room-outer-panel {
-                    width: 100%;
+                    flex: 1;
+                    min-height: 0;
+                    overflow-y: auto;
+                    background: #121226;
+                    border: 1.5px solid #26264a;
+                    border-radius: 14px;
+                    padding: 12px;
                     display: flex;
                     flex-direction: column;
-                    gap: 12px;
-                }
-
-                /* Сітка 3x3 перемикачів кімнат як на скріншотах 2-6 */
-                .alm-room-selector {
-                    display: grid;
-                    grid-template-columns: repeat(3, 1fr);
-                    gap: 8px;
-                    width: 100%;
-                }
-
-                .alm-room-pill {
-                    background: #111522;
-                    border: 1px solid rgba(255, 255, 255, 0.08);
-                    color: #e2e8f0;
-                    padding: 9px 6px;
-                    border-radius: 10px;
-                    font-size: 0.82rem;
-                    font-weight: 800;
-                    cursor: pointer;
-                    transition: all 0.15s;
-                    text-align: center;
-                }
-
-                .alm-room-pill:hover {
-                    background: #171d2e;
-                }
-
-                .alm-room-pill.active {
-                    background: rgba(56, 189, 248, 0.14);
-                    border: 1.5px solid #38bdf8;
-                    color: #38bdf8;
-                    box-shadow: 0 0 12px rgba(56, 189, 248, 0.2);
-                }
-
-                .alm-room-pill.locked:not(.active) {
-                    color: #64748b;
-                }
-
-                .alm-room-alert {
-                    border-radius: 12px;
-                    padding: 10px 12px;
-                    font-size: 0.82rem;
-                    display: flex;
-                    align-items: center;
-                    justify-content: space-between;
                     gap: 10px;
+                }
+
+                .alm-room-selector {
+                    display: flex;
+                    gap: 5px;
+                    justify-content: center;
                     flex-wrap: wrap;
                 }
 
-                .alm-room-alert.locked {
-                    background: rgba(239, 68, 68, 0.12);
-                    border: 1px solid rgba(239, 68, 68, 0.35);
-                    color: #fecaca;
+                .alm-room-pill {
+                    background: #191936;
+                    border: 1px solid #2d2d5c;
+                    color: #94a3b8;
+                    border-radius: 999px;
+                    padding: 4px 10px;
+                    font-weight: 800;
+                    font-size: 0.72rem;
+                    cursor: pointer;
+                    transition: all 0.15s ease;
                 }
 
+                .alm-room-pill.active {
+                    background: linear-gradient(180deg, #2563eb 0%, #1d4ed8 100%);
+                    border-color: #60a5fa;
+                    color: #ffffff;
+                }
+
+                .alm-room-pill.locked {
+                    opacity: 0.65;
+                }
+
+                .alm-room-alert {
+                    border-radius: 10px;
+                    padding: 8px 12px;
+                    font-size: 0.8rem;
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    gap: 8px;
+                    flex-wrap: wrap;
+                }
+                .alm-room-alert.locked {
+                    background: rgba(239, 68, 68, 0.12);
+                    border: 1px solid rgba(239, 68, 68, 0.45);
+                    color: #fca5a5;
+                }
                 .alm-room-alert.warning {
-                    background: rgba(250, 204, 21, 0.11);
-                    border: 1px solid rgba(250, 204, 21, 0.38);
-                    color: #fef08a;
+                    background: rgba(250, 204, 21, 0.12);
+                    border: 1px solid rgba(250, 204, 21, 0.4);
+                    color: #fde047;
                 }
 
                 .alm-mini-go-btn {
-                    background: rgba(56, 189, 248, 0.16);
-                    border: 1px solid #38bdf8;
-                    color: #38bdf8;
-                    padding: 5px 11px;
+                    background: rgba(250, 204, 21, 0.18);
+                    border: 1px solid #facc15;
+                    color: #fde047;
                     border-radius: 8px;
+                    padding: 5px 10px;
+                    font-size: 0.75rem;
                     font-weight: 800;
-                    font-size: 0.76rem;
                     cursor: pointer;
                     white-space: nowrap;
                 }
 
-                /* Центровані кімнати (10, 40, 60, 80, 90) як на скріншотах 2 та 5 */
+                /* Центровані кімнати (10, 40, 60, 80, 90) */
                 .alm-centered-room-section {
-                    background: #111522;
-                    border: 1px solid rgba(255, 255, 255, 0.07);
-                    border-radius: 16px;
-                    padding: 18px 14px;
+                    flex: 1;
                     display: flex;
                     flex-direction: column;
                     align-items: center;
-                    gap: 14px;
+                    justify-content: center;
+                    gap: 12px;
+                    padding: 6px 4px;
                 }
 
                 .alm-section-heading {
-                    font-size: 0.86rem;
+                    font-size: 0.78rem;
                     font-weight: 900;
+                    letter-spacing: 0.06em;
                     color: #94a3b8;
-                    letter-spacing: 0.6px;
                     text-align: center;
-                    text-transform: uppercase;
                 }
 
                 .alm-two-hero-grid {
                     display: grid;
-                    grid-template-columns: repeat(2, 1fr);
+                    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
                     gap: 12px;
                     width: 100%;
+                    max-width: 720px;
                 }
 
                 .alm-three-hero-grid {
                     display: grid;
-                    grid-template-columns: repeat(3, 1fr);
+                    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
                     gap: 10px;
                     width: 100%;
-                }
-
-                @media (max-width: 520px) {
-                    .alm-two-hero-grid,
-                    .alm-three-hero-grid {
-                        grid-template-columns: 1fr;
-                    }
+                    max-width: 820px;
                 }
 
                 .alm-hero-upg-card {
                     width: 100%;
                     max-width: 340px;
                     margin: 0 auto;
-                    border-radius: 18px;
-                    padding: 22px 16px;
+                    border-radius: 16px;
+                    padding: 16px 14px;
                     display: flex;
                     flex-direction: column;
                     align-items: center;
-                    justify-content: center;
-                    gap: 10px;
-                    text-align: center;
+                    gap: 6px;
                     cursor: pointer;
-                    transition: transform 0.12s, box-shadow 0.2s, opacity 0.2s;
+                    transition: transform 0.1s ease, box-shadow 0.15s ease;
+                    color: #ffffff;
                 }
-
-                .alm-two-hero-grid .alm-hero-upg-card,
-                .alm-three-hero-grid .alm-hero-upg-card {
-                    max-width: none;
-                }
-
-                .alm-hero-upg-card:hover:not(:disabled) {
-                    transform: translateY(-2px);
-                }
-
                 .alm-hero-upg-card:active:not(:disabled) {
                     transform: scale(0.98);
                 }
-
                 .alm-hero-upg-card:disabled {
-                    opacity: 0.55;
+                    opacity: 0.45;
                     cursor: not-allowed;
                 }
 
                 .alm-hero-upg-card.emerald-theme {
-                    background: linear-gradient(180deg, #0d2622 0%, #091c19 100%);
-                    border: 1.5px solid #16a34a;
-                    box-shadow: 0 6px 20px rgba(22, 163, 74, 0.16);
+                    background: linear-gradient(180deg, #102a23 0%, #0b1b17 100%);
+                    border: 2px solid #22c55e;
+                    box-shadow: 0 6px 20px rgba(34, 197, 94, 0.2);
                 }
-
                 .alm-hero-upg-card.purple-theme {
-                    background: linear-gradient(180deg, #1c1133 0%, #130c24 100%);
-                    border: 1.5px solid #7e22ce;
-                    box-shadow: 0 6px 20px rgba(126, 34, 206, 0.18);
+                    background: linear-gradient(180deg, #1e163b 0%, #110d24 100%);
+                    border: 2px solid #a855f7;
+                    box-shadow: 0 6px 20px rgba(168, 85, 247, 0.22);
                 }
-
                 .alm-hero-upg-card.gold-theme {
-                    background: linear-gradient(180deg, #241b0d 0%, #181209 100%);
-                    border: 1.5px solid #d97706;
-                    box-shadow: 0 6px 20px rgba(217, 119, 6, 0.16);
+                    background: linear-gradient(180deg, #2b2109 0%, #171206 100%);
+                    border: 2px solid #facc15;
+                    box-shadow: 0 6px 20px rgba(250, 204, 21, 0.2);
                 }
-
                 .alm-hero-upg-card.snow-theme {
-                    background: linear-gradient(180deg, #0d2137 0%, #091626 100%);
-                    border: 1.5px solid #0284c7;
-                    box-shadow: 0 6px 20px rgba(2, 132, 199, 0.18);
+                    background: linear-gradient(180deg, #0c263b 0%, #081726 100%);
+                    border: 2px solid #38bdf8;
+                    box-shadow: 0 6px 20px rgba(56, 189, 248, 0.22);
                 }
-
                 .alm-hero-upg-card.crimson-theme {
-                    background: linear-gradient(180deg, #291118 0%, #1a0b10 100%);
-                    border: 1.5px solid #dc2626;
-                    box-shadow: 0 6px 20px rgba(220, 38, 38, 0.18);
+                    background: linear-gradient(180deg, #2d1216 0%, #190a0d 100%);
+                    border: 2px solid #f43f5e;
+                    box-shadow: 0 6px 20px rgba(244, 63, 94, 0.22);
                 }
 
                 .alm-hero-upg-title {
-                    font-size: 0.8rem;
-                    font-weight: 800;
-                    color: #cbd5e1;
-                    letter-spacing: 0.4px;
+                    font-size: 0.78rem;
+                    font-weight: 900;
+                    letter-spacing: 0.04em;
+                    text-align: center;
                 }
+                .emerald-theme .alm-hero-upg-title { color: #86efac; }
+                .purple-theme .alm-hero-upg-title { color: #d8b4fe; }
+                .gold-theme .alm-hero-upg-title { color: #fde047; }
+                .snow-theme .alm-hero-upg-title { color: #7dd3fc; }
+                .crimson-theme .alm-hero-upg-title { color: #fda4af; }
 
                 .alm-hero-upg-badge {
-                    font-size: 0.78rem;
+                    font-size: 0.72rem;
                     font-weight: 800;
-                    padding: 3px 14px;
+                    padding: 2px 9px;
                     border-radius: 999px;
                 }
-
-                .alm-hero-upg-badge.emerald {
-                    background: rgba(34, 197, 94, 0.15);
-                    border: 1px solid #22c55e;
-                    color: #4ade80;
-                }
-
-                .alm-hero-upg-badge.purple {
-                    background: rgba(168, 85, 247, 0.15);
-                    border: 1px solid #a855f7;
-                    color: #c084fc;
-                }
-
-                .alm-hero-upg-badge.gold {
-                    background: rgba(250, 204, 21, 0.15);
-                    border: 1px solid #eab308;
-                    color: #facc15;
-                }
-
-                .alm-hero-upg-badge.snow {
-                    background: rgba(56, 189, 248, 0.15);
-                    border: 1px solid #38bdf8;
-                    color: #7dd3fc;
-                }
-
-                .alm-hero-upg-badge.crimson {
-                    background: rgba(248, 113, 113, 0.15);
-                    border: 1px solid #ef4444;
-                    color: #fca5a5;
-                }
+                .alm-hero-upg-badge.emerald { background: rgba(34, 197, 94, 0.16); color: #4ade80; }
+                .alm-hero-upg-badge.purple { background: rgba(168, 85, 247, 0.18); color: #c084fc; }
+                .alm-hero-upg-badge.gold { background: rgba(250, 204, 21, 0.16); color: #facc15; }
+                .alm-hero-upg-badge.snow { background: rgba(56, 189, 248, 0.16); color: #38bdf8; }
+                .alm-hero-upg-badge.crimson { background: rgba(244, 63, 94, 0.18); color: #fb7185; }
 
                 .alm-hero-upg-compare {
-                    font-size: 1.55rem;
+                    font-size: 1.25rem;
                     font-weight: 900;
                     color: #ffffff;
-                    line-height: 1.15;
                 }
 
                 .alm-hero-upg-subtext {
-                    font-size: 0.75rem;
+                    font-size: 0.72rem;
                     font-weight: 700;
                 }
-
-                .alm-hero-upg-subtext.purple { color: #a855f7; }
-                .alm-hero-upg-subtext.crimson { color: #f87171; }
+                .alm-hero-upg-subtext.purple { color: #a78bfa; }
+                .alm-hero-upg-subtext.crimson { color: #fda4af; }
 
                 .alm-hero-upg-price {
-                    font-size: 0.98rem;
+                    margin-top: 2px;
+                    font-size: 0.86rem;
                     font-weight: 900;
                     color: #facc15;
-                    margin-top: 2px;
                 }
 
-                /* Двоколонкова сітка для кімнат 20, 30, 50, 70 як на скріншотах 3, 4, 6 */
+                /* Сніжна буря (80 сходинка) */
+                .alm-storm-hero-box {
+                    width: 100%;
+                    max-width: 720px;
+                    background: linear-gradient(135deg, rgba(14, 116, 144, 0.25) 0%, rgba(15, 23, 42, 0.92) 100%);
+                    border: 1.5px solid #38bdf8;
+                    border-radius: 14px;
+                    padding: 12px 14px;
+                    text-align: center;
+                }
+
+                .alm-storm-launch-btn {
+                    background: linear-gradient(180deg, #38bdf8 0%, #0284c7 100%);
+                    color: #04131c;
+                    border: none;
+                    border-radius: 11px;
+                    padding: 10px 18px;
+                    font-weight: 900;
+                    font-size: 0.88rem;
+                    cursor: pointer;
+                    box-shadow: 0 4px 16px rgba(56, 189, 248, 0.4);
+                    transition: transform 0.1s ease, opacity 0.15s ease;
+                }
+                .alm-storm-launch-btn:active:not(:disabled) {
+                    transform: scale(0.98);
+                }
+                .alm-storm-launch-btn:disabled {
+                    background: #1e293b;
+                    color: #64748b;
+                    box-shadow: none;
+                    cursor: not-allowed;
+                }
+
+                /* Двоколонкова сітка інтерактивних кімнат (20, 30, 50, 70) */
                 .alm-room-split-grid {
                     display: grid;
-                    grid-template-columns: 1.15fr 1fr;
+                    grid-template-columns: 1.35fr 1fr;
                     gap: 12px;
-                    width: 100%;
+                    flex: 1;
+                    min-height: 0;
+                    align-items: stretch;
                 }
 
-                @media (max-width: 560px) {
+                @media (max-width: 720px) {
                     .alm-room-split-grid {
                         grid-template-columns: 1fr;
                     }
                 }
 
-                .alm-room-left-col,
+                .alm-room-left-col {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 8px;
+                    min-height: 0;
+                }
+
                 .alm-room-right-col {
                     display: flex;
                     flex-direction: column;
                     gap: 10px;
+                    min-height: 0;
                 }
 
                 .alm-zone-topbar {
-                    background: #101524;
-                    border: 1px solid rgba(255, 255, 255, 0.12);
-                    border-radius: 12px;
-                    padding: 9px 12px;
                     display: flex;
                     align-items: center;
                     justify-content: space-between;
                     gap: 6px;
-                    font-size: 0.78rem;
-                    color: #e2e8f0;
                     flex-wrap: wrap;
+                    background: rgba(15, 23, 42, 0.85);
+                    border: 1px solid #334155;
+                    border-radius: 10px;
+                    padding: 6px 10px;
+                    font-size: 0.78rem;
+                    font-weight: 700;
+                    color: #cbd5e1;
                 }
-
                 .alm-zone-topbar.snow-border { border-color: rgba(56, 189, 248, 0.4); }
-                .alm-zone-topbar.trash-border { border-color: rgba(245, 158, 11, 0.45); }
-                .alm-zone-topbar.feather-border { border-color: rgba(249, 115, 22, 0.45); }
-                .alm-zone-topbar.emerald-border { border-color: rgba(34, 197, 94, 0.45); }
+                .alm-zone-topbar.trash-border { border-color: rgba(250, 204, 21, 0.4); }
+                .alm-zone-topbar.feather-border { border-color: rgba(249, 115, 22, 0.4); }
+                .alm-zone-topbar.emerald-border { border-color: rgba(34, 197, 94, 0.4); }
 
                 .alm-zone-bottom-pill {
                     position: absolute;
-                    bottom: 10px;
+                    bottom: 8px;
                     left: 50%;
                     transform: translateX(-50%);
-                    background: rgba(11, 16, 28, 0.88);
-                    border: 1px solid rgba(255, 255, 255, 0.18);
-                    color: #e2e8f0;
-                    padding: 5px 14px;
-                    border-radius: 999px;
-                    font-size: 0.72rem;
+                    font-size: 0.68rem;
                     font-weight: 700;
+                    padding: 3px 10px;
+                    border-radius: 999px;
                     white-space: nowrap;
-                    max-width: 92%;
-                    overflow: hidden;
-                    text-overflow: ellipsis;
                     pointer-events: none;
                     z-index: 6;
                 }
-
-                .alm-zone-bottom-pill.snow-pill { border-color: rgba(56, 189, 248, 0.4); color: #bae6fd; }
-                .alm-zone-bottom-pill.trash-pill { border-color: rgba(245, 158, 11, 0.45); color: #fde68a; }
-                .alm-zone-bottom-pill.emerald-pill { border-color: rgba(34, 197, 94, 0.45); color: #bbf7d0; }
+                .alm-zone-bottom-pill.snow-pill {
+                    color: #93c5fd;
+                    background: rgba(8, 20, 38, 0.88);
+                    border: 1px solid rgba(56, 189, 248, 0.3);
+                }
+                .alm-zone-bottom-pill.trash-pill {
+                    color: #fde047;
+                    background: rgba(24, 18, 6, 0.88);
+                    border: 1px solid rgba(250, 204, 21, 0.3);
+                }
+                .alm-zone-bottom-pill.emerald-pill {
+                    color: #86efac;
+                    background: rgba(6, 28, 16, 0.88);
+                    border: 1px solid rgba(34, 197, 94, 0.35);
+                }
 
                 .alm-rarity-legend {
                     text-align: center;
-                    font-size: 0.74rem;
+                    font-size: 0.72rem;
                     color: #94a3b8;
-                    background: #101524;
-                    border: 1px solid rgba(255, 255, 255, 0.07);
-                    border-radius: 10px;
-                    padding: 6px 10px;
+                    background: rgba(15, 23, 42, 0.75);
+                    border: 1px solid rgba(148, 163, 184, 0.2);
+                    border-radius: 8px;
+                    padding: 4px 8px;
                 }
 
                 /* Зона сніжинок (20 сходинка) */
                 .alm-snow-zone {
                     position: relative;
-                    width: 100%;
-                    height: 290px;
-                    border-radius: 16px;
-                    background: radial-gradient(circle at 50% 45%, #0c2340 0%, #081222 100%);
-                    border: 1px solid rgba(56, 189, 248, 0.4);
+                    flex: 1;
+                    min-height: 230px;
+                    border-radius: 14px;
+                    background: radial-gradient(circle at 50% 35%, #122c4a 0%, #091526 100%);
+                    border: 1.5px solid #2563eb;
                     overflow: hidden;
                     touch-action: none;
-                    user-select: none;
                 }
-
                 .alm-snow-zone.locked {
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    background: #0b0f1a;
-                    border-color: rgba(255, 255, 255, 0.08);
+                    opacity: 0.5;
+                    border-color: #334155;
                 }
-
-                .alm-snow-zone.not-on-step .alm-snowflake-item {
-                    opacity: 0.6;
-                    cursor: not-allowed;
+                .alm-snow-zone.not-on-step {
+                    border-color: #475569;
                 }
 
                 .alm-snow-locked-msg {
-                    color: #64748b;
+                    position: absolute;
+                    inset: 0;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    color: #94a3b8;
                     font-weight: 800;
                     font-size: 0.9rem;
                 }
@@ -5546,74 +5394,65 @@
                 .alm-snowflake-item {
                     position: absolute;
                     transform: translate(-50%, -50%);
+                    width: 40px;
+                    height: 40px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
                     font-size: 1.55rem;
                     cursor: pointer;
-                    filter: drop-shadow(0 0 8px rgba(56, 189, 248, 0.9));
-                    animation: almSnowFloat 2.4s infinite ease-in-out;
-                    z-index: 5;
-                    padding: 5px;
+                    z-index: 4;
+                    filter: drop-shadow(0 0 8px rgba(56, 189, 248, 0.8));
+                    animation: almSnowPulse 1.8s infinite alternate ease-in-out;
                 }
 
                 .alm-snowflake-item.gold {
-                    filter: drop-shadow(0 0 11px rgba(250, 204, 21, 1)) sepia(1) saturate(6) hue-rotate(5deg);
-                    transform: translate(-50%, -50%) scale(1.15);
+                    filter: drop-shadow(0 0 11px rgba(250, 204, 21, 0.95));
+                    background: radial-gradient(circle, rgba(250, 204, 21, 0.38) 0%, transparent 72%);
+                    border-radius: 50%;
                 }
 
                 .alm-snowflake-item.emerald {
-                    filter: drop-shadow(0 0 13px rgba(16, 185, 129, 1)) sepia(1) saturate(7) hue-rotate(95deg);
-                    transform: translate(-50%, -50%) scale(1.24);
+                    filter: drop-shadow(0 0 13px rgba(52, 211, 153, 1));
+                    background: radial-gradient(circle, rgba(16, 185, 129, 0.48) 0%, transparent 74%);
+                    border-radius: 50%;
+                    transform: translate(-50%, -50%) scale(1.15);
                 }
 
-                @keyframes almSnowFloat {
-                    0%, 100% { margin-top: 0px; }
-                    50% { margin-top: -5px; }
+                @keyframes almSnowPulse {
+                    from { transform: translate(-50%, -50%) scale(0.95) rotate(-8deg); }
+                    to { transform: translate(-50%, -50%) scale(1.08) rotate(8deg); }
                 }
 
                 .alm-snow-pop {
                     position: absolute;
                     transform: translate(-50%, -50%);
-                    color: #38bdf8;
+                    color: #7dd3fc;
                     font-weight: 900;
-                    font-size: 0.85rem;
+                    font-size: 0.8rem;
                     pointer-events: none;
+                    z-index: 8;
                     text-shadow: 0 2px 6px rgba(0, 0, 0, 0.9);
-                    animation: almSnowPopUp 0.65s forwards ease-out;
-                    z-index: 20;
+                    animation: almFloatUp 0.65s forwards ease-out;
                     white-space: nowrap;
                 }
+                .alm-snow-pop.gold { color: #fde047; font-size: 0.92rem; }
+                .alm-snow-pop.emerald { color: #34d399; font-size: 1.05rem; }
 
-                .alm-snow-pop.gold { color: #facc15; }
-                .alm-snow-pop.emerald { color: #34d399; font-size: 0.96rem; }
-
-                @keyframes almSnowPopUp {
-                    0% { opacity: 1; transform: translate(-50%, -50%) scale(0.9); }
-                    100% { opacity: 0; transform: translate(-50%, -150%) scale(1.12); }
-                }
-
-                /* Зона сміття (30 сходинка) з центральним колом СЮДИ як на скріншоті 4 */
+                /* Зона прибирання сміття (30 сходинка) */
                 .alm-trash-zone {
                     position: relative;
-                    width: 100%;
-                    height: 290px;
-                    border-radius: 16px;
-                    background: radial-gradient(circle at 50% 48%, #211c17 0%, #0d0f17 100%);
-                    border: 1px solid rgba(245, 158, 11, 0.42);
+                    flex: 1;
+                    min-height: 230px;
+                    border-radius: 14px;
+                    background: radial-gradient(circle at 50% 50%, #262115 0%, #12100b 100%);
+                    border: 1.5px solid #ca8a04;
                     overflow: hidden;
                     touch-action: none;
-                    user-select: none;
                 }
-
                 .alm-trash-zone.locked {
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    background: #0b0f1a;
-                    border-color: rgba(255, 255, 255, 0.08);
-                }
-
-                .alm-trash-zone.not-on-step .alm-trash-item {
-                    opacity: 0.65;
-                    cursor: not-allowed;
+                    opacity: 0.5;
+                    border-color: #334155;
                 }
 
                 .alm-trash-center-circle {
@@ -5621,103 +5460,189 @@
                     left: 50%;
                     top: 50%;
                     transform: translate(-50%, -50%);
-                    width: 82px;
-                    height: 82px;
+                    width: 84px;
+                    height: 84px;
                     border-radius: 50%;
-                    background: rgba(245, 158, 11, 0.08);
-                    border: 2px dashed #f59e0b;
+                    background: radial-gradient(circle, rgba(34, 197, 94, 0.25) 0%, rgba(20, 83, 45, 0.45) 100%);
+                    border: 2px dashed #4ade80;
                     display: flex;
                     flex-direction: column;
                     align-items: center;
                     justify-content: center;
-                    gap: 2px;
-                    z-index: 2;
-                    transition: transform 0.15s, background 0.15s, box-shadow 0.15s;
                     pointer-events: none;
+                    z-index: 2;
+                    transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
                 }
 
                 .alm-trash-center-circle.bin-highlight {
-                    transform: translate(-50%, -50%) scale(1.14);
-                    background: rgba(34, 197, 94, 0.24);
-                    border-color: #4ade80;
-                    box-shadow: 0 0 22px rgba(74, 222, 128, 0.55);
+                    transform: translate(-50%, -50%) scale(1.16);
+                    background: radial-gradient(circle, rgba(34, 197, 94, 0.5) 0%, rgba(21, 128, 61, 0.7) 100%);
+                    box-shadow: 0 0 22px rgba(74, 222, 128, 0.85);
                 }
 
                 .alm-trash-center-icon {
-                    font-size: 1.45rem;
+                    font-size: 1.55rem;
                     line-height: 1;
                 }
 
                 .alm-trash-center-label {
-                    font-size: 0.68rem;
+                    font-size: 0.62rem;
                     font-weight: 900;
-                    color: #fbbf24;
-                    letter-spacing: 0.5px;
+                    color: #86efac;
+                    margin-top: 2px;
                 }
 
                 .alm-trash-item {
                     position: absolute;
                     transform: translate(-50%, -50%);
-                    font-size: 1.65rem;
+                    width: 40px;
+                    height: 40px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 1.5rem;
                     cursor: grab;
-                    filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.85));
-                    z-index: 6;
-                    padding: 5px;
+                    z-index: 5;
+                    filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.65));
                     touch-action: none;
                 }
 
                 .alm-trash-item.gold {
-                    filter: drop-shadow(0 0 11px rgba(250, 204, 21, 1));
-                    transform: translate(-50%, -50%) scale(1.14);
+                    filter: drop-shadow(0 0 11px rgba(250, 204, 21, 0.95));
+                    background: radial-gradient(circle, rgba(250, 204, 21, 0.38) 0%, transparent 72%);
+                    border-radius: 50%;
                 }
 
                 .alm-trash-item.emerald {
-                    filter: drop-shadow(0 0 13px rgba(16, 185, 129, 1));
-                    transform: translate(-50%, -50%) scale(1.22);
+                    filter: drop-shadow(0 0 13px rgba(52, 211, 153, 1));
+                    background: radial-gradient(circle, rgba(16, 185, 129, 0.48) 0%, transparent 74%);
+                    border-radius: 50%;
                 }
 
                 .alm-trash-item.dragging {
                     cursor: grabbing;
-                    transform: translate(-50%, -50%) scale(1.25);
-                    z-index: 25;
+                    transform: translate(-50%, -50%) scale(1.22);
+                    z-index: 20;
                 }
 
                 .alm-trash-pop {
                     position: absolute;
                     transform: translate(-50%, -50%);
-                    color: #facc15;
+                    color: #fde047;
                     font-weight: 900;
-                    font-size: 0.88rem;
+                    font-size: 0.92rem;
                     pointer-events: none;
-                    text-shadow: 0 2px 6px rgba(0, 0, 0, 0.9);
-                    animation: almSnowPopUp 0.7s forwards ease-out;
-                    z-index: 20;
+                    z-index: 12;
+                    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.95);
+                    animation: almFloatUp 0.7s forwards ease-out;
+                    white-space: nowrap;
+                }
+                .alm-trash-pop.gold { color: #facc15; font-size: 1.02rem; }
+                .alm-trash-pop.emerald { color: #34d399; font-size: 1.12rem; }
+
+                /* Зона об'єднання овочів та фруктів (70 сходинка) */
+                .alm-merge-zone {
+                    position: relative;
+                    flex: 1;
+                    min-height: 230px;
+                    border-radius: 14px;
+                    background: radial-gradient(circle at 50% 45%, #11291c 0%, #08140d 100%);
+                    border: 1.5px solid #22c55e;
+                    overflow: hidden;
+                    touch-action: none;
+                }
+                .alm-merge-zone.locked {
+                    opacity: 0.5;
+                    border-color: #334155;
+                }
+
+                .alm-merge-item {
+                    position: absolute;
+                    transform: translate(-50%, -50%);
+                    width: 44px;
+                    height: 44px;
+                    border-radius: 12px;
+                    background: rgba(15, 35, 24, 0.9);
+                    border: 1.5px solid rgba(74, 222, 128, 0.45);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    cursor: grab;
+                    z-index: 5;
+                    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.55);
+                    touch-action: none;
+                }
+
+                .alm-merge-item.dragging {
+                    cursor: grabbing;
+                    transform: translate(-50%, -50%) scale(1.18);
+                    z-index: 25;
+                    border-color: #facc15;
+                }
+
+                .alm-merge-item.merge-target-highlight {
+                    border-color: #4ade80;
+                    box-shadow: 0 0 18px rgba(74, 222, 128, 0.95);
+                    transform: translate(-50%, -50%) scale(1.12);
+                }
+
+                .alm-merge-item.merge-pop-in {
+                    animation: almMergePopIn 0.25s ease-out;
+                }
+
+                @keyframes almMergePopIn {
+                    0% { transform: translate(-50%, -50%) scale(0.5); }
+                    70% { transform: translate(-50%, -50%) scale(1.2); }
+                    100% { transform: translate(-50%, -50%) scale(1); }
+                }
+
+                .alm-merge-emoji {
+                    font-size: 1.45rem;
+                    line-height: 1;
+                }
+
+                .alm-merge-lvl-badge {
+                    position: absolute;
+                    bottom: -4px;
+                    right: -4px;
+                    background: #15803d;
+                    border: 1px solid #86efac;
+                    color: #ffffff;
+                    font-size: 0.62rem;
+                    font-weight: 900;
+                    padding: 0px 4px;
+                    border-radius: 6px;
+                    line-height: 1.25;
+                }
+
+                .alm-merge-pop {
+                    position: absolute;
+                    transform: translate(-50%, -50%);
+                    color: #4ade80;
+                    font-weight: 900;
+                    font-size: 0.9rem;
+                    pointer-events: none;
+                    z-index: 15;
+                    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.95);
+                    animation: almFloatUp 0.8s forwards ease-out;
                     white-space: nowrap;
                 }
 
-                .alm-trash-pop.emerald { color: #34d399; font-size: 0.96rem; }
-
-                /* Зона арени Бойової Квочки Рябої (50 сходинка) */
+                /* Арена Бойової Квочки Рябої (50 сходинка) */
                 .alm-chicken-arena {
                     position: relative;
-                    width: 100%;
-                    height: 290px;
-                    border-radius: 16px;
-                    background: radial-gradient(circle at 50% 45%, #2a1810 0%, #0d1018 100%);
-                    border: 1px solid rgba(249, 115, 22, 0.45);
+                    flex: 1;
+                    min-height: 230px;
+                    border-radius: 14px;
+                    background: radial-gradient(circle at 50% 45%, #2b1810 0%, #140b08 100%);
+                    border: 1.5px solid #ea580c;
                     padding: 12px;
                     display: flex;
                     flex-direction: column;
                     align-items: center;
                     justify-content: space-between;
+                    gap: 8px;
                     overflow: hidden;
-                    user-select: none;
-                }
-
-                .alm-chicken-arena.locked {
-                    justify-content: center;
-                    background: #0b0f1a;
-                    border-color: rgba(255, 255, 255, 0.08);
                 }
 
                 .alm-mob-title-row {
@@ -5726,38 +5651,38 @@
                     align-items: center;
                     justify-content: space-between;
                     gap: 6px;
-                    font-size: 0.8rem;
                 }
 
                 .alm-mob-name {
                     font-weight: 900;
+                    font-size: 0.92rem;
                     color: #fdba74;
                 }
 
                 .alm-mob-reward-tag {
-                    background: rgba(249, 115, 22, 0.16);
+                    background: rgba(249, 115, 22, 0.18);
                     border: 1px solid rgba(249, 115, 22, 0.45);
                     color: #fed7aa;
-                    padding: 2px 8px;
-                    border-radius: 8px;
+                    font-size: 0.72rem;
                     font-weight: 800;
-                    font-size: 0.74rem;
+                    padding: 2px 8px;
+                    border-radius: 999px;
                 }
 
                 .alm-chicken-hp-wrap {
                     position: relative;
                     width: 100%;
                     height: 22px;
-                    background: rgba(0, 0, 0, 0.55);
-                    border: 1.5px solid #ef4444;
+                    background: #1f1210;
+                    border: 1.5px solid #7c2d12;
                     border-radius: 999px;
                     overflow: hidden;
                 }
 
                 .alm-chicken-hp-fill {
                     height: 100%;
-                    background: linear-gradient(90deg, #dc2626, #f97316);
-                    transition: width 0.1s ease-out;
+                    background: linear-gradient(90deg, #dc2626 0%, #f97316 100%);
+                    transition: width 0.12s ease;
                 }
 
                 .alm-chicken-hp-text {
@@ -5766,80 +5691,92 @@
                     display: flex;
                     align-items: center;
                     justify-content: center;
-                    font-size: 0.76rem;
+                    font-size: 0.74rem;
                     font-weight: 900;
                     color: #ffffff;
-                    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+                    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.9);
                 }
 
                 .alm-chicken-mob-btn {
-                    width: 155px;
-                    height: 155px;
-                    border-radius: 50%;
-                    background: radial-gradient(circle at 35% 30%, #431407, #1c1014);
-                    border: 2.5px solid #f97316;
-                    box-shadow: 0 0 24px rgba(249, 115, 22, 0.35);
+                    flex: 1;
+                    width: 100%;
+                    background: radial-gradient(circle, rgba(249, 115, 22, 0.16) 0%, transparent 72%);
+                    border: 1.5px dashed rgba(251, 146, 60, 0.45);
+                    border-radius: 14px;
                     display: flex;
                     flex-direction: column;
                     align-items: center;
                     justify-content: center;
                     gap: 4px;
                     cursor: pointer;
-                    transition: transform 0.08s;
-                    margin: auto 0;
+                    transition: transform 0.08s ease;
+                }
+
+                .alm-chicken-mob-btn:active:not(:disabled) {
+                    transform: scale(0.95);
                 }
 
                 .alm-chicken-mob-btn:disabled {
-                    opacity: 0.6;
                     cursor: not-allowed;
+                    opacity: 0.65;
                 }
 
                 .alm-chicken-mob-btn.hit {
-                    animation: almChickenHit 0.18s ease-out;
+                    animation: almChickenHit 0.18s ease;
                 }
 
                 @keyframes almChickenHit {
-                    0% { transform: scale(1); }
-                    45% { transform: scale(0.9) rotate(-4deg); }
+                    0% { transform: scale(1) rotate(0deg); }
+                    35% { transform: scale(0.9) rotate(-8deg); }
+                    70% { transform: scale(1.05) rotate(6deg); }
                     100% { transform: scale(1) rotate(0deg); }
                 }
 
                 .alm-chicken-emoji {
-                    font-size: 3.6rem;
+                    font-size: 4.1rem;
                     line-height: 1;
+                    filter: drop-shadow(0 6px 14px rgba(249, 115, 22, 0.55));
                 }
 
                 .alm-chicken-hit-hint {
-                    font-size: 0.68rem;
+                    font-size: 0.76rem;
                     font-weight: 900;
-                    color: #ffedd5;
-                    background: rgba(234, 88, 12, 0.45);
-                    padding: 2px 8px;
-                    border-radius: 8px;
+                    color: #fed7aa;
+                    background: rgba(124, 45, 18, 0.65);
+                    padding: 3px 10px;
+                    border-radius: 999px;
                 }
 
                 .alm-chicken-respawn-box {
-                    margin: auto 0;
+                    flex: 1;
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    justify-content: center;
                     text-align: center;
                 }
 
                 .alm-respawn-countdown {
+                    margin-top: 6px;
                     font-size: 1.5rem;
                     font-weight: 900;
                     color: #38bdf8;
-                    margin-top: 4px;
+                    background: rgba(15, 23, 42, 0.85);
+                    border: 1px solid #38bdf8;
+                    padding: 4px 16px;
+                    border-radius: 12px;
                 }
 
                 .alm-dmg-pop {
                     position: absolute;
                     transform: translate(-50%, -50%);
-                    color: #f87171;
+                    color: #fca5a5;
                     font-weight: 900;
-                    font-size: 1rem;
+                    font-size: 0.95rem;
                     pointer-events: none;
+                    z-index: 15;
                     text-shadow: 0 2px 6px rgba(0, 0, 0, 0.95);
-                    animation: almSnowPopUp 0.6s forwards ease-out;
-                    z-index: 25;
+                    animation: almFloatUp 0.6s forwards ease-out;
                 }
 
                 .alm-feather-loot-pop {
@@ -5851,233 +5788,119 @@
                     font-weight: 900;
                     font-size: 1.15rem;
                     pointer-events: none;
-                    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.95);
-                    animation: almSnowPopUp 1.05s forwards ease-out;
-                    z-index: 30;
+                    z-index: 16;
+                    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.95);
+                    animation: almFloatUp 1.1s forwards ease-out;
                 }
 
-                /* Зона об'єднання овочів/фруктів (70 сходинка) як на скріншоті 6 */
-                .alm-merge-zone {
-                    position: relative;
-                    width: 100%;
-                    height: 290px;
-                    border-radius: 16px;
-                    background: radial-gradient(circle at 50% 45%, #0c261c 0%, #081210 100%);
-                    border: 1px solid rgba(34, 197, 94, 0.45);
-                    overflow: hidden;
-                    touch-action: none;
-                    user-select: none;
+                @keyframes almFloatUp {
+                    0% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+                    100% { opacity: 0; transform: translate(-50%, -135%) scale(1.12); }
                 }
 
-                .alm-merge-zone.locked {
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    background: #0b0f1a;
-                    border-color: rgba(255, 255, 255, 0.08);
-                }
-
-                .alm-merge-zone.not-on-step .alm-merge-item {
-                    opacity: 0.65;
-                    cursor: not-allowed;
-                }
-
-                .alm-merge-item {
-                    position: absolute;
-                    transform: translate(-50%, -50%);
-                    width: 44px;
-                    height: 44px;
-                    border-radius: 50%;
-                    background: rgba(13, 32, 25, 0.92);
-                    border: 1.5px solid #22c55e;
-                    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.55);
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    cursor: grab;
-                    z-index: 6;
-                    touch-action: none;
-                    transition: transform 0.1s, border-color 0.12s, box-shadow 0.12s;
-                }
-
-                .alm-merge-item.dragging {
-                    cursor: grabbing;
-                    transform: translate(-50%, -50%) scale(1.18);
-                    z-index: 25;
-                    border-color: #facc15;
-                }
-
-                .alm-merge-item.merge-target-highlight {
-                    border-color: #facc15;
-                    box-shadow: 0 0 18px rgba(250, 204, 21, 0.85);
-                    transform: translate(-50%, -50%) scale(1.14);
-                }
-
-                .alm-merge-emoji {
-                    font-size: 1.45rem;
-                    line-height: 1;
-                }
-
-                .alm-merge-lvl-badge {
-                    position: absolute;
-                    right: -2px;
-                    bottom: -2px;
-                    width: 17px;
-                    height: 17px;
-                    border-radius: 50%;
-                    background: #16a34a;
-                    border: 1px solid #86efac;
-                    color: #ffffff;
-                    font-size: 0.62rem;
-                    font-weight: 900;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                }
-
-                .alm-merge-pop {
-                    position: absolute;
-                    transform: translate(-50%, -50%);
-                    color: #4ade80;
-                    font-weight: 900;
-                    font-size: 0.92rem;
-                    pointer-events: none;
-                    text-shadow: 0 2px 6px rgba(0, 0, 0, 0.9);
-                    animation: almSnowPopUp 0.8s forwards ease-out;
-                    z-index: 20;
-                    white-space: nowrap;
-                }
-
-                /* Сніжна буря (80 сходинка) */
-                .alm-storm-hero-box {
-                    width: 100%;
-                    background: linear-gradient(180deg, #0e2238 0%, #0b1626 100%);
-                    border: 1.5px solid #0284c7;
-                    border-radius: 14px;
-                    padding: 14px;
-                    text-align: center;
-                }
-
-                .alm-storm-launch-btn {
-                    background: linear-gradient(180deg, #38bdf8, #0284c7);
-                    border: none;
-                    color: #082f49;
-                    padding: 11px 18px;
-                    border-radius: 11px;
-                    font-weight: 900;
-                    font-size: 0.88rem;
-                    cursor: pointer;
-                    width: 100%;
-                    max-width: 340px;
-                }
-
-                .alm-storm-launch-btn:disabled {
-                    background: #1e293b;
-                    color: #64748b;
-                    cursor: not-allowed;
-                }
-
-                /* Права колонка прокачок та міні-топів у кімнатах 20, 30, 50, 70 */
+                /* Права колонка інтерактивних кімнат (Прокачки + Міні-топ) */
                 .alm-side-panel-box {
-                    background: #111625;
-                    border: 1px solid rgba(255, 255, 255, 0.08);
-                    border-radius: 14px;
-                    padding: 11px;
+                    background: #171732;
+                    border: 1px solid #2b2b57;
+                    border-radius: 12px;
+                    padding: 10px;
                     display: flex;
                     flex-direction: column;
                     gap: 8px;
                 }
 
                 .alm-side-panel-title {
-                    font-size: 0.78rem;
+                    font-size: 0.74rem;
                     font-weight: 900;
-                    color: #cbd5e1;
-                    letter-spacing: 0.4px;
+                    color: #93c5fd;
+                    letter-spacing: 0.04em;
                 }
 
                 .alm-compact-upg-list {
                     display: flex;
                     flex-direction: column;
-                    gap: 7px;
+                    gap: 6px;
                 }
 
                 .alm-compact-upg-card {
-                    width: 100%;
-                    background: #151c2e;
-                    border: 1px solid rgba(255, 255, 255, 0.1);
-                    border-radius: 11px;
-                    padding: 9px 11px;
+                    border-radius: 10px;
+                    padding: 7px 9px;
                     display: flex;
                     flex-direction: column;
-                    gap: 5px;
+                    gap: 3px;
                     cursor: pointer;
                     text-align: left;
-                    transition: transform 0.1s, border-color 0.15s, opacity 0.15s;
+                    color: #ffffff;
+                    transition: transform 0.1s ease;
                 }
-
-                .alm-compact-upg-card:hover:not(:disabled) {
-                    transform: translateY(-1px);
+                .alm-compact-upg-card:active:not(:disabled) {
+                    transform: scale(0.98);
                 }
-
                 .alm-compact-upg-card:disabled {
-                    opacity: 0.55;
+                    opacity: 0.45;
                     cursor: not-allowed;
                 }
 
-                .alm-compact-upg-card.snow-card { border-color: rgba(56, 189, 248, 0.28); }
-                .alm-compact-upg-card.trash-card { border-color: rgba(245, 158, 11, 0.28); }
-                .alm-compact-upg-card.feather-card { border-color: rgba(249, 115, 22, 0.28); }
-                .alm-compact-upg-card.emerald-card { border-color: rgba(34, 197, 94, 0.28); }
+                .alm-compact-upg-card.snow-card {
+                    background: linear-gradient(180deg, #102542 0%, #0b192e 100%);
+                    border: 1.5px solid #2563eb;
+                }
+                .alm-compact-upg-card.trash-card {
+                    background: linear-gradient(180deg, #2b240f 0%, #1c1709 100%);
+                    border: 1.5px solid #ca8a04;
+                }
+                .alm-compact-upg-card.feather-card {
+                    background: linear-gradient(180deg, #2d190e 0%, #1c0f08 100%);
+                    border: 1.5px solid #ea580c;
+                }
+                .alm-compact-upg-card.emerald-card {
+                    background: linear-gradient(180deg, #0f291c 0%, #091a12 100%);
+                    border: 1.5px solid #16a34a;
+                }
 
                 .alm-c-upg-row {
-                    width: 100%;
                     display: flex;
                     align-items: center;
                     justify-content: space-between;
-                    gap: 8px;
+                    gap: 6px;
                 }
 
                 .alm-c-upg-name {
-                    font-size: 0.8rem;
+                    font-size: 0.76rem;
                     font-weight: 800;
-                    color: #f8fafc;
+                    color: #e2e8f0;
                 }
 
                 .alm-c-upg-lvl {
-                    font-size: 0.72rem;
+                    font-size: 0.68rem;
                     font-weight: 800;
-                    padding: 2px 8px;
+                    padding: 1px 6px;
                     border-radius: 999px;
-                    white-space: nowrap;
                 }
-
-                .alm-c-upg-lvl.snow-lvl { background: rgba(56, 189, 248, 0.15); color: #38bdf8; }
-                .alm-c-upg-lvl.trash-lvl { background: rgba(245, 158, 11, 0.15); color: #facc15; }
-                .alm-c-upg-lvl.feather-lvl { background: rgba(249, 115, 22, 0.15); color: #fdba74; }
-                .alm-c-upg-lvl.emerald-lvl { background: rgba(34, 197, 94, 0.15); color: #4ade80; }
+                .alm-c-upg-lvl.snow-lvl { background: rgba(56, 189, 248, 0.16); color: #7dd3fc; }
+                .alm-c-upg-lvl.trash-lvl { background: rgba(250, 204, 21, 0.16); color: #fde047; }
+                .alm-c-upg-lvl.feather-lvl { background: rgba(249, 115, 22, 0.2); color: #fdba74; }
+                .alm-c-upg-lvl.emerald-lvl { background: rgba(34, 197, 94, 0.18); color: #86efac; }
 
                 .alm-c-upg-diff {
-                    font-size: 0.78rem;
-                    font-weight: 800;
-                    color: #4ade80;
+                    font-size: 0.82rem;
+                    font-weight: 900;
+                    color: #ffffff;
                 }
 
                 .alm-c-upg-cost {
                     font-size: 0.78rem;
                     font-weight: 900;
-                    white-space: nowrap;
                 }
-
                 .alm-c-upg-cost.snow-cost { color: #38bdf8; }
                 .alm-c-upg-cost.trash-cost { color: #facc15; }
-                .alm-c-upg-cost.feather-cost { color: #fdba74; }
+                .alm-c-upg-cost.feather-cost { color: #fb923c; }
                 .alm-c-upg-cost.emerald-cost { color: #4ade80; }
 
-                /* Міні-лідерборди всередині кімнат */
                 .alm-snow-lb-list {
                     display: flex;
                     flex-direction: column;
-                    gap: 5px;
+                    gap: 4px;
                     max-height: 155px;
                     overflow-y: auto;
                 }
@@ -6085,81 +5908,72 @@
                 .alm-snow-lb-row {
                     display: flex;
                     align-items: center;
-                    justify-content: space-between;
                     gap: 6px;
-                    background: #151c2e;
-                    border: 1px solid rgba(255, 255, 255, 0.06);
+                    background: #101024;
+                    border: 1px solid #222246;
                     border-radius: 8px;
-                    padding: 6px 9px;
-                    font-size: 0.78rem;
+                    padding: 4px 8px;
+                    font-size: 0.76rem;
                 }
-
                 .alm-snow-lb-row.is-player {
                     border-color: #38bdf8;
-                    background: rgba(56, 189, 248, 0.1);
+                    background: rgba(56, 189, 248, 0.12);
                 }
 
                 .alm-snow-lb-rank {
+                    width: 24px;
                     font-weight: 900;
-                    color: #facc15;
-                    min-width: 24px;
+                    color: #94a3b8;
                 }
-
                 .alm-snow-lb-name {
-                    flex-grow: 1;
+                    flex: 1;
                     font-weight: 700;
-                    color: #f1f5f9;
+                    color: #e2e8f0;
+                    white-space: nowrap;
                     overflow: hidden;
                     text-overflow: ellipsis;
-                    white-space: nowrap;
                 }
-
                 .alm-snow-lb-val {
                     font-weight: 900;
-                    color: #38bdf8;
+                    color: #7dd3fc;
                     white-space: nowrap;
                 }
 
-                /* ==================== ВКЛАДКА МНОЖНИКИ (Скріншот 7) ==================== */
+                /* Множники */
                 .alm-mult-panel {
+                    flex: 1;
+                    overflow-y: auto;
                     display: flex;
                     flex-direction: column;
-                    gap: 9px;
-                    width: 100%;
+                    gap: 8px;
                 }
 
                 .alm-mult-row-card {
-                    background: #131726;
-                    border: 1px solid rgba(255, 255, 255, 0.08);
-                    border-radius: 14px;
-                    padding: 13px 16px;
+                    background: #121226;
+                    border: 1.5px solid #26264a;
+                    border-radius: 12px;
+                    padding: 10px 14px;
                     display: flex;
                     align-items: center;
                     justify-content: space-between;
                     gap: 10px;
                 }
 
-                .alm-mult-row-left {
-                    display: flex;
-                    flex-direction: column;
-                    gap: 2px;
-                }
-
                 .alm-mult-row-title {
-                    font-size: 0.88rem;
                     font-weight: 800;
-                    color: #f8fafc;
+                    font-size: 0.88rem;
+                    color: #f1f5f9;
                 }
 
                 .alm-mult-row-sub {
-                    font-size: 0.76rem;
+                    font-size: 0.74rem;
                     color: #94a3b8;
+                    margin-top: 2px;
                 }
 
                 .alm-mult-row-val {
-                    font-size: 1.25rem;
+                    font-size: 1.15rem;
                     font-weight: 900;
-                    white-space: nowrap;
                 }
 
                 .alm-mult-row-val.cyan { color: #38bdf8; }
@@ -6167,131 +5981,134 @@
                 .alm-mult-row-val.gold { color: #facc15; }
 
                 .alm-mult-total-card {
-                    background: linear-gradient(180deg, #1b1a24 0%, #131726 100%);
-                    border: 1.5px solid #eab308;
-                    border-radius: 16px;
-                    padding: 18px 14px;
+                    margin-top: 2px;
+                    background: linear-gradient(135deg, #1a1a3d 0%, #12122b 100%);
+                    border: 1.5px solid #4f46e5;
+                    border-radius: 14px;
+                    padding: 14px;
                     text-align: center;
                     display: flex;
                     flex-direction: column;
-                    align-items: center;
-                    gap: 6px;
+                    gap: 4px;
                 }
 
                 .alm-mult-formula {
                     font-size: 0.72rem;
                     font-weight: 800;
-                    color: #cbd5e1;
-                    letter-spacing: 0.3px;
+                    letter-spacing: 0.04em;
+                    color: #a5b4fc;
                 }
 
                 .alm-mult-total-big {
-                    font-size: 2rem;
+                    font-size: 1.9rem;
                     font-weight: 900;
-                    color: #facc15;
-                    line-height: 1.1;
+                    color: #ffffff;
                 }
 
                 .alm-mult-rate-green {
-                    font-size: 0.92rem;
-                    font-weight: 900;
+                    font-size: 0.9rem;
+                    font-weight: 800;
                     color: #4ade80;
                 }
 
                 .alm-mult-highest-line {
-                    font-size: 0.76rem;
-                    color: #94a3b8;
-                    margin-top: 2px;
+                    margin-top: 4px;
+                    font-size: 0.75rem;
+                    color: #cbd5e1;
                 }
 
-                /* ==================== ВКЛАДКА ТОП (Скріншот 8) ==================== */
+                /* Топ гравців */
                 .alm-lb-panel {
+                    flex: 1;
+                    min-height: 0;
                     display: flex;
                     flex-direction: column;
-                    gap: 10px;
-                    width: 100%;
+                    gap: 8px;
+                    background: #121226;
+                    border: 1.5px solid #26264a;
+                    border-radius: 14px;
+                    padding: 10px;
                 }
 
                 .alm-lb-tabs {
                     display: grid;
                     grid-template-columns: repeat(3, 1fr);
-                    gap: 8px;
-                    width: 100%;
+                    gap: 6px;
                 }
 
                 .alm-lb-tab-btn {
-                    background: #131726;
-                    border: 1px solid rgba(255, 255, 255, 0.08);
-                    color: #e2e8f0;
-                    padding: 10px 6px;
-                    border-radius: 11px;
-                    font-size: 0.78rem;
+                    background: #191936;
+                    border: 1px solid #2d2d5c;
+                    color: #94a3b8;
+                    border-radius: 10px;
+                    padding: 7px 4px;
                     font-weight: 800;
+                    font-size: 0.74rem;
                     cursor: pointer;
-                    transition: all 0.15s;
-                    text-align: center;
+                    transition: all 0.15s ease;
                 }
 
                 .alm-lb-tab-btn.active {
-                    background: #facc15;
-                    border-color: #facc15;
-                    color: #0f172a;
-                    font-weight: 900;
+                    background: linear-gradient(180deg, #312e81 0%, #1e1b4b 100%);
+                    border-color: #6366f1;
+                    color: #ffffff;
                 }
 
                 .alm-leaderboard-list {
+                    flex: 1;
+                    min-height: 0;
+                    overflow-y: auto;
                     display: flex;
                     flex-direction: column;
-                    gap: 8px;
-                    max-height: 410px;
-                    overflow-y: auto;
+                    gap: 6px;
                 }
 
                 .alm-lb-row {
-                    background: #131726;
-                    border: 1px solid rgba(255, 255, 255, 0.07);
-                    border-radius: 12px;
-                    padding: 13px 15px;
                     display: flex;
                     align-items: center;
-                    justify-content: space-between;
                     gap: 10px;
+                    background: #181833;
+                    border: 1px solid #292952;
+                    border-radius: 10px;
+                    padding: 8px 12px;
                 }
 
                 .alm-lb-row.is-player {
-                    border: 1.5px solid #eab308;
-                    background: linear-gradient(135deg, #1b1a29, #131726);
+                    border-color: #facc15;
+                    background: rgba(250, 204, 21, 0.1);
                 }
 
                 .alm-lb-rank {
-                    font-size: 1rem;
+                    width: 32px;
                     font-weight: 900;
-                    color: #facc15;
-                    min-width: 34px;
+                    font-size: 0.9rem;
+                    color: #94a3b8;
+                    text-align: center;
                 }
 
                 .alm-lb-name {
-                    flex-grow: 1;
-                    font-size: 0.9rem;
+                    flex: 1;
                     font-weight: 800;
-                    color: #f8fafc;
+                    font-size: 0.86rem;
+                    color: #f1f5f9;
+                    white-space: nowrap;
                     overflow: hidden;
                     text-overflow: ellipsis;
-                    white-space: nowrap;
                 }
 
                 .alm-lb-val {
-                    font-size: 0.88rem;
                     font-weight: 900;
-                    color: #4ade80;
+                    font-size: 0.85rem;
+                    color: #38bdf8;
                     white-space: nowrap;
                 }
             `;
             document.head.appendChild(style);
         }
 
+        // Хук на saveGame
         if (typeof window.saveGame === 'function' && !window.saveGame._almWrapped) {
-            const origSave = window.saveGame;
+            const origSaveGame = window.saveGame;
             window.saveGame = function () {
                 const s = initAuraLarpMonsterState();
                 s.wasActive = isAuraLarpModeActive;
@@ -6309,131 +6126,171 @@
                 try {
                     localStorage.setItem(STORAGE_KEY, JSON.stringify(s));
                 } catch (e) {}
-
-                return origSave.apply(this, arguments);
+                return origSaveGame.apply(this, arguments);
             };
             window.saveGame._almWrapped = true;
+        }
+
+        // Хук на switchTab
+        if (typeof window.switchTab === 'function' && !window.switchTab._almWrapped) {
+            const origSwitchTab = window.switchTab;
+            window.switchTab = function () {
+                const res = origSwitchTab.apply(this, arguments);
+                injectAuraLarpNavTab();
+                return res;
+            };
+            window.switchTab._almWrapped = true;
+        }
+
+        // Глобальні події перетягування (сміття 30 сходинки та овочів 70 сходинки)
+        if (!window._almGlobalPointerBound) {
+            window._almGlobalPointerBound = true;
+
+            window.addEventListener('pointermove', (e) => {
+                if (draggingTrashId !== null) {
+                    moveDraggingTrash(draggingTrashId, e.clientX, e.clientY);
+                }
+                if (draggingMergeId !== null) {
+                    moveDraggingMerge(draggingMergeId, e.clientX, e.clientY);
+                }
+            });
+
+            window.addEventListener('pointerup', (e) => {
+                isPointerSwipingSnow = false;
+
+                if (draggingTrashId !== null) {
+                    const id = draggingTrashId;
+                    draggingTrashId = null;
+                    const zoneEl = document.getElementById('alm-trash-zone');
+                    if (zoneEl) {
+                        const el = zoneEl.querySelector(`.alm-trash-item[data-trash-id="${id}"]`);
+                        if (el) el.classList.remove('dragging');
+                    }
+                    checkTrashDropIntoCenter(id, e.clientX, e.clientY);
+                }
+
+                if (draggingMergeId !== null) {
+                    const id = draggingMergeId;
+                    draggingMergeId = null;
+                    const zoneEl = document.getElementById('alm-merge-zone');
+                    if (zoneEl) {
+                        const el = zoneEl.querySelector(`.alm-merge-item[data-merge-id="${id}"]`);
+                        if (el) el.classList.remove('dragging');
+                    }
+                    tryCombineDraggedMergeItem(id);
+                }
+            });
+
+            window.addEventListener('pointercancel', () => {
+                isPointerSwipingSnow = false;
+                if (draggingTrashId !== null) {
+                    const id = draggingTrashId;
+                    draggingTrashId = null;
+                    const zoneEl = document.getElementById('alm-trash-zone');
+                    if (zoneEl) {
+                        const el = zoneEl.querySelector(`.alm-trash-item[data-trash-id="${id}"]`);
+                        if (el) el.classList.remove('dragging');
+                    }
+                    checkTrashDropIntoCenter(id);
+                }
+                if (draggingMergeId !== null) {
+                    const id = draggingMergeId;
+                    draggingMergeId = null;
+                    const zoneEl = document.getElementById('alm-merge-zone');
+                    if (zoneEl) {
+                        zoneEl.querySelectorAll('.alm-merge-item').forEach(n => {
+                            n.classList.remove('dragging');
+                            n.classList.remove('merge-target-highlight');
+                        });
+                    }
+                }
+            });
+
+            window.addEventListener('touchend', () => {
+                isPointerSwipingSnow = false;
+            }, { passive: true });
         }
     }
 
     // ------------------------------------------
-    // ЕКСПОРТ ФУНКЦІЙ У WINDOW ТА ІНІЦІАЛІЗАЦІЯ
+    // ГЛОБАЛЬНІ ФУНКЦІЇ ДЛЯ HTML-КНОПОК
     // ------------------------------------------
     window.enterAuraLarpMonster = enterAuraLarpMonster;
     window.exitAuraLarpMonster = exitAuraLarpMonster;
     window.switchAuraLarpSubTab = switchLarpSubTab;
     window.switchAuraLarpLeaderboardType = switchLeaderboardType;
-    window.moveAuraLarpToStep = moveToStep;
     window.unlockNextAuraLarpStep = unlockNextStep;
+    window.moveAuraLarpToStep = moveToStep;
     window.openAuraLarpRoomAtStep = openRoomAtStep;
-
-    // Кімната 10
     window.buyAuraLarpRoomUpgrade = buyRoomMultiplierUpgrade;
-
-    // Кімната 20 (Сніжинки)
     window.buyAuraLarpSnowMultUpgrade = buySnowMultUpgrade;
     window.buyAuraLarpSnowSpeedUpgrade = buySnowSpeedUpgrade;
     window.buyAuraLarpSnowLarpUpgrade = buySnowLarpUpgrade;
-
-    // Кімната 30 (Сміття)
     window.buyAuraLarpTrashMultUpgrade = buyTrashMultUpgrade;
     window.buyAuraLarpTrashSpeedUpgrade = buyTrashSpeedUpgrade;
     window.buyAuraLarpTrashLarpUpgrade = buyTrashLarpUpgrade;
-
-    // Кімната 40 (Швидкість та Офлайн)
     window.buyAuraLarpStepSpeedUpgrade = buyStepSpeedUpgrade;
     window.buyAuraLarpOfflineUpgrade = buyOfflineLarpUpgrade;
-
-    // Кімната 50 (Курочка та Пір'я)
     window.attackAuraLarpChicken = attackChickenMob;
     window.buyAuraLarpFeatherMultUpgrade = buyFeatherMultUpgrade;
     window.buyAuraLarpFeatherLarpUpgrade = buyFeatherLarpUpgrade;
-
-    // Кімната 60 (Шанси золотих та смарагдових сніжинок/сміття)
     window.buyAuraLarpGoldSnowUpgrade = buyGoldSnowUpgrade;
     window.buyAuraLarpEmeraldSnowUpgrade = buyEmeraldSnowUpgrade;
     window.buyAuraLarpGoldTrashUpgrade = buyGoldTrashUpgrade;
     window.buyAuraLarpEmeraldTrashUpgrade = buyEmeraldTrashUpgrade;
-
-    // Кімната 70 (Вітаміни та Овочі)
     window.buyAuraLarpVitaminMultUpgrade = buyVitaminMultUpgrade;
     window.buyAuraLarpMergeLv2Upgrade = buyMergeLv2Upgrade;
     window.buyAuraLarpMergeLarpUpgrade = buyMergeLarpUpgrade;
     window.sellAuraLarpMergeItem = sellHighestOrRandomMergeItem;
-
-    // Кімната 80 (Сніжна буря)
     window.activateAuraLarpSnowstorm = activateSnowstorm;
     window.buyAuraLarpStormDurationUpgrade = buyStormDurationUpgrade;
     window.buyAuraLarpStormCooldownUpgrade = buyStormCooldownUpgrade;
     window.buyAuraLarpStormSpeedUpgrade = buyStormSpeedUpgrade;
-
-    // Кімната 90 (Прокачки мобів)
     window.buyAuraLarpMobDamageUpgrade = buyMobDamageUpgrade;
     window.buyAuraLarpMobRespawnUpgrade = buyMobRespawnUpgrade;
-
     window.verifyAuraLarpGlobalTime = verifyGlobalTimeAndApplyOfflineProgress;
     window.dismissAuraLarpOfflineReport = dismissOfflineReport;
     window.handleResetAuraLarpClick = handleResetAuraLarpClick;
-    window.resetAuraLarpMonsterProgress = resetAuraLarpMonsterProgress;
 
-    // Глобальна обробка руху та відпускання курсора / пальця для сніжинок, сміття та овочів
-    window.addEventListener('pointermove', (e) => {
-        if (draggingTrashId !== null) {
-            e.preventDefault();
-            moveDraggingTrash(draggingTrashId, e.clientX, e.clientY);
-        }
-        if (draggingMergeId !== null) {
-            e.preventDefault();
-            moveDraggingMerge(draggingMergeId, e.clientX, e.clientY);
-        }
-    });
-
-    function finishAllActivePointerActions(clientX, clientY) {
-        isPointerSwipingSnow = false;
-
-        if (draggingTrashId !== null) {
-            const finishedTrashId = draggingTrashId;
-            draggingTrashId = null;
-            const trashZone = document.getElementById('alm-trash-zone');
-            if (trashZone) {
-                const el = trashZone.querySelector(`.alm-trash-item[data-trash-id="${finishedTrashId}"]`);
-                if (el) el.classList.remove('dragging');
-            }
-            checkTrashDropIntoCenter(finishedTrashId, clientX, clientY);
-        }
-
-        if (draggingMergeId !== null) {
-            const finishedMergeId = draggingMergeId;
-            draggingMergeId = null;
-            const mergeZone = document.getElementById('alm-merge-zone');
-            if (mergeZone) {
-                const el = mergeZone.querySelector(`.alm-merge-item[data-merge-id="${finishedMergeId}"]`);
-                if (el) el.classList.remove('dragging');
-            }
-            tryCombineDraggedMergeItem(finishedMergeId);
-        }
-    }
-
-    window.addEventListener('pointerup', (e) => {
-        finishAllActivePointerActions(e.clientX, e.clientY);
-    });
-    window.addEventListener('pointercancel', (e) => {
-        finishAllActivePointerActions(e.clientX, e.clientY);
-    });
-
-    // Перевірка відновлення активної сесії після завантаження головної гри
-    let isModuleBooted = false;
+    // ------------------------------------------
+    // ЗАПУСК ФОНОВОГО ЦИКЛУ ТА ІНІЦІАЛІЗАЦІЯ
+    // ------------------------------------------
+    let isBooted = false;
 
     function bootAuraLarpMonsterModule() {
-        if (isModuleBooted) return;
-        isModuleBooted = true;
+        if (isBooted) return;
+        isBooted = true;
 
         setupHooksAndStyles();
         initAuraLarpMonsterState();
         injectAuraLarpNavTab();
-        verifyGlobalTimeAndApplyOfflineProgress();
+        lastLarpTickTime = Date.now();
 
-        // Фолбек-перевірка відновлення сесії та наявності вкладки в навігації
+        setInterval(() => {
+            const now = Date.now();
+            const dt = Math.min(2.0, Math.max(0.05, (now - lastLarpTickTime) / 1000));
+            lastLarpTickTime = now;
+
+            setupHooksAndStyles();
+            injectAuraLarpNavTab();
+            tickAuraLarpLogic(dt);
+        }, 250);
+
+        setInterval(() => {
+            if (!isMainGameReady()) return;
+            persistAuraLarpState(false);
+            syncLarpLeaderboard(false);
+            if (isAuraLarpModeActive && activeLarpSubTab === 'leaderboard') {
+                renderLarpLeaderboardList();
+            }
+            if (isAuraLarpModeActive && activeLarpSubTab === 'room') {
+                if (activeRoomStep === 20) renderSnowLeaderboardList();
+                else if (activeRoomStep === 30) renderTrashLeaderboardList();
+                else if (activeRoomStep === 50) renderFeatherLeaderboardList();
+                else if (activeRoomStep === 70) renderVitaminLeaderboardList();
+            }
+        }, 3000);
+
         let bootChecks = 0;
         const bootTimer = setInterval(() => {
             bootChecks++;
@@ -6451,37 +6308,29 @@
             }
         }, 200);
 
-        lastLarpTickTime = Date.now();
-        setInterval(() => {
-            const now = Date.now();
-            const dt = Math.min(1.0, (now - lastLarpTickTime) / 1000);
-            lastLarpTickTime = now;
+        window.addEventListener('beforeunload', () => {
+            persistAuraLarpState(false);
+        });
 
-            injectAuraLarpNavTab();
-            tickAuraLarpLogic(dt);
-            syncLarpLeaderboard(false);
-        }, 100);
-
-        setInterval(() => {
+        window.addEventListener('resize', () => {
             if (isAuraLarpModeActive) {
-                if (activeLarpSubTab === 'leaderboard') {
-                    renderLarpLeaderboardList();
-                } else if (activeLarpSubTab === 'room') {
-                    if (activeRoomStep === 20) {
-                        renderSnowLeaderboardList();
-                    } else if (activeRoomStep === 30) {
-                        renderTrashLeaderboardList();
-                    } else if (activeRoomStep === 50) {
-                        renderFeatherLeaderboardList();
-                    } else if (activeRoomStep === 70) {
-                        renderVitaminLeaderboardList();
-                    }
-                }
+                syncAuraLarpViewportHeight();
             }
-        }, 3000);
+        });
+
+        window.addEventListener('online', () => {
+            if (!isGlobalTimeVerified && getOfflineLarpPercent() > 0) {
+                verifyGlobalTimeAndApplyOfflineProgress();
+            }
+        });
     }
 
+    const prevOnMainGameLoaded = window.onMainGameLoaded;
     window.onMainGameLoaded = function () {
+        if (typeof prevOnMainGameLoaded === 'function') {
+            prevOnMainGameLoaded.apply(this, arguments);
+        }
+
         bootAuraLarpMonsterModule();
         setupHooksAndStyles();
         const s = initAuraLarpMonsterState();
@@ -6492,6 +6341,9 @@
             activeRoomStep = s.savedRoomStep || 10;
             enterAuraLarpMonster();
         } else {
+            if (isAuraLarpModeActive) {
+                renderAuraLarpMonsterUI(false);
+            }
             verifyGlobalTimeAndApplyOfflineProgress();
         }
     };
@@ -6501,16 +6353,4 @@
     } else {
         bootAuraLarpMonsterModule();
     }
-    window.addEventListener('load', bootAuraLarpMonsterModule);
-
-    window.addEventListener('online', () => {
-        if (!isGlobalTimeVerified) {
-            verifyGlobalTimeAndApplyOfflineProgress();
-        }
-        syncLarpLeaderboard(true);
-    });
-
-    window.addEventListener('beforeunload', () => {
-        persistAuraLarpState(false);
-    });
 })();
