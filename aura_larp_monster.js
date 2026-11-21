@@ -1255,7 +1255,7 @@
         return baseInterval;
     }
 
-    // Загальний множник ів (для поточної сходинки)
+    // Загальний множник Ларпів (для поточної сходинки)
     function getTotalLarpMultiplier() {
         const stairMult = getStairMultiplier();
         const roomMult = getRoomLarpMultiplier();
@@ -1270,7 +1270,7 @@
         return BASE_LARP_PER_SEC * getTotalLarpMultiplier();
     }
 
-    // Загальний множник та дохід ів за НАЙВИЩОЮ відкритою сходинкою (для топу та оффлайн-заробітку)
+    // Загальний множник та дохід Ларпів за НАЙВИЩОЮ відкритою сходинкою (для топу та оффлайн-заробітку)
     function getHighestStepTotalMultiplier() {
         const highestStairMult = getHighestStairMultiplier();
         const roomMult = getRoomLarpMultiplier();
@@ -1346,7 +1346,6 @@
         }
         return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
     }
-
 
     // Повертає дані про валюту кімнати для поточної сходинки персонажа (якщо така існує)
     function getRoomCurrencyForStep(stepNumber) {
@@ -1460,7 +1459,7 @@
             if (activeLeaderboardType === 'larpPerSec') {
                 return `${formatMultValue(player.larpPerSec || 0)} ларп/сек`;
             }
-            return `${formatLarpValue(player.totalLarp || 0)} ${pluralizeLarp(player.totalLarp || 0)}`;
+            return `${formatLarpValue(player.totalLarp || 0)} ларп`;
         }
 
         function sortPlayers(arr) {
@@ -3137,6 +3136,7 @@
         const stepBadgeEl = document.getElementById('alm-step-badge');
 
         if (larpValEl) larpValEl.textContent = formatLarpValue(s.larp);
+        if (larpWordEl) larpWordEl.textContent = 'ларп';
         if (larpRateEl) larpRateEl.textContent = `${formatMultValue(getLarpPerSecond())} ларп/сек`;
         if (stepBadgeEl) stepBadgeEl.textContent = `${s.currentStep}`;
 
@@ -3279,7 +3279,7 @@
                             <div class="alm-hero-upg-title">ПРОКАЧКА МНОЖНИКА ЛАРПІВ</div>
                             <div class="alm-hero-upg-badge emerald">Рів. ${s.roomMultLvl}</div>
                             <div class="alm-hero-upg-compare">x${formatMultValue(currentRoomMult)} &gt; x${formatMultValue(nextRoomMult)}</div>
-                            <div class="alm-hero-upg-price">${formatLarpValue(upgradeCost)} ${pluralizeLarp(upgradeCost)}</div>
+                            <div class="alm-hero-upg-price">${formatLarpValue(upgradeCost)} ларп</div>
                         </button>
                     </div>
                 </div>
@@ -3606,7 +3606,7 @@
                                 <div class="alm-hero-upg-badge purple">Рів. ${s.stepSpeedLvl} (+${curSpeedBonusPct}%)</div>
                                 <div class="alm-hero-upg-compare">${curSpeedMult} → ${nextSpeedMult}</div>
                                 <div class="alm-hero-upg-subtext purple">сходинок / сек</div>
-                                <div class="alm-hero-upg-price">${formatLarpValue(speedCost)} ${pluralizeLarp(speedCost)}</div>
+                                <div class="alm-hero-upg-price">${formatLarpValue(speedCost)} ларп</div>
                             </button>
 
                             <button id="alm-offline-larp-btn" class="alm-hero-upg-card purple-theme" ${canBuyOffline ? '' : 'disabled'} onclick="window.buyAuraLarpOfflineUpgrade()">
@@ -3614,7 +3614,7 @@
                                 <div class="alm-hero-upg-badge purple">Рів. ${s.offlineLarpLvl}</div>
                                 <div class="alm-hero-upg-compare">${curOfflinePct}% → ${nextOfflinePct}%</div>
                                 <div class="alm-hero-upg-subtext purple">від доходу найвищої сходинки</div>
-                                <div class="alm-hero-upg-price">${formatLarpValue(offlineCost)} ${pluralizeLarp(offlineCost)}</div>
+                                <div class="alm-hero-upg-price">${formatLarpValue(offlineCost)} ларп</div>
                             </button>
                         </div>
                     </div>
@@ -3808,28 +3808,28 @@
                                 <div class="alm-hero-upg-title">1) ЗОЛОТА СНІЖИНКА (x10)</div>
                                 <div class="alm-hero-upg-badge gold">Рів. ${s.goldSnowLvl}/${GOLD_SNOW_MAX_LVL}</div>
                                 <div class="alm-hero-upg-compare">${isGoldSnowMax ? '100%' : `${curGoldSnow}% → ${Number((curGoldSnow + 1).toFixed(2))}%`}</div>
-                                <div class="alm-hero-upg-price">${isGoldSnowMax ? 'МАКСИМУМ' : `${formatLarpValue(goldSnowCost)} ${pluralizeLarp(goldSnowCost)}`}</div>
+                                <div class="alm-hero-upg-price">${isGoldSnowMax ? 'МАКСИМУМ' : `${formatLarpValue(goldSnowCost)} ларп`}</div>
                             </button>
 
                             <button id="alm-emerald-snow-btn" class="alm-hero-upg-card emerald-theme" ${canBuyEmeraldSnow ? '' : 'disabled'} onclick="window.buyAuraLarpEmeraldSnowUpgrade()">
                                 <div class="alm-hero-upg-title">2) СМАРАГДОВА СНІЖИНКА (x1000)</div>
                                 <div class="alm-hero-upg-badge emerald">Рів. ${s.emeraldSnowLvl}/${EMERALD_SNOW_MAX_LVL}</div>
                                 <div class="alm-hero-upg-compare">${isEmeraldSnowMax ? '100%' : `${curEmeraldSnow}% → ${Number((curEmeraldSnow + 0.01).toFixed(2))}%`}</div>
-                                <div class="alm-hero-upg-price">${isEmeraldSnowMax ? 'МАКСИМУМ' : `${formatLarpValue(emeraldSnowCost)} ${pluralizeLarp(emeraldSnowCost)}`}</div>
+                                <div class="alm-hero-upg-price">${isEmeraldSnowMax ? 'МАКСИМУМ' : `${formatLarpValue(emeraldSnowCost)} ларп`}</div>
                             </button>
 
                             <button id="alm-gold-trash-btn" class="alm-hero-upg-card gold-theme" ${canBuyGoldTrash ? '' : 'disabled'} onclick="window.buyAuraLarpGoldTrashUpgrade()">
                                 <div class="alm-hero-upg-title">3) ЗОЛОТЕ СМІТТЯ (x10)</div>
                                 <div class="alm-hero-upg-badge gold">Рів. ${s.goldTrashLvl}/${GOLD_TRASH_MAX_LVL}</div>
                                 <div class="alm-hero-upg-compare">${isGoldTrashMax ? '100%' : `${curGoldTrash}% → ${Number((curGoldTrash + 1).toFixed(2))}%`}</div>
-                                <div class="alm-hero-upg-price">${isGoldTrashMax ? 'МАКСИМУМ' : `${formatLarpValue(goldTrashCost)} ${pluralizeLarp(goldTrashCost)}`}</div>
+                                <div class="alm-hero-upg-price">${isGoldTrashMax ? 'МАКСИМУМ' : `${formatLarpValue(goldTrashCost)} ларп`}</div>
                             </button>
 
                             <button id="alm-emerald-trash-btn" class="alm-hero-upg-card emerald-theme" ${canBuyEmeraldTrash ? '' : 'disabled'} onclick="window.buyAuraLarpEmeraldTrashUpgrade()">
                                 <div class="alm-hero-upg-title">4) СМАРАГДОВЕ СМІТТЯ (x1000)</div>
                                 <div class="alm-hero-upg-badge emerald">Рів. ${s.emeraldTrashLvl}/${EMERALD_TRASH_MAX_LVL}</div>
                                 <div class="alm-hero-upg-compare">${isEmeraldTrashMax ? '100%' : `${curEmeraldTrash}% → ${Number((curEmeraldTrash + 0.01).toFixed(2))}%`}</div>
-                                <div class="alm-hero-upg-price">${isEmeraldTrashMax ? 'МАКСИМУМ' : `${formatLarpValue(emeraldTrashCost)} ${pluralizeLarp(emeraldTrashCost)}`}</div>
+                                <div class="alm-hero-upg-price">${isEmeraldTrashMax ? 'МАКСИМУМ' : `${formatLarpValue(emeraldTrashCost)} ларп`}</div>
                             </button>
                         </div>
                     </div>
@@ -4054,21 +4054,21 @@
                                 <div class="alm-hero-upg-title">1) ТРИВАЛІСТЬ БУРІ</div>
                                 <div class="alm-hero-upg-badge snow">Рів. ${s.stormDurationLvl}</div>
                                 <div class="alm-hero-upg-compare">${curDurMin} хв → ${nextDurMin} хв</div>
-                                <div class="alm-hero-upg-price">${formatLarpValue(durCost)} ${pluralizeLarp(durCost)}</div>
+                                <div class="alm-hero-upg-price">${formatLarpValue(durCost)} ларп</div>
                             </button>
 
                             <button id="alm-storm-cd-btn" class="alm-hero-upg-card snow-theme" ${canBuyCd ? '' : 'disabled'} onclick="window.buyAuraLarpStormCooldownUpgrade()">
                                 <div class="alm-hero-upg-title">2) ПЕРЕЗАРЯДКА БУРІ</div>
                                 <div class="alm-hero-upg-badge snow">Рів. ${s.stormCooldownLvl}/${STORM_COOLDOWN_MAX_LVL}</div>
                                 <div class="alm-hero-upg-compare">${isCdMax ? '0.5 год (МАКС)' : `${curCdHr} год → ${nextCdHr} год`}</div>
-                                <div class="alm-hero-upg-price">${isCdMax ? 'МАКСИМУМ' : `${formatLarpValue(cdCost)} ${pluralizeLarp(cdCost)}`}</div>
+                                <div class="alm-hero-upg-price">${isCdMax ? 'МАКСИМУМ' : `${formatLarpValue(cdCost)} ларп`}</div>
                             </button>
 
                             <button id="alm-storm-spd-btn" class="alm-hero-upg-card snow-theme" ${canBuyStormSpd ? '' : 'disabled'} onclick="window.buyAuraLarpStormSpeedUpgrade()">
                                 <div class="alm-hero-upg-title">3) ШВИДКІСТЬ У БУРІ</div>
                                 <div class="alm-hero-upg-badge snow">Рів. ${s.stormSpeedLvl}/${STORM_SPAWN_MAX_LVL}</div>
                                 <div class="alm-hero-upg-compare">${isStormSpdMax ? `${curStormSpd}с (МАКС)` : `${curStormSpd}с → ${nextStormSpd}с`}</div>
-                                <div class="alm-hero-upg-price">${isStormSpdMax ? 'МАКСИМУМ' : `${formatLarpValue(stormSpdCost)} ${pluralizeLarp(stormSpdCost)}`}</div>
+                                <div class="alm-hero-upg-price">${isStormSpdMax ? 'МАКСИМУМ' : `${formatLarpValue(stormSpdCost)} ларп`}</div>
                             </button>
                         </div>
                     </div>
@@ -4122,7 +4122,7 @@
                             <div class="alm-hero-upg-badge crimson">Рів. ${s.mobDamageLvl}/${MOB_DMG_MAX_LVL}</div>
                             <div class="alm-hero-upg-compare">${isDmgMax ? `${curDmg} HP (МАКС)` : `${curDmg} → ${curDmg + 1} HP`}</div>
                             <div class="alm-hero-upg-subtext crimson">урон за клік по Квочці Рябій</div>
-                            <div class="alm-hero-upg-price">${isDmgMax ? 'МАКСИМУМ' : `${formatLarpValue(dmgCost)} ${pluralizeLarp(dmgCost)}`}</div>
+                            <div class="alm-hero-upg-price">${isDmgMax ? 'МАКСИМУМ' : `${formatLarpValue(dmgCost)} ларп`}</div>
                         </button>
 
                         <button id="alm-mob-respawn-btn" class="alm-hero-upg-card crimson-theme" ${canBuyRespawn ? '' : 'disabled'} onclick="window.buyAuraLarpMobRespawnUpgrade()">
@@ -4130,7 +4130,7 @@
                             <div class="alm-hero-upg-badge crimson">Рів. ${s.mobRespawnLvl}/${MOB_SPAWN_MAX_LVL} (-${curRespawnReduction}%)</div>
                             <div class="alm-hero-upg-compare">${isRespawnMax ? `${formatDurationUk(curRespawnSec)} (МАКС)` : `${formatDurationUk(curRespawnSec)} → ${formatDurationUk(nextRespawnSec)}`}</div>
                             <div class="alm-hero-upg-subtext crimson">час відродження Бойової Квочки</div>
-                            <div class="alm-hero-upg-price">${isRespawnMax ? 'МАКСИМУМ' : `${formatLarpValue(respawnCost)} ${pluralizeLarp(respawnCost)}`}</div>
+                            <div class="alm-hero-upg-price">${isRespawnMax ? 'МАКСИМУМ' : `${formatLarpValue(respawnCost)} ларп`}</div>
                         </button>
                     </div>
                 </div>
@@ -4238,7 +4238,7 @@
                             <span>Множник: <b style="color:#38bdf8;">x${formatMultValue(nextStepObj.mult)}</b></span>
                         </div>
                         <button id="alm-unlock-btn" class="alm-unlock-gold-btn" ${s.larp >= nextStepObj.cost ? '' : 'disabled'} onclick="window.unlockNextAuraLarpStep()">
-                            Купити — ${formatLarpValue(nextStepObj.cost)} ${pluralizeLarp(nextStepObj.cost)}
+                            Купити — ${formatLarpValue(nextStepObj.cost)} ларп
                         </button>
                     ` : `
                         <div class="alm-unlock-summary" style="width:100%;justify-content:center;color:#4ade80;font-weight:900;">
@@ -4362,7 +4362,7 @@
                         🌙 Офлайн-заробіток (${offlineRewardReport.offlinePct}% від ${offlineRewardReport.highestStep}-ї сх.)
                     </div>
                     <div style="font-size: 0.82rem; color: #e2e8f0; margin-bottom: 8px;">
-                        Вас не було: <b>${formatDurationUk(offlineRewardReport.elapsedSec)}</b> • Отримано: <b style="color: #4ade80;">+${formatLarpValue(offlineRewardReport.earnedOffline)} ${pluralizeLarp(offlineRewardReport.earnedOffline)}</b>
+                        Вас не було: <b>${formatDurationUk(offlineRewardReport.elapsedSec)}</b> • Отримано: <b style="color: #4ade80;">+${formatLarpValue(offlineRewardReport.earnedOffline)} ларп</b>
                     </div>
                     <button class="alm-mini-go-btn" style="background: #22c55e; color: #052e16; border: none;" onclick="window.dismissAuraLarpOfflineReport()">
                         Забрати
@@ -4390,7 +4390,7 @@
                     <div class="alm-top-bar">
                         <div class="alm-larp-counter-group">
                             <span class="alm-larp-value" id="alm-larp-balance">${formatLarpValue(s.larp)}</span>
-                            <span class="alm-larp-word" id="alm-larp-word">${pluralizeLarp(s.larp)}</span>
+                            <span class="alm-larp-word" id="alm-larp-word">ларп</span>
                             <span class="alm-larp-rate-pill" id="alm-larp-rate">${formatMultValue(currentRate)} ларп/сек</span>
                         </div>
                         <div class="alm-step-pill" id="alm-step-pill">
