@@ -82,7 +82,11 @@ const ESTATE_LEVELS = [
     { level: 9, income: 450000, costBlood: 10000 },
     { level: 10, income: 500000, costBlood: 16000 },
     { level: 11, income: 550000, costBlood: 25000 },
-    { level: 12, income: 600000, costBlood: 45000 }
+    { level: 12, income: 600000, costBlood: 45000 },
+    { level: 13, income: 650000, costBlood: 65000 },
+    { level: 14, income: 700000, costBlood: 90000 },
+    { level: 15, income: 750000, costBlood: 130000 },
+    { level: 16, income: 800000, costBlood: 200000 },
 ];
 
 let eventSubTab = 'victim'; // 'victim', 'upgrades', 'estate', 'leaderboard'
