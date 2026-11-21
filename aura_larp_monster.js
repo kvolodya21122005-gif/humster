@@ -1255,7 +1255,7 @@
         return baseInterval;
     }
 
-    // Загальний множник Ларпів (для поточної сходинки)
+    // Загальний множник ів (для поточної сходинки)
     function getTotalLarpMultiplier() {
         const stairMult = getStairMultiplier();
         const roomMult = getRoomLarpMultiplier();
@@ -1270,7 +1270,7 @@
         return BASE_LARP_PER_SEC * getTotalLarpMultiplier();
     }
 
-    // Загальний множник та дохід Ларпів за НАЙВИЩОЮ відкритою сходинкою (для топу та оффлайн-заробітку)
+    // Загальний множник та дохід ів за НАЙВИЩОЮ відкритою сходинкою (для топу та оффлайн-заробітку)
     function getHighestStepTotalMultiplier() {
         const highestStairMult = getHighestStairMultiplier();
         const roomMult = getRoomLarpMultiplier();
@@ -1347,15 +1347,6 @@
         return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
     }
 
-    function pluralizeLarp(val) {
-        const whole = Math.floor(Math.abs(Number(val) || 0));
-        const n = whole % 100;
-        const n1 = n % 10;
-        if (n > 10 && n < 20) return 'ларпів';
-        if (n1 === 1) return 'ларп';
-        if (n1 >= 2 && n1 <= 4) return 'ларпи';
-        return 'ларпів';
-    }
 
     // Повертає дані про валюту кімнати для поточної сходинки персонажа (якщо така існує)
     function getRoomCurrencyForStep(stepNumber) {
@@ -3146,7 +3137,6 @@
         const stepBadgeEl = document.getElementById('alm-step-badge');
 
         if (larpValEl) larpValEl.textContent = formatLarpValue(s.larp);
-        if (larpWordEl) larpWordEl.textContent = pluralizeLarp(s.larp);
         if (larpRateEl) larpRateEl.textContent = `${formatMultValue(getLarpPerSecond())} ларп/сек`;
         if (stepBadgeEl) stepBadgeEl.textContent = `${s.currentStep}`;
 
