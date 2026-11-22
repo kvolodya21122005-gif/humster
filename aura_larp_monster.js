@@ -1488,16 +1488,16 @@
     }
 
     function getStoneLarpMultiplier() {
-        const s = initAuraLarpMonsterState();
-        const lvl = s.stoneLarpMultLvl || 0;
-        if (lvl <= 0) return 1.0;
-        return Number(Math.pow(1.2, lvl).toFixed(4));
+    const s = initAuraLarpMonsterState();
+    const lvl = s.stoneLarpMultLvl || 0;
+    if (lvl <= 0) return 1.0;
+    return Number((1.2 + (lvl - 1) * 0.2).toFixed(2));
     }
-
+    
     function getNextStoneLarpMultiplier() {
         const s = initAuraLarpMonsterState();
-        const lvl = (s.stoneLarpMultLvl || 0) + 1;
-        return Number(Math.pow(1.2, lvl).toFixed(4));
+        const lvl = s.stoneLarpMultLvl || 0;
+        return Number((1.2 + lvl * 0.2).toFixed(2));
     }
 
     function getStoneLarpUpgradeCost() {
