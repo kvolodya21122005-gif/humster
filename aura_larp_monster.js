@@ -1474,12 +1474,12 @@
 
     // Кімната 120 сходинки (Буріння вниз — Камінь та 4 знаряддя)
     function getStoneMultiplier() {
-        const s = initAuraLarpMonsterState();
-        return Math.pow(2, s.stoneMultLvl || 0);
+    const s = initAuraLarpMonsterState();
+    return 1 + (s.stoneMultLvl || 0);
     }
-
+    
     function getNextStoneMultiplier() {
-        return getStoneMultiplier() * 2;
+        return getStoneMultiplier() + 1;
     }
 
     function getStoneMultUpgradeCost() {
