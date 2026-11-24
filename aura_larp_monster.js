@@ -147,10 +147,30 @@
         { step: 137, mult: 196.0, cost: 43000000000 },
         { step: 138, mult: 200.0, cost: 46000000000 },
         { step: 139, mult: 205.0, cost: 57000000000 },
-        { step: 140, mult: 206.0, cost: 70000000000 }
+        { step: 140, mult: 210.0, cost: 70000000000 },
+        { step: 141, mult: 215.0, cost: 90000000000 },
+        { step: 142, mult: 220.0, cost: 120000000000 },
+        { step: 143, mult: 225.0, cost: 140000000000 },
+        { step: 144, mult: 230.0, cost: 170000000000 },
+        { step: 145, mult: 235.0, cost: 210000000000 },
+        { step: 146, mult: 240.0, cost: 250000000000 },
+        { step: 147, mult: 245.0, cost: 340000000000 },
+        { step: 148, mult: 250.0, cost: 420000000000 },
+        { step: 149, mult: 260.0, cost: 500000000000 },
+        { step: 150, mult: 270.0, cost: 600000000000 },
+        { step: 151, mult: 280.0, cost: 750000000000 },
+        { step: 152, mult: 290.0, cost: 900000000000 },
+        { step: 153, mult: 300.0, cost: 1200000000000 },
+        { step: 154, mult: 310.0, cost: 1600000000000 },
+        { step: 155, mult: 325.0, cost: 2000000000000 },
+        { step: 156, mult: 340.0, cost: 2500000000000 },
+        { step: 157, mult: 355.0, cost: 2800000000000 },
+        { step: 158, mult: 370.0, cost: 3200000000000 },
+        { step: 159, mult: 385.0, cost: 3600000000000 },
+        { step: 160, mult: 400.0, cost: 4000000000000 }
     ];
 
-    const MAX_STEP = STAIRS_CONFIG.length; // 140
+    const MAX_STEP = STAIRS_CONFIG.length; // 160
     const ROOM_STEPS = [10, 20, 30, 40, 50, 60, 70, 80, 90, 110, 120, 130];
 
     // Кімната 10 сходинки
