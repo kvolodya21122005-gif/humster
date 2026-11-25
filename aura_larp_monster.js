@@ -405,7 +405,7 @@
     const ORANGUTAN_BOMB_COST_STEP = 25; // -25 вогняних сніжинок за рівень
     const ORANGUTAN_BOMB_MAX_LVL = 6; // максимум 6 рівень
     const ORANGUTAN_BOMB_COOLDOWN_SEC = 600; // кожні 10 хвилин
-    const ORANGUTAN_BOMB_DMG_MULT = 150; // шкода 90 кімнати * 150
+    const ORANGUTAN_BOMB_DMG_MULT = 325; // шкода 90 кімнати * 150
 
     // Кімната 160 сходинки (Когут та Золотий Когут для 50 кімнати)
     const ROOSTER_CHANCE_BASE_COST = 1e12; // 1T ларпів
