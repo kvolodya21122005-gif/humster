@@ -177,7 +177,17 @@
         { step: 167, mult: 540.0, cost: 8200000000000 },
         { step: 168, mult: 560.0, cost: 8900000000000 },
         { step: 169, mult: 580.0, cost: 9400000000000 },
-        { step: 170, mult: 600.0, cost: 10000000000000 }
+        { step: 170, mult: 600.0, cost: 10000000000000 },
+        { step: 171, mult: 620.0, cost: 11000000000000 },
+        { step: 172, mult: 640.0, cost: 12000000000000 },
+        { step: 173, mult: 660.0, cost: 13000000000000 },
+        { step: 174, mult: 680.0, cost: 13700000000000 },
+        { step: 175, mult: 700.0, cost: 14200000000000 },
+        { step: 176, mult: 720.0, cost: 15000000000000 },
+        { step: 177, mult: 740.0, cost: 16200000000000 },
+        { step: 178, mult: 760.0, cost: 17600000000000 },
+        { step: 179, mult: 780.0, cost: 19500000000000 },
+        { step: 180, mult: 800.0, cost: 22000000000000 }
     ];
 
     const MAX_STEP = STAIRS_CONFIG.length; // 160
